@@ -159,3 +159,106 @@ test('UC-51 exposes Hoàn tiền in Admin menu at /admin/refunds and blocks Staf
     globalThis.fetch = originalFetch;
   }
 });
+
+test('UC-39 ST-BKG-30 shows Hoàn tiền lịch đặt tab with recorded booking cancellation refunds', async () => {
+  const api = {
+    ...createApi(),
+    bookingRefunds: jest.fn(async () => ({
+      data: {
+        total: 1,
+        items: [{
+          id: 'cancel:' + '1'.repeat(24),
+          bookingId,
+          visitId: '1'.repeat(24),
+          sourceType: 'BOOKING_CANCELLATION',
+          state: 'RECORDED',
+          amountVnd: 114000,
+          lateFeeVnd: 0,
+          comboDiscountAdjustmentVnd: 2400,
+          reason: 'Thay đổi kế hoạch',
+          recordedAt: '2026-11-26T02:05:00.000Z',
+          customer: { id: 'cust-1', displayName: 'Trần Thị Lan' },
+          booking: { id: bookingId, state: 'DISPATCH_PENDING', serviceName: 'Chăm sóc tại gia', paidTotalVnd: 349200 },
+          visit: { id: '1'.repeat(24), startAt: '2026-11-28T02:00:00.000Z', endAt: '2026-11-28T03:00:00.000Z', state: 'CANCELLED' }
+        }]
+      }
+    }))
+  };
+  show(api);
+
+  fireEvent.click(await screen.findByRole('tab', { name: /Hoàn tiền lịch đặt/ }));
+  expect(await screen.findByRole('heading', { name: 'Chăm sóc tại gia' })).toBeVisible();
+  expect(screen.getByText(/^114\.000\s*₫$/)).toBeVisible();
+  expect(screen.getByText(/2\.400/)).toBeVisible();
+  expect(screen.getByText('Thay đổi kế hoạch')).toBeVisible();
+  expect(api.bookingRefunds).toHaveBeenCalledTimes(1);
+});
+
+test('ST-ORD-10 shows Hoàn tiền đơn hàng tab using productSalesApi.listOrderRefunds', async () => {
+  const api = createApi();
+  const productSalesApi = {
+    listOrderRefunds: jest.fn(async () => ({
+      data: {
+        total: 1,
+        items: [{
+          id: 'c'.repeat(24),
+          code: 'DH-2026-0099',
+          status: 'CANCELLED',
+          receiveMethod: 'DELIVERY',
+          paymentMethod: 'PREPAID',
+          paid: true,
+          subtotal: 150000,
+          shippingFee: 25000,
+          total: 175000,
+          refundMarked: true,
+          refundAmountVnd: 175000,
+          cancelledAt: '2026-11-26T02:10:00.000Z',
+          customer: { id: 'cust-1', displayName: 'Trần Thị Lan', phone: '0912345678' },
+          lines: []
+        }]
+      }
+    }))
+  };
+
+  render(
+    <MemoryRouter initialEntries={['/admin/refunds']}>
+      <SessionProvider adapter={session('ADMIN')}>
+        <RefundProcessingPage api={api} productSalesApi={productSalesApi} />
+      </SessionProvider>
+    </MemoryRouter>
+  );
+
+  fireEvent.click(await screen.findByRole('tab', { name: /Hoàn tiền đơn hàng/ }));
+  expect(await screen.findByRole('heading', { name: 'Đơn DH-2026-0099' })).toBeVisible();
+  expect(screen.getAllByText(/175\.000\s*₫/).length).toBeGreaterThanOrEqual(1);
+  expect(screen.getByText('Đã huỷ')).toBeVisible();
+  expect(productSalesApi.listOrderRefunds).toHaveBeenCalledTimes(1);
+});
+
+test('UC-51 ST-CAS-04 shows incident refund proposals with Sự cố source label and links to /cases/:id', async () => {
+  const incidentItem = {
+    ...pendingItem,
+    id: 'a'.repeat(24),
+    code: 'SC-AAAAAAAAAAAA',
+    kind: 'INCIDENT',
+    state: 'UNDER_REVIEW',
+    proposal: {
+      ...pendingItem.proposal,
+      amountVnd: 200000,
+      reason: 'Chi phí khám thú y'
+    }
+  };
+  const api = {
+    refundProposals: jest.fn(async () => ({
+      data: { items: [incidentItem], proposalCounts: { PENDING: 1, DECIDED: 0 }, nextCursor: null }
+    })),
+    refundProposal: jest.fn(async () => ({ data: incidentItem })),
+    decideRefund: jest.fn(async () => ({
+      data: { state: 'RESOLVED', messageCode: 'MSG134', complaint: { ...incidentItem, state: 'RESOLVED', version: 2, moneyDecision: { outcome: 'REDUCE', amountVnd: 150000 } } }
+    }))
+  };
+  show(api);
+  expect(await screen.findByRole('heading', { name: 'SC-AAAAAAAAAAAA' })).toBeVisible();
+  expect(screen.getAllByText(/Sự cố/).length).toBeGreaterThan(0);
+  expect(screen.getByRole('link', { name: 'Xem sự cố' })).toHaveAttribute('href', `/cases/${incidentItem.id}`);
+});

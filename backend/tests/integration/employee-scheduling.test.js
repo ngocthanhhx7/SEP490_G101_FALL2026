@@ -16,6 +16,7 @@ import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { createBookingFinanceSourceService } from '../../src/services/settlements/booking-finance-source.service.js';
 import { createAiRepository } from '../../src/services/sitter-matching/matching.repository.js';
 import { createVisitTravelService } from '../../src/services/employee-scheduling/visit-travel.service.js';
+import { createVisitRemindersService } from '../../src/services/employee-scheduling/visit-reminders.service.js';
 import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
 import { createMongoCustomerReviewRepository } from '../../src/services/reviews/mongo-customer-review.repository.js';
 import { createReviewService } from '../../src/services/reviews/review.service.js';
@@ -30,8 +31,11 @@ import { privateImageModule } from '../../src/routes/private-image.routes.js';
 import { privateImageModels } from '../../src/models/private-image.model.js';
 import { createPrivateImageService } from '../../src/services/private-image.service.js';
 import { requireSession, requireCsrf } from '../../src/middlewares/session.js';
+import { createBookingDetailsService } from '../../src/services/booking-proposals/booking-details.service.js';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 import { reasonsOfVisit } from '../../src/services/employee-scheduling/needs-action.service.js';
+import { finalizeExceptionalBooking } from '../../src/services/employee-scheduling/booking-terminal.service.js';
+import { readDirectedSitterPage } from '../../src/services/booking-proposals/directed-sitter-directory.service.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
@@ -152,21 +156,28 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'IN_PROGRESS', checkInAt: new Date(clock()), checkOutAt: null });
   const mediaOut = await upload('synthetic-private-care-out');
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-out-before-checklist')).send({ expectedVersion: checkedIn.body.data.version, mediaId: mediaOut }).expect(409);
+  const checklist = { expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] };
+  await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-note-invalid'))
+    .send({ ...checklist, customerNote: 'x'.repeat(2001) }).expect(422);
+  const customerNote = 'Milo đã ăn hết phần ăn và uống đủ nước.';
   const saved = await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-care'))
-    .send({ expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] }).expect(200);
+    .send({ ...checklist, customerNote: ` ${customerNote} ` }).expect(200);
   expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({
-    state: 'IN_PROGRESS', version: saved.body.data.version,
+    state: 'IN_PROGRESS', version: saved.body.data.version, customerNote,
     checklist: [{ itemId: 'pet-condition', status: 'DONE' }]
   });
   current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
+  expect(current.customerNote).toBe(customerNote);
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
   expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({
     state: 'COMPLETED', version: saved.body.data.version + 1, checkInAt: new Date(clock()), checkOutAt: new Date(clock()),
     evidenceRefs: [{ mediaId: mediaIn }, { mediaId: mediaOut }]
   });
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'COMPLETED', checkOutAt: new Date(clock()) });
-  expect((await checkout.read(customer, String(row.bookingId))).state).toBe('COMPLETED');
+  const report = await checkout.read(customer, String(row.bookingId));
+  expect(report.state).toBe('COMPLETED');
+  expect(report.details.visits[0].customerNote).toBe(customerNote);
   await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
   expect(stored.size).toBe(2);
   const finalRead = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-final')).expect(200)).body.data;
@@ -176,6 +187,49 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(customer,'synthetic-customer-image')).expect(200).expect('Cache-Control','private, no-store');
   await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(staff,'synthetic-no-staff-image')).expect(404);
   expect(await connection.collection('caremediabindings').countDocuments({ visitId: String(row._id) })).toBe(2);
+});
+
+test('versioned visit notes are saved by the assigned sitter and visible only in the owning customer report', async () => {
+  const sitter = await employee(), otherSitter = await employee();
+  const row = await visit({ start: '2026-10-30T02:50:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    state: 'IN_PROGRESS', sitterId: new mongoose.Types.ObjectId(sitter.userId), checkInAt: new Date(clock()),
+    'snapshots.workflow': { definition: { title: 'Synthetic workflow', steps: [] }, revision: 1, hash: 'synthetic' }
+  } });
+  const finance = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } },
+    env: { FINANCE_SOURCES_ENABLED: 'true' }, sessionService, clock });
+  const server = express(); server.use(express.json(), requestId);
+  server.use('/api/v1', finance.router); server.use(errorHandler(() => {}));
+  const url = `/api/v1/visits/${row._id}`;
+  const save = (who, key, payload) => request(server).patch(url + '/checklists')
+    .set({ 'x-test-actor': who.userId, 'x-csrf-token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' })
+    .send(payload);
+  const customerNote = 'Đã thay nước sạch cho Milo.';
+  const payload = { expectedVersion: 0, customerNote: ` ${customerNote} ` };
+  await save(otherSitter, 'synthetic-versioned-note-denied', payload).expect(404);
+  await save(sitter, 'synthetic-versioned-note-invalid', { ...payload, customerNote: 'x'.repeat(2001) }).expect(422);
+  await save(sitter, 'synthetic-versioned-note-checklist', { ...payload, items: [{ itemId: 'service-scope', status: 'DONE' }] }).expect(409);
+  const saved = await save(sitter, 'synthetic-versioned-note-save', payload).expect(200);
+  const repeated = await save(sitter, 'synthetic-versioned-note-save', payload).expect(200);
+  expect(repeated.body.data).toEqual(saved.body.data);
+  const execution = await request(server).get(url + '/execution').set('x-test-actor', sitter.userId).expect(200);
+  expect(execution.body.data).toMatchObject({ customerNote, checklist: [], workflow: { mode: 'VERSIONED' } });
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(row.bookingId))).details.visits[0]).toMatchObject({ customerNote, workflow: { mode: 'VERSIONED' } });
+  await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
+  const staffDetails = await createBookingDetailsService({ connection, clock }).readStaff(staff, String(row.bookingId));
+  expect(staffDetails.details.visits[0]).not.toHaveProperty('customerNote');
+  await save(sitter, 'synthetic-versioned-note-clear', { expectedVersion: saved.body.data.version, customerNote: '' }).expect(200);
+  expect((await checkout.read(customer, String(row.bookingId))).details.visits[0]).not.toHaveProperty('customerNote');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    startAt: new Date(clock() - 4 * 3600000), endAt: new Date(clock() - 2 * 3600000 - 1),
+    checkInAt: new Date(clock() - 4 * 3600000)
+  } });
+  const expired = await save(sitter, 'synthetic-versioned-note-expired', {
+    expectedVersion: saved.body.data.version + 1, customerNote: 'Synthetic late note'
+  }).expect(409);
+  expect(expired.body.error.code).toBe('WORKFLOW_WINDOW_CLOSED');
+  expect((await connection.collection('visits').findOne({ _id: row._id })).customerNote).toBe('');
 });
 
 test('execution read exposes timing and bound evidence while excluding private notes and money', async () => {
@@ -380,6 +434,7 @@ test('confirmed assignments block incompatible area/time removal and pending inv
   await module.dispatch.offers.accept(sitter, offer.offerId, 0, 'accept-persisted');
   expect((await module.dispatch.offers.assignments(sitter)).items[0].serviceAddress).toBe('Synthetic private facility');
   expect(await module.dispatch.offers.accept(sitter, offer.offerId, 0, 'accept-persisted')).toMatchObject({ state: 'ASSIGNED' });
+  expect((await connection.collection('visits').findOne({ _id: row._id })).assignmentVersion).toBe(1);
   await expect(module.repository.areas.replaceMine({ actor: sitter, areas: [], expectedVersion: 2, idempotencyKey: 'remove-confirmed-area' })).rejects.toMatchObject({ code: 'CONFIRMED_VISIT_CONFLICT' });
   await expect(module.repository.availability.updateMine({ actor: sitter, command: { zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30',
     workingWindows: [], expectedVersion: 2, idempotencyKey: 'remove-confirmed-time' } })).rejects.toMatchObject({ code: 'CONFIRMED_VISIT_CONFLICT' });
@@ -481,7 +536,7 @@ test('GBR-12 automatic fallback sends five nearby newcomers together and recheck
   await expect(dispatch.offers.accept(workers[0], String(initial._id), 0, 'origin-removed-after-offer')).rejects.toMatchObject({ code: 'DAY_ORIGIN_MISSING' });
   await connection.collection('aisitterprofiles').updateOne({ userId: originOwner }, { $set: { starts: original.starts } });
   for (const [index, offer] of batch.entries()) {
-    await dispatch.offers.decline(workers[index], String(offer._id), 0, `newcomer-decline-${offer._id}`);
+    await dispatch.offers.decline(workers[index], String(offer._id), 0, `newcomer-decline-${offer._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
     await dispatch.runBatch({ limit: 20 });
     expect(await pending()).toHaveLength(4 - index);
   }
@@ -595,7 +650,7 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   const body = { rating: 4, expectedVersion: credits[0].sourceVersion };
   const [a, b] = await Promise.all([rate(customer).send(body), rate(customer).send(body)]);
   expect(a.status).toBe(201); expect(b.status).toBe(201); expect(a.body.data).toEqual(b.body.data);
-  expect(a.body.data.review.state).toBe('SUBMITTED');
+  expect(a.body.data.review.state).toBe('PUBLISHED');
   const outcome = await connection.models.SitterVisitOutcome.findOne({ visitId: plan.visits[0].id }).select('+provenance').lean();
   expect(outcome).toMatchObject({ rating: 4, resolution: 'COMPLETED', sourceRef: `customer-review:${a.body.data.review.id}:0`,
     provenance: { bookingId: String(row.bookingId), creditId: String(credits[0]._id), trainingEligible: false } });
@@ -604,6 +659,11 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   const stranger = actor('CUSTOMER'); await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(stranger.userId), ...stranger });
   await rate(stranger).send(body).expect(404);
   const second = `/reviews/visits/${plan.visits[1].id}/ratings`;
+  const secondForSameSitter = await request(reviewApp).post(second).set('x-test-actor', customer.userId)
+    .set('Host', 'localhost').set('Origin', 'http://localhost').set('x-csrf-token', 'synthetic-csrf')
+    .set('Idempotency-Key', 'verified-same-sitter-second-visit').send({ rating: 5 });
+  expect(secondForSameSitter.status).toBe(409);
+  expect(secondForSameSitter.body.error.code).toBe('REVIEW_ALREADY_EXISTS');
   await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { state: 'IN_PROGRESS' } });
   await request(reviewApp).post(second).set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
     .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'unverified-rating-002').send({ rating: 5 }).expect(409);
@@ -803,6 +863,13 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('COMPLETED');
   expect(await matching.SitterVisitOutcome.countDocuments({ visitId: row._id })).toBe(0);
 
+  reviewNow = at + 8 * 86400000;
+  const afterSevenDays = await request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
+    .set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+    .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'late-customer-rating-8days')
+    .send({ rating: 4, expectedVersion: completed.version });
+  expect(afterSevenDays.status).toBe(409);
+  expect(afterSevenDays.body.error.code).toBe('REVIEW_WINDOW_EXPIRED');
   at += 60000;
   reviewNow = at;
   const rate = () => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
@@ -1029,6 +1096,82 @@ test('UC-82 sends a requeued visit with no candidates to Staff', async () => {
   expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id, state: 'PENDING' })).toBe(0);
 });
 
+function withdrawalAppWithoutAgent() {
+  const runtime = employeeSchedulingRuntimeModule({ connection, config: { auth: { enabled: true } }, clock, sessionService,
+    env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', EMPLOYEE_DISPATCH_AGENT_ENABLED: 'false' } });
+  const server = express(); server.use(express.json(), requestId); server.use(runtime.mount, runtime.router); server.use(errorHandler(() => {}));
+  const post = (row, path, user, body, key) => request(server).post(`${withdrawalPath(row)}/${path}`)
+    .set({ 'x-test-actor': user.userId, 'X-CSRF-Token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' }).send(body);
+  return { post };
+}
+async function expectInNeedsAction(row, code) {
+  const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored).toMatchObject({ state: 'SCHEDULED', sitterId: null, handoverRequired: true, dispatchReview: { code } });
+  expect(reasonsOfVisit(stored, clock()).map(reason => reason.code)).toContain('NO_SITTER_TO_OFFER');
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'DispatchReviewRequired',
+    recipientId: staff.userId, 'metadata.visitId': String(row._id) })).toBe(1);
+}
+// The file shares one database and automatic dispatch refuses an area with more than 100 registered employees.
+const retire = (...workers) => module.repository.models.EmployeeAvailability.deleteMany({ _id: { $in: workers.map(value => value.userId) } });
+
+test('GBR-21 an early withdrawal without the dispatch agent goes straight to Staff Needs action', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-11-23T05:00:00Z');
+  const { post } = withdrawalAppWithoutAgent();
+  await post(row, 'withdrawals', sitter, { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'ILLNESS' }, 'withdraw-agent-off').expect(200);
+  await expectInNeedsAction(row, 'STAFF_REVIEW_REQUIRED');
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(0);
+  await retire(sitter);
+});
+
+test('GBR-21 a withdrawal released by Staff without the dispatch agent goes to Needs action', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-10-30T11:00:00Z');
+  const { post } = withdrawalAppWithoutAgent();
+  await post(row, 'withdrawals', sitter, { expectedVersion: 0, expectedMode: 'LATE', reasonCode: 'ILLNESS' }, 'withdraw-late-agent-off').expect(200);
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview.code).toBe('NO_ELIGIBLE_SITTER');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await post(row, 'withdrawal-decisions', staff, { expectedVersion: 1, decision: 'RELEASE', reason: 'Synthetic release' }, 'release-agent-off').expect(200);
+  await expectInNeedsAction(row, 'STAFF_REVIEW_REQUIRED');
+  await retire(sitter);
+});
+
+test('GBR-21 offers an early withdrawal again to the five best other pet sitters with a handover', async () => {
+  const sitters = [];
+  for (let index = 0; index < 6; index++) sitters.push(await employee());
+  const dedicatedService = oid(), row = await assignedForWithdrawal(sitters[0], '2026-11-24T04:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { serviceId: dedicatedService }, $unset: { dispatchReview: 1 } });
+  await connection.collection('aisitterprofiles').updateMany(
+    { userId: { $in: sitters.map(value => new mongoose.Types.ObjectId(value.userId)) } }, { $set: { serviceIds: [dedicatedService] } });
+  await sendWithdrawal(row, sitters[0], { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'ILLNESS' }, 'withdraw-reoffer').expect(200);
+  const offers = await module.repository.models.EmployeeVisitOffer.find({ visitId: row._id, state: 'PENDING' }).lean();
+  expect(offers.map(offer => offer.sitterId).sort()).toEqual(sitters.slice(1).map(value => value.userId).sort());
+  const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored).toMatchObject({ state: 'SCHEDULED', handoverRequired: true, handoverNote: { reasonCode: 'ILLNESS' } });
+  expect(stored.dispatchReview).toBeUndefined();
+  await retire(...sitters);
+});
+
+test('GBR-21 a released visit whose offer is refused for another reason reaches Needs action once, with that reason', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-11-23T06:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { paymentMode: 'PREPAY', paymentState: 'PAID' } });
+  await sendWithdrawal(row, sitter, { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'OTHER' }, 'withdraw-refused').expect(200);
+  await expectInNeedsAction(row, 'PAYMENT_REQUIRED');
+  // The worker keeps retrying; Staff are not told twice.
+  await module.dispatch.requeueWithdrawal(String(row._id), 1);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { 'dispatchReview.retryAt': new Date(clock() - 1) } });
+  await module.dispatch.requeueWithdrawal(String(row._id), 1);
+  await expectInNeedsAction(row, 'PAYMENT_REQUIRED');
+  await retire(sitter);
+});
+
+test('a first dispatch that is not a release keeps ignoring an unrelated refusal', async () => {
+  const row = await visit({ start: '2026-11-23T07:00:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { paymentMode: 'PREPAY', paymentState: 'PAID' } });
+  await module.dispatch.requeueWithdrawal(String(row._id), 0);
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview).toBeUndefined();
+});
+
 async function sequentialFixture({ scores = [4, 3], preferred = false, consent = false, start = '2026-10-31T03:00:00Z', rankerFails = false } = {}) {
   const workers = [];
   const serviceId = oid();
@@ -1059,7 +1202,7 @@ test.each(['INELIGIBLE', 'DECLINED', 'EXPIRED'])('directed dispatch waits for cu
     await first(`consent-first-${row._id}`);
     const [opening] = await offers('PENDING');
     expect(opening.sitterId).toBe(workers[0].userId);
-    if (reason === 'DECLINED') await dispatch.offers.decline(workers[0], String(opening._id), 0, `consent-decline-${row._id}`);
+    if (reason === 'DECLINED') await dispatch.offers.decline(workers[0], String(opening._id), 0, `consent-decline-${row._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
     else await module.repository.models.EmployeeVisitOffer.updateOne({ _id: opening._id }, { $set: { deadline: new Date(clock()) } });
   }
   await rerun();
@@ -1078,7 +1221,7 @@ test('GBR-12 offers the top five together and GBR-13 permits exactly one winner'
   await first(`gbr12-tie-${row._id}`);
   const group = await offers('PENDING');
   expect(group.map(offer => offer.sitterId)).toEqual(workers.map(worker => worker.userId));
-  await dispatch.offers.decline(workers[0], String(group[0]._id), 0, `gbr12-tie-decline-${row._id}`);
+  await dispatch.offers.decline(workers[0], String(group[0]._id), 0, `gbr12-tie-decline-${row._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
   await rerun();
   expect(await offers('PENDING')).toHaveLength(4);
   const responses = await Promise.allSettled(group.slice(1, 3).map((offer, index) =>
@@ -1138,6 +1281,241 @@ test('Staff can add one eligible sitter to a pending automatic batch while prese
   const rescheduled = await dispatch.details(staff, visitId);
   expect(rescheduled).not.toHaveProperty('dispatchRanking');
   expect(rescheduled.latestOffers).toEqual([]);
+});
+
+test('manual Staff dispatch assigns an eligible full-time sitter directly and notifies both parties once', async () => {
+  const sitter = await employee();
+  const employeeId = new mongoose.Types.ObjectId(sitter.userId);
+  await payroll.EmploymentContract.updateOne({ employeeId }, { $set: {
+    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400
+  } });
+  const row = await visit();
+  const visitId = String(row._id);
+  const preview = await module.dispatch.previewCandidates(staff, visitId, { startAt: row.startAt.toISOString(), mode: 'MANUAL' });
+  expect(preview.items).toContainEqual(expect.objectContaining({ sitterId: sitter.userId, employmentType: 'FULL_TIME', canAssignDirectly: true }));
+  const result = await module.dispatch.invite(staff, visitId, { sitterId: sitter.userId, expectedVersion: 0, expectedAction: 'DIRECT_ASSIGN' }, `direct-${visitId}`);
+  expect(result).toMatchObject({ state: 'ASSIGNED', visitId, sitterId: sitter.userId, version: 1 });
+  expect(await module.dispatch.invite(staff, visitId, { sitterId: sitter.userId, expectedVersion: 0, expectedAction: 'DIRECT_ASSIGN' }, `direct-${visitId}`)).toEqual(result);
+  expect(await connection.collection('employeevisitoffers').countDocuments({ visitId: row._id })).toBe(0);
+  expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({ state: 'ASSIGNED', sitterId: employeeId, version: 1 });
+  expect((await module.dispatch.queue(staff)).items.some(item => item.id === visitId)).toBe(false);
+  const notices = await connection.collection('notifications').find({ 'metadata.visitId': visitId, eventType: 'VisitAssignedDirectly' }).toArray();
+  expect(notices).toHaveLength(2);
+  expect(notices.map(item => item.role).sort()).toEqual(['CUSTOMER', 'PET_SITTER']);
+  expect(notices.find(item => item.role === 'PET_SITTER')).toMatchObject({ deepLink: `/sitter/visits/${visitId}` });
+});
+
+test('manual Staff dispatch invites part-time sitters and full-time sitters outside their working windows', async () => {
+  for (const fullTime of [false, true]) {
+    const sitter = await employee();
+    if (fullTime) await payroll.EmploymentContract.updateOne({ employeeId: new mongoose.Types.ObjectId(sitter.userId) },
+      { $set: { employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 } });
+    const row = await visit({ start: fullTime ? '2026-11-02T12:00:00Z' : '2026-11-02T02:00:00Z' });
+    const visitId = String(row._id);
+    const preview = await module.dispatch.previewCandidates(staff, visitId, { startAt: row.startAt.toISOString(), mode: 'MANUAL' });
+    expect(preview.items).toContainEqual(expect.objectContaining({ sitterId: sitter.userId,
+      employmentType: fullTime ? 'FULL_TIME' : 'PART_TIME', canAssignDirectly: false }));
+    const result = await module.dispatch.invite(staff, visitId, { expectedVersion: 0, sitterId: sitter.userId }, `manual-invite-${visitId}`);
+    expect(result.state).toBe('PENDING');
+    expect((await connection.collection('visits').findOne({ _id: row._id })).sitterId).toBeNull();
+    const offer = await connection.collection('employeevisitoffers').findOne({ visitId: row._id, sitterId: sitter.userId });
+    expect(offer.state).toBe('PENDING');
+    expect(offer.manualOutsideHoursAllowed === true).toBe(fullTime);
+    if (fullTime) {
+      const accepted = await module.dispatch.offers.accept(sitter, result.offerId, 0, `accept-outside-${visitId}`);
+      expect(accepted).toMatchObject({ state: 'ASSIGNED', sitterId: sitter.userId });
+    }
+  }
+});
+
+test('part-time Staff invitations are blocked outside registered working hours', async () => {
+  const sitter = await employee();
+  // Scope this scenario to its subject; earlier integration fixtures accumulate
+  // more than 100 sitters, which otherwise trips the unrelated search cap.
+  const row = await visit({ start: '2026-11-02T12:00:00Z', requestedSitterId: sitter.userId }); // 19:00 Vietnam time, outside 08:00–18:00.
+  const visitId = String(row._id);
+  const preview = await module.dispatch.previewCandidates(staff, visitId, { startAt: row.startAt.toISOString(), mode: 'MANUAL' });
+  expect(preview.items.some(candidate => candidate.sitterId === sitter.userId)).toBe(false);
+  expect(preview.blocked).toContainEqual(expect.objectContaining({ sitterId: sitter.userId, reason: 'OUTSIDE_WORKING_HOURS' }));
+  await expect(module.dispatch.invite(staff, visitId, { sitterId: sitter.userId, expectedVersion: 0 }, `parttime-outside-${visitId}`))
+    .rejects.toMatchObject({ code: 'OUTSIDE_WORKING_HOURS', status: 409 });
+  expect(await connection.collection('employeevisitoffers').countDocuments({ visitId: row._id })).toBe(0);
+});
+
+test.each([
+  ['daily eight-hour limit', '2026-11-02T02:00:00Z', 450, '2026-11-02T12:00:00Z', 2400],
+  ['weekly contract limit', '2026-11-02T02:00:00Z', 450, '2026-11-03T12:00:00Z', 480]
+])('full-time manual outside-hours invite respects %s', async (_label, existingStart, existingMinutes, targetStart, weeklyMinutes) => {
+  const sitter = await employee(), sitterObjectId = new mongoose.Types.ObjectId(sitter.userId);
+  await payroll.EmploymentContract.updateOne({ employeeId: sitterObjectId }, { $set: {
+    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes
+  } });
+  const occupied = await visit({ start: existingStart, minutes: existingMinutes });
+  await connection.collection('visits').updateOne({ _id: occupied._id },
+    { $set: { sitterId: sitterObjectId, state: 'ASSIGNED' } });
+  const target = await visit({ start: targetStart });
+  const visitId = String(target._id);
+  await expect(module.dispatch.invite(staff, visitId, { sitterId: sitter.userId, expectedVersion: 0 }, `hours-limit-${visitId}`))
+    .rejects.toMatchObject({ code: 'CONTRACT_HOURS_EXCEEDED', status: 409 });
+  expect(await connection.collection('employeevisitoffers').countDocuments({ visitId: target._id })).toBe(0);
+});
+
+test('manual direct assignment revokes a pending offer, and its former recipient cannot accept', async () => {
+  const invited = await employee(), fullTime = await employee();
+  await payroll.EmploymentContract.updateOne({ employeeId: new mongoose.Types.ObjectId(fullTime.userId) }, { $set: {
+    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400
+  } });
+  const row = await visit(), visitId = String(row._id);
+  const initial = await module.dispatch.invite(staff, visitId, { sitterId: invited.userId, expectedVersion: 0 }, `invite-first-${visitId}`);
+  expect(initial.state).toBe('PENDING');
+  const result = await module.dispatch.invite(staff, visitId, { sitterId: fullTime.userId, expectedVersion: 1, expectedAction: 'DIRECT_ASSIGN' }, `assign-second-${visitId}`);
+  expect(result.state).toBe('ASSIGNED');
+  expect(await connection.collection('employeevisitoffers').findOne({ _id: new mongoose.Types.ObjectId(initial.offerId) }))
+    .toMatchObject({ state: 'REVOKED' });
+  await expect(module.dispatch.offers.accept(invited, initial.offerId, 0, `accept-after-${visitId}`))
+    .rejects.toMatchObject({ status: 409 });
+  await expect(module.dispatch.invite(staff, visitId, { sitterId: invited.userId, expectedVersion: 1 }, `stale-staff-${visitId}`))
+    .rejects.toMatchObject({ status: 409 });
+});
+
+test('two simultaneous manual Staff assignments result in exactly one sitter holding the visit', async () => {
+  const sitters = await Promise.all([employee(), employee()]);
+  await payroll.EmploymentContract.updateMany({ employeeId: { $in: sitters.map(sitter => new mongoose.Types.ObjectId(sitter.userId)) } },
+    { $set: { employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 } });
+  const row = await visit(), visitId = String(row._id);
+  const results = await Promise.allSettled(sitters.map((sitter, index) => module.dispatch.invite(staff, visitId,
+    { sitterId: sitter.userId, expectedVersion: 0, expectedAction: 'DIRECT_ASSIGN' }, `simultaneous-${index}-${visitId}`)));
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+  expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
+  expect(results.find(result => result.status === 'rejected').reason).toMatchObject({ status: 409 });
+  const saved = await connection.collection('visits').findOne({ _id: row._id });
+  expect(saved.state).toBe('ASSIGNED');
+  expect(sitters.map(sitter => sitter.userId)).toContain(String(saved.sitterId));
+  expect(await connection.collection('notifications').countDocuments({ 'metadata.visitId': visitId,
+    eventType: 'VisitAssignedDirectly' })).toBe(2);
+});
+
+test('manual direct assignment races with accepting an existing invitation: only one wins', async () => {
+  const invited = await employee(), fullTime = await employee();
+  await payroll.EmploymentContract.updateOne({ employeeId: new mongoose.Types.ObjectId(fullTime.userId) }, { $set: {
+    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400
+  } });
+  const row = await visit(), visitId = String(row._id);
+  const offer = await module.dispatch.invite(staff, visitId, { sitterId: invited.userId, expectedVersion: 0 }, `racing-offer-${visitId}`);
+  const results = await Promise.allSettled([
+    module.dispatch.offers.accept(invited, offer.offerId, 0, `racing-accept-${visitId}`),
+    module.dispatch.invite(staff, visitId, { sitterId: fullTime.userId, expectedVersion: 1, expectedAction: 'DIRECT_ASSIGN' }, `racing-direct-${visitId}`)
+  ]);
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+  expect(results.find(result => result.status === 'rejected').reason).toMatchObject({ status: 409 });
+  const saved = await connection.collection('visits').findOne({ _id: row._id });
+  expect(saved).toMatchObject({ state: 'ASSIGNED', version: 2 });
+  expect([invited.userId, fullTime.userId]).toContain(String(saved.sitterId));
+  expect(await connection.collection('notifications').countDocuments({ 'metadata.visitId': visitId,
+    eventType: 'VisitAssignedDirectly' })).toBe(String(saved.sitterId) === fullTime.userId ? 2 : 0);
+});
+
+test('invite rejects with 409 ACTION_CHANGED if availability hours change between preview and submit', async () => {
+  const fullTime = await employee({ configure: false }), secondFullTime = await employee({ configure: false });
+  for (const s of [fullTime, secondFullTime]) {
+    await module.repository.areas.replaceMine({ actor: s, areas: ['DISTRICT_HOAN_KIEM'], expectedVersion: 0, idempotencyKey: `setup-hk-${s.userId}` });
+    await module.repository.availability.updateMine({ actor: s, command: { zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30',
+      workingWindows: windows, expectedVersion: 1, idempotencyKey: `setup-hk-win-${s.userId}` } });
+  }
+  await payroll.EmploymentContract.updateMany(
+    { employeeId: { $in: [fullTime, secondFullTime].map(s => new mongoose.Types.ObjectId(s.userId)) } },
+    { $set: { employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 } }
+  );
+  // Part 1: preview outside hours (19:00–20:00 VN = 12:00–13:00 UTC) -> INVITE, then hours expand to cover 08:00–21:00 VN
+  const outsideRow = await visit({ start: '2026-11-02T12:00:00Z', areaCode: 'DISTRICT_HOAN_KIEM' }), outsideId = String(outsideRow._id);
+  const previewOutside = await module.dispatch.previewCandidates(staff, outsideId, { startAt: outsideRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(previewOutside.items).toContainEqual(expect.objectContaining({ sitterId: fullTime.userId, canAssignDirectly: false }));
+  await module.dispatch.invite(staff, outsideId, { sitterId: fullTime.userId, expectedVersion: 0, expectedAction: 'INVITE' }, `outside-invite-${outsideId}`);
+  const previewAdditional = await module.dispatch.previewCandidates(staff, outsideId, { startAt: outsideRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(previewAdditional.items).toContainEqual(expect.objectContaining({ sitterId: secondFullTime.userId, canAssignDirectly: false }));
+  // Shift registered hours of secondFullTime to cover 19:00–20:00 VN (visit version remains 1!)
+  await module.repository.availability.updateMine({ actor: secondFullTime, command: {
+    zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30', expectedVersion: 2, idempotencyKey: `expand-${secondFullTime.userId}`,
+    workingWindows: Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '08:00', endLocalTime: '21:00' }))
+  } });
+  await expect(module.dispatch.invite(staff, outsideId, { sitterId: secondFullTime.userId, expectedVersion: 1, expectedAction: 'INVITE' }, `stale-invite-${outsideId}`))
+    .rejects.toMatchObject({ code: 'ACTION_CHANGED', status: 409 });
+  // Pending offer must NOT have been revoked by stale INVITE confirmation
+  expect(await connection.collection('employeevisitoffers').findOne({ visitId: outsideRow._id, sitterId: fullTime.userId })).toMatchObject({ state: 'PENDING' });
+  const refreshed = await module.dispatch.previewCandidates(staff, outsideId, { startAt: outsideRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(refreshed.items).toContainEqual(expect.objectContaining({ sitterId: secondFullTime.userId, canAssignDirectly: true }));
+  const direct = await module.dispatch.invite(staff, outsideId, { sitterId: secondFullTime.userId, expectedVersion: 1, expectedAction: 'DIRECT_ASSIGN' }, `confirmed-direct-${outsideId}`);
+  expect(direct).toMatchObject({ state: 'ASSIGNED', sitterId: secondFullTime.userId, version: 2 });
+
+  // Part 2: preview inside hours -> DIRECT_ASSIGN, then hours shrink outside the slot -> 409 ACTION_CHANGED
+  const dayRow = await visit({ start: '2026-11-02T02:00:00Z', areaCode: 'DISTRICT_HOAN_KIEM' }), dayId = String(dayRow._id);
+  const previewDay = await module.dispatch.previewCandidates(staff, dayId, { startAt: dayRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(previewDay.items).toContainEqual(expect.objectContaining({ sitterId: fullTime.userId, canAssignDirectly: true }));
+  await module.repository.availability.updateMine({ actor: fullTime, command: {
+    zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30', expectedVersion: 2, idempotencyKey: `shrink-${fullTime.userId}`,
+    workingWindows: Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '13:00', endLocalTime: '18:00' }))
+  } });
+  await expect(module.dispatch.invite(staff, dayId, { sitterId: fullTime.userId, expectedVersion: 0, expectedAction: 'DIRECT_ASSIGN' }, `stale-direct-${dayId}`))
+    .rejects.toMatchObject({ code: 'ACTION_CHANGED', status: 409 });
+  expect(await connection.collection('visits').findOne({ _id: dayRow._id })).toMatchObject({ state: 'SCHEDULED', sitterId: null, version: 0 });
+  expect(await connection.collection('employeevisitoffers').countDocuments({ visitId: dayRow._id })).toBe(0);
+});
+
+test('directed REPLACEMENT preview separates designatedSitter canAssignDirectly (in & outside hours) from replacements', async () => {
+  const designated = await employee({ configure: false }), replacement = await employee({ configure: false });
+  for (const s of [designated, replacement]) {
+    await module.repository.areas.replaceMine({ actor: s, areas: ['DISTRICT_CAU_GIAY'], expectedVersion: 0, idempotencyKey: `setup-cg-${s.userId}` });
+    await module.repository.availability.updateMine({ actor: s, command: { zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30',
+      workingWindows: windows, expectedVersion: 1, idempotencyKey: `setup-cg-win-${s.userId}` } });
+  }
+  await payroll.EmploymentContract.updateMany(
+    { employeeId: { $in: [designated, replacement].map(s => new mongoose.Types.ObjectId(s.userId)) } },
+    { $set: { employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 } }
+  );
+  // In-hours designated sitter -> designatedSitter has canAssignDirectly: true; replacements stay in items without designated
+  const inHours = await visit({ start: '2026-11-02T02:00:00Z', areaCode: 'DISTRICT_CAU_GIAY', requestedSitterId: designated.userId });
+  const previewIn = await module.dispatch.previewCandidates(staff, String(inHours._id), { startAt: inHours.startAt.toISOString(), mode: 'REPLACEMENT' });
+  expect(previewIn.designatedSitter).toMatchObject({ sitterId: designated.userId, employmentType: 'FULL_TIME', canAssignDirectly: true });
+  expect(previewIn.items.map(item => item.sitterId)).toEqual([replacement.userId]);
+  expect(previewIn.items.some(item => item.sitterId === designated.userId)).toBe(false);
+  const assigned = await module.dispatch.invite(staff, String(inHours._id),
+    { sitterId: designated.userId, expectedVersion: 0, expectedAction: 'DIRECT_ASSIGN' }, `directed-direct-${inHours._id}`);
+  expect(assigned).toMatchObject({ state: 'ASSIGNED', sitterId: designated.userId });
+
+  // Outside-hours FULL_TIME designated sitter -> designatedSitter eligible with canAssignDirectly: false (NOT blocked!)
+  const outsideHours = await visit({ start: '2026-11-02T12:00:00Z', areaCode: 'DISTRICT_CAU_GIAY', requestedSitterId: designated.userId });
+  const previewOut = await module.dispatch.previewCandidates(staff, String(outsideHours._id), { startAt: outsideHours.startAt.toISOString(), mode: 'REPLACEMENT' });
+  expect(previewOut.designatedSitter).toMatchObject({ sitterId: designated.userId, employmentType: 'FULL_TIME', canAssignDirectly: false });
+  expect(previewOut.blocked?.some(row => row.sitterId === designated.userId)).toBe(false);
+  const invited = await module.dispatch.invite(staff, String(outsideHours._id),
+    { sitterId: designated.userId, expectedVersion: 0, expectedAction: 'INVITE' }, `directed-invite-${outsideHours._id}`);
+  expect(invited.state).toBe('PENDING');
+  expect(await connection.collection('employeevisitoffers').findOne({ visitId: outsideHours._id, sitterId: designated.userId }))
+    .toMatchObject({ state: 'PENDING', manualOutsideHoursAllowed: true });
+});
+
+test('legacy invite payload without expectedAction never direct-assigns an in-hours FULL_TIME sitter', async () => {
+  const fullTime = await employee({ configure: false });
+  await module.repository.areas.replaceMine({ actor: fullTime, areas: ['DISTRICT_CAU_GIAY'], expectedVersion: 0, idempotencyKey: `legacy-area-${fullTime.userId}` });
+  await module.repository.availability.updateMine({ actor: fullTime, command: {
+    zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30',
+    workingWindows: windows, expectedVersion: 1, idempotencyKey: `legacy-win-${fullTime.userId}`
+  } });
+  await payroll.EmploymentContract.updateOne({ employeeId: new mongoose.Types.ObjectId(fullTime.userId) },
+    { $set: { employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 } });
+
+  const row = await visit({ start: '2026-11-02T02:00:00Z', areaCode: 'DISTRICT_CAU_GIAY' });
+  const visitId = String(row._id);
+  const preview = await module.dispatch.previewCandidates(staff, visitId, { startAt: row.startAt.toISOString(), mode: 'MANUAL' });
+  expect(preview.items).toContainEqual(expect.objectContaining({ sitterId: fullTime.userId, employmentType: 'FULL_TIME', canAssignDirectly: true }));
+
+  const result = await module.dispatch.invite(staff, visitId, { sitterId: fullTime.userId, expectedVersion: 0 }, `legacy-no-action-${visitId}`);
+  expect(result).toMatchObject({ state: 'PENDING', visitId, sitterId: fullTime.userId, invitationCount: 1 });
+  expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({ state: 'SCHEDULED', sitterId: null, version: 1 });
+  const offer = await connection.collection('employeevisitoffers').findOne({ visitId: row._id, sitterId: fullTime.userId });
+  expect(offer).toMatchObject({ state: 'PENDING' });
+  expect(offer.manualOutsideHoursAllowed).toBeUndefined();
+  expect(await connection.collection('notifications').countDocuments({ 'metadata.visitId': visitId, eventType: 'VisitAssignedDirectly' })).toBe(0);
 });
 
 test('GBR-12 preserves the sitter accepted by the customer on a reschedule', async () => {
@@ -1343,6 +1721,26 @@ describe('UC-38 Staff replace the pet sitter of an accepted visit', () => {
     await connection.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(customer.userId) }, { $set: { displayName: 'Khách hàng mẫu' } });
   });
 
+  test('JOB-01: real Staff reassignments A to B to A at the same hour notify each assignment and the customer only once', async () => {
+    const { row, holder } = await assigned(SOON), replacement = await employee(), staffUser = await newStaff();
+    const run = () => createVisitRemindersService({ connection, clock }).runBatch();
+    const reminders = () => connection.collection('notifications').find({ eventType: 'VISIT_REMINDER',
+      'metadata.visitId': String(row._id), 'metadata.leadMinutes': 120 }).toArray();
+    await run();
+    await send(row, staffUser, { expectedVersion: 0, sitterId: replacement.userId, reason: 'Cần người chăm sóc thay thế' }, `reminder-b-${row._id}`).expect(200);
+    await Promise.all([run(), run()]);
+    expect((await reminders()).filter(item => item.recipientId === replacement.userId)).toHaveLength(1);
+    const input = { expectedVersion: 1, sitterId: holder.userId, reason: 'Phân công lại người chăm sóc ban đầu' };
+    await send(row, staffUser, input, `reminder-a-${row._id}`).expect(200);
+    await send(row, staffUser, input, `reminder-a-${row._id}`).expect(200);
+    await run(); await run();
+    const stored = await visits().findOne({ _id: row._id });
+    expect(stored.startAt).toEqual(row.startAt);
+    expect(stored.assignmentVersion).toBe(2);
+    expect((await reminders()).filter(item => item.recipientId === holder.userId)).toHaveLength(2);
+    expect((await reminders()).filter(item => item.role === 'CUSTOMER')).toHaveLength(1);
+  });
+
   test('roles: 401 without a session, 403 for pet sitters and customers, Staff and Admin may read', async () => {
     const { row, holder } = await assigned(LATE_START);
     await request(app).get(`${pathOf(row)}/reassignment`).expect(401);
@@ -1505,4 +1903,118 @@ describe('UC-38 Staff replace the pet sitter of an accepted visit', () => {
     await expect(module.repository.eligible(sitter.userId, ended, undefined, { allowStarted: true })).rejects.toMatchObject({ code: 'SHIFT_REVIEW_REQUIRED' });
     await expect(module.dispatch.invite(staff, String(started._id), { expectedVersion: 0, sitterId: sitter.userId }, 'uc38-invite-started')).rejects.toMatchObject({ code: 'SHIFT_START_REACHED' });
   });
+});
+
+describe('ST-BKG-05 offer decline reason', () => {
+  test('declining without reason or with invalid code returns 422 while keeping offer open, valid reason persists and excludes sitter from automatic re-offer', async () => {
+    const { row, workers, dispatch, offers, first, rerun } = await sequentialFixture({ scores: [90, 88, 86, 84, 82, 80, 78, 76, 74, 72] });
+    await first(`st-bkg-05-first-${row._id}`);
+    const batch = await offers('PENDING');
+    expect(batch).toHaveLength(5);
+    const target = batch[0];
+    const postDecline = (body, key) => request(app)
+      .post(`/api/v1/employee-scheduling/offers/${target._id}/declines`)
+      .set('x-test-actor', target.sitterId)
+      .set('origin', 'http://127.0.0.1')
+      .set('host', '127.0.0.1')
+      .set('x-csrf-token', 'synthetic-csrf')
+      .set('idempotency-key', key)
+      .send(body);
+
+    const missing = await postDecline({ expectedVersion: 0 }, `st-bkg-05-missing-${target._id}`).expect(422);
+    expect(missing.body.error.code).toBe('VALIDATION_FAILED');
+    expect(missing.body.error.messageCode).toBe('MSG01');
+
+    const bad = await postDecline({ expectedVersion: 0, reasonCode: 'NOT_A_REASON' }, `st-bkg-05-bad-${target._id}`).expect(422);
+    expect(bad.body.error.code).toBe('VALIDATION_FAILED');
+
+    expect((await module.repository.models.EmployeeVisitOffer.findById(target._id).lean()).state).toBe('PENDING');
+
+    const ok = await postDecline(
+      { expectedVersion: 0, reasonCode: 'ILLNESS', note: 'Bị sốt nhẹ, không đi được' },
+      `st-bkg-05-ok-${target._id}`
+    ).expect(200);
+    expect(ok.body.data).toMatchObject({
+      state: 'DECLINED',
+      reasonCode: 'ILLNESS',
+      note: 'Bị sốt nhẹ, không đi được',
+      messageCode: 'MSG79'
+    });
+
+    const savedOffer = await module.repository.models.EmployeeVisitOffer.findById(target._id).lean();
+    expect(savedOffer).toMatchObject({
+      state: 'DECLINED',
+      declineReasonCode: 'ILLNESS',
+      declineNote: 'Bị sốt nhẹ, không đi được'
+    });
+    const audit = await module.repository.models.EmployeeScheduleEvent.findOne({ type: 'OfferDeclined', offerId: String(target._id) }).lean();
+    expect(audit?.detail).toMatchObject({ reasonCode: 'ILLNESS', note: 'Bị sốt nhẹ, không đi được' });
+
+    for (const remainingOffer of batch.slice(1)) {
+      const sitter = workers.find(worker => worker.userId === remainingOffer.sitterId);
+      await dispatch.offers.decline(sitter, String(remainingOffer._id), 0, `st-bkg-05-rest-${remainingOffer._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
+    }
+    await rerun();
+    const nextBatch = await offers('PENDING');
+    expect(nextBatch).toHaveLength(5);
+    expect(nextBatch.map(item => item.sitterId)).not.toContain(target.sitterId);
+  });
+});
+
+async function endBooking(bookingId, at) {
+  const session = await connection.startSession();
+  try {
+    await session.withTransaction(() => finalizeExceptionalBooking({
+      connection, col: name => connection.db.collection(name), bookingId, session, at
+    }));
+  } finally { await session.endSession(); }
+}
+const rateVisit = (visitId, key) => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
+  .set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+  .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', key).send({ rating: 4 });
+
+test('a booking closed after a cancelled visit is rated for seven days from its closure and counted at once (GBR-48)', async () => {
+  const sitter = await employee(), unfinished = await employee();
+  const first = await visit({ start: '2026-11-02T02:00:00Z' });
+  const second = { ...first, _id: oid(), sequence: 1, startAt: new Date('2026-11-13T02:00:00Z'), endAt: new Date('2026-11-13T03:00:00Z') };
+  await connection.collection('visits').insertOne(second);
+  await connection.collection('bookings').updateOne({ _id: first.bookingId },
+    { $set: { visitIds: [first._id, second._id], originalVisitCount: 2, careVisitCount: 2 } });
+  await connection.collection('visits').updateOne({ _id: first._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId),
+    state: 'COMPLETED', version: 3, checkInAt: first.startAt, checkOutAt: first.endAt, completedAt: first.endAt } });
+  const closedAt = new Date('2026-11-12T02:00:00Z'), deadline = closedAt.getTime() + 7 * 86400000;
+  await connection.collection('visits').updateOne({ _id: second._id },
+    { $set: { sitterId: new mongoose.Types.ObjectId(unfinished.userId), state: 'CANCELLED', cancelledAt: closedAt } });
+  await endBooking(first.bookingId, closedAt);
+  const booking = await connection.collection('bookings').findOne({ _id: first.bookingId });
+  expect(booking).toMatchObject({ state: 'CLOSED', closedAt });
+  expect(booking.completedAt).toBeUndefined();
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(first.bookingId))).ratingDeadlineAt).toEqual(new Date(deadline));
+
+  reviewNow = deadline + 1;
+  const late = await rateVisit(String(first._id), 'closed-booking-too-late').expect(409);
+  expect(late.body.error.code).toBe('REVIEW_WINDOW_EXPIRED');
+  reviewNow = deadline;
+  const cancelled = await rateVisit(String(second._id), 'closed-booking-no-visit').expect(409);
+  expect(cancelled.body.error.code).toBe('VISIT_NOT_ELIGIBLE');
+  const saved = await rateVisit(String(first._id), 'closed-booking-in-time').expect(201);
+  expect(saved.body.data.review.state).toBe('PUBLISHED');
+  await connection.collection('sitterpublicprofiles').insertOne({ userId: new mongoose.Types.ObjectId(sitter.userId), state: 'APPROVED' });
+  const directory = await readDirectedSitterPage(connection.db, serviceId);
+  expect(directory.sitters.find(row => row.id === sitter.userId)).toMatchObject({ rating: 4, reviewCount: 1 });
+});
+
+test('nobody can be rated when every visit of the booking was cancelled', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-11-04T02:00:00Z' });
+  const closedAt = new Date('2026-11-03T02:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id },
+    { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId), state: 'CANCELLED', cancelledAt: closedAt } });
+  await endBooking(row.bookingId, closedAt);
+  expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('CANCELLED');
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(row.bookingId))).ratingDeadlineAt).toBeNull();
+  reviewNow = closedAt.getTime() + 60000;
+  const refused = await rateVisit(String(row._id), 'all-cancelled-rating').expect(409);
+  expect(refused.body.error.code).toBe('VISIT_NOT_ELIGIBLE');
 });

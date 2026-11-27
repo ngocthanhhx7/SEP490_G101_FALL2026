@@ -1,7 +1,8 @@
 import { GroomingChip } from './GroomingChip.jsx';
 import { WeekCalendar } from '../calendar/WeekCalendar.jsx';
+import { msg152 } from '../../constants/grooming-messages.js';
 
-// Step 3: a day of the seven-day window and a free time slot. A full slot is greyed out.
+// Step 3: a day of the seven-day window and a free time slot. A full or pet-conflicting slot is greyed out.
 export function GroomingSlotsSection({ options, date, time, slots, hasPets, onDate, onTime, onRetry }) {
   return <section className="grooming-card" aria-labelledby="grooming-slots">
     <h2 id="grooming-slots">3. Chọn giờ hẹn</h2>
@@ -13,8 +14,18 @@ export function GroomingSlotsSection({ options, date, time, slots, hasPets, onDa
     {hasPets && slots.status === 'error' && <p role="alert" className="grooming-inline">Chưa tải được giờ hẹn. <button type="button" onClick={onRetry}>Thử lại</button></p>}
     {hasPets && slots.status === 'success' && !slots.items.length && <p role="status" className="grooming-hint">Không còn giờ hẹn nào trong ngày này. Hãy chọn ngày khác.</p>}
     {hasPets && slots.status === 'success' && slots.items.length > 0 && <div className="grooming-chips" role="radiogroup" aria-label="Giờ hẹn">
-      {slots.items.map(slot => <GroomingChip key={slot.startAt} type="radio" name="grooming-time" checked={time === slot.startAt && slot.state === 'AVAILABLE'}
-        disabled={slot.state !== 'AVAILABLE'} onChange={() => onTime(slot.startAt)}>{slot.time}{slot.state === 'AVAILABLE' ? '' : ' · đã kín'}</GroomingChip>)}
+      {slots.items.map((slot, index) => {
+        const isPetBooked = slot.state === 'PET_ALREADY_BOOKED';
+        const conflictId = isPetBooked && slot.conflictPetName ? `grooming-slot-conflict-${index}` : undefined;
+        const suffix = slot.state === 'AVAILABLE' ? '' : isPetBooked ? ' · đã có lịch' : ' · đã kín';
+        return <div key={slot.startAt} className={`grooming-slot-item${conflictId ? ' is-conflict' : ''}`}>
+          <GroomingChip type="radio" name="grooming-time" checked={time === slot.startAt && slot.state === 'AVAILABLE'}
+            disabled={slot.state !== 'AVAILABLE'} describedBy={conflictId} onChange={() => onTime(slot.startAt)}>
+            {slot.time}{suffix}
+          </GroomingChip>
+          {conflictId && <p id={conflictId} role="alert" className="grooming-slot-conflict">{msg152(slot.conflictPetName)}</p>}
+        </div>;
+      })}
     </div>}
   </section>;
 }

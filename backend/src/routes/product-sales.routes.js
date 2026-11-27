@@ -3,7 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 import { createProductPhotoController } from '../controllers/product-photo.controller.js';
 import { createProductPhotoService } from '../services/product-sales/product-photo.service.js';
 import { PRODUCT_PHOTO_LIMITS, PRODUCT_PHOTO_TYPES } from '../constants/product-photos.js';
-import { createMediaAdmission, createAdmissionMiddleware, parseBody } from './private-image.routes.js';
+import { createMediaAdmission, createAdmissionMiddleware, mediaAdmissionFor, parseBody } from './private-image.routes.js';
 import { createProductCatalogController } from '../controllers/product-catalog.controller.js';
 import { createProductCartController } from '../controllers/product-cart.controller.js';
 import { createProductOrderController, createProductOrderPaymentController } from '../controllers/product-order.controller.js';
@@ -41,12 +41,16 @@ import { createCounterCatalogService } from '../services/product-sales/counter-c
 import { createProductPricingEligibility } from '../services/product-sales/product-pricing-eligibility.service.js';
 import { createProductCustomerPriceController } from '../controllers/product-customer-price.controller.js';
 import { createProductCustomerPriceService } from '../services/product-sales/product-customer-price.service.js';
+import { createFaultyProductClaimController } from '../controllers/faulty-product-claim.controller.js';
+import { createFaultyProductClaimService } from '../services/product-sales/faulty-product-claim.service.js';
+import { loadR2Config } from '../config/r2.js';
+import { createPrivateImageService } from '../services/private-image.service.js';
 
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); };
 
 // Disabled unless PRODUCT_SALES_ENABLED=true; needs authentication because cart and orders are Customer-only.
 // `provider` lets tests replace payOS; otherwise it comes from the PAYOS_* settings (null when payOS is off).
-export function productSalesRuntimeModules({ config, connection, env = {}, clock = Date.now, sessionService, provider }) {
+export function productSalesRuntimeModules({ config, connection, ports, env = {}, clock = Date.now, sessionService, provider }) {
   if (env.PRODUCT_SALES_ENABLED !== undefined && !['true', 'false'].includes(env.PRODUCT_SALES_ENABLED)) {
     throw new TypeError('Invalid PRODUCT_SALES_ENABLED');
   }
@@ -75,26 +79,8 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   cartRouter.patch('/lines/:productId', csrf, cart.setLine);
   cartRouter.delete('/lines/:productId', csrf, cart.removeLine);
 
-  const orders = createProductOrderController(createProductOrderService({
-    connection, serviceAreas: DEMO_WORK_AREAS, eligibility, clock, paymentDeadlineHours: config.paymentDeadlineHours }));
   const payos = provider ? null : loadPayosConfig(env);
   const payosProvider = provider ?? (payos ? createPayosProvider(payos) : null);
-  const orderPayments = createProductOrderPaymentService({
-    connection, clock, provider: payosProvider, webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) });
-  const payments = createProductOrderPaymentController(orderPayments);
-  const orderRouter = Router();
-  orderRouter.use(noStore, requireSession(session, { clock }), customer);
-  orderRouter.get('/', orders.list);
-  orderRouter.post('/', csrf, orders.place);
-  orderRouter.get('/:orderId', orders.read);
-  orderRouter.post('/:orderId/payment-link', csrf, payments.paymentLink);
-
-  // Order handlers read verified customer phone numbers through the same contact keys as sign-in (D-217).
-  const contactCrypto = createContactCrypto({
-    lookupSecret: config.auth.contactLookupSecret,
-    encryptionKey: config.auth.contactEncryptionKey
-  });
-  const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
   const orderSettler = payosProvider && typeof payosProvider.getPaymentLink === 'function'
     && typeof payosProvider.verifyWebhook === 'function'
     ? createProductOrderPaymentSettler({
@@ -106,12 +92,57 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
       }).handleVerifiedPayment
     })
     : null;
+  const orders = createProductOrderController(createProductOrderService({
+    connection, serviceAreas: DEMO_WORK_AREAS, eligibility, clock,
+    paymentDeadlineHours: config.paymentDeadlineHours, payments: orderSettler
+  }));
+  const orderPayments = createProductOrderPaymentService({
+    connection, clock, provider: payosProvider, webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) });
+  const payments = createProductOrderPaymentController(orderPayments);
+  const orderRouter = Router();
+  orderRouter.use(noStore, requireSession(session, { clock }), customer);
+  orderRouter.get('/', orders.list);
+  orderRouter.post('/', csrf, orders.place);
+  orderRouter.get('/:orderId', orders.read);
+  orderRouter.post('/:orderId/payment-link', csrf, payments.paymentLink);
+  orderRouter.post('/:orderId/cancel', csrf, orders.cancel);
+  orderRouter.post('/:orderId/confirm-received', csrf, orders.confirmReceived);
+
+  // Order handlers read verified customer phone numbers through the same contact keys as sign-in (D-217).
+  const contactCrypto = createContactCrypto({
+    lookupSecret: config.auth.contactLookupSecret,
+    encryptionKey: config.auth.contactEncryptionKey
+  });
+  const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
+  const r2 = loadR2Config(env);
+  const privateImages = r2 && ports?.privateMedia
+    ? createPrivateImageService({
+      connection,
+      media: ports.privateMedia,
+      secret: config.auth.tokenSecret,
+      maxImagesPerUser: r2.maxImagesPerUser
+    })
+    : null;
+  const faultyClaims = createFaultyProductClaimController(createFaultyProductClaimService({
+    connection,
+    phones,
+    readImage: privateImages?.readScoped,
+    clock
+  }));
+  const readClaimPhoto = createAdmissionMiddleware({
+    admission: mediaAdmissionFor(connection), work: faultyClaims.readPhoto
+  });
+  orderRouter.get('/:orderId/faulty-claim-eligibility', faultyClaims.eligibility);
+  orderRouter.post('/:orderId/faulty-claims', csrf, faultyClaims.submit);
+  orderRouter.get('/faulty-claims/:claimId/photos/:photoId', readClaimPhoto);
+
   const management = createProductOrderManagementController(createProductOrderManagementService({
     connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours, payments: orderSettler
   }), orderPayments);
   const managementRouter = Router();
   managementRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_ORDERS));
   managementRouter.get('/', management.list);
+  managementRouter.get('/refunds', requireRoles('ADMIN'), management.listOrderRefunds);
   managementRouter.get('/:orderId', management.read);
   managementRouter.post('/:orderId/hand-to-carrier', csrf, management.handToCarrier);
   managementRouter.post('/:orderId/mark-delivered', csrf, management.markDelivered);
@@ -136,7 +167,6 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   productManagementRouter.post('/', csrf, productManagement.create);
   productManagementRouter.get('/:productId', productManagement.read);
   productManagementRouter.patch('/:productId', csrf, productManagement.update);
-  productManagementRouter.delete('/:productId', csrf, productManagement.remove);
   const photoRate = rateLimit({ windowMs: 60000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false,
     keyGenerator: req => req.auth.userId });
   const photoAdmission = createMediaAdmission({ limit: 2 });
@@ -202,6 +232,16 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   adjustmentRouter.get('/', adjustments.list);
   adjustmentRouter.post('/', csrf, adjustments.create);
 
+  const faultyClaimsRouter = Router();
+  faultyClaimsRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_FAULTY_CLAIMS));
+  faultyClaimsRouter.get('/', faultyClaims.list);
+  faultyClaimsRouter.get('/:claimId', faultyClaims.read);
+  faultyClaimsRouter.get('/:claimId/photos/:photoId', readClaimPhoto);
+  const processClaim = requireRoles(...PRODUCT_PERMISSIONS.PROCESS_FAULTY_CLAIMS);
+  faultyClaimsRouter.post('/:claimId/inspect', processClaim, csrf, faultyClaims.inspect);
+  faultyClaimsRouter.post('/:claimId/decide', requireRoles(...PRODUCT_PERMISSIONS.DECIDE_FAULTY_CLAIMS), csrf, faultyClaims.decide);
+  faultyClaimsRouter.post('/:claimId/exchange-sent', processClaim, csrf, faultyClaims.exchangeSent);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
@@ -213,6 +253,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     { name: 'admin-counter-orders', mount: '/api/v1/admin/counter-orders', router: counterRouter },
     { name: 'admin-goods-receipts', mount: '/api/v1/admin/goods-receipts', router: receiptRouter },
     { name: 'admin-stock-levels', mount: '/api/v1/admin/stock-levels', router: stockRouter },
-    { name: 'admin-stock-adjustments', mount: '/api/v1/admin/stock-adjustments', router: adjustmentRouter }
+    { name: 'admin-stock-adjustments', mount: '/api/v1/admin/stock-adjustments', router: adjustmentRouter },
+    { name: 'admin-faulty-product-claims', mount: '/api/v1/admin/faulty-product-claims', router: faultyClaimsRouter }
   ];
 }

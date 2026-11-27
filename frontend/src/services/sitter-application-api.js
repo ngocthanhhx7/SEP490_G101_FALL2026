@@ -19,10 +19,13 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
   timeoutMs = 15000 } = {}) {
   if (typeof fetchImpl !== 'function' || (uploadDocumentImpl !== undefined && typeof uploadDocumentImpl !== 'function')
     || typeof keyFactory !== 'function') throw new TypeError('Sitter application API dependencies are invalid');
+  let intakeToken = null;
 
   async function uploadDocument(file, { signal, documentType } = {}) {
     if (!uploadDocumentImpl) throw new ApiError('PROVIDER_UNAVAILABLE', 503);
-    return uploadDocumentImpl(file, { signal, documentType });
+    const csrfToken = intakeToken ? null : getCsrfToken();
+    if (!intakeToken && !csrfToken) throw new ApiError('INTAKE_VERIFICATION_REQUIRED', 403);
+    return uploadDocumentImpl(file, { signal, documentType, ...(intakeToken ? { intakeToken } : { csrfToken }) });
   }
 
   async function submit(body, { signal, key = keyFactory() } = {}) {
@@ -33,11 +36,10 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
     let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; abort(); }, timeoutMs);
     try {
-      const csrfToken = getCsrfToken();
-      if (!csrfToken) throw new ApiError('CSRF_UNAVAILABLE');
+      if (!intakeToken) throw new ApiError('INTAKE_VERIFICATION_REQUIRED', 403);
       const response = await fetchImpl('/api/v1/applications', {
         method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': key, 'X-CSRF-Token': csrfToken },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': key, 'X-Application-Token': intakeToken },
         credentials: 'same-origin', cache: 'no-store', redirect: 'error',
         signal: controller.signal, body: JSON.stringify(body)
       });
@@ -45,7 +47,9 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
       try { envelope = await response.json(); }
       catch { throw new ApiError(response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR', response.status); }
       if (!response.ok) throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
-        fieldErrors: envelope?.error?.fieldErrors
+        fieldErrors: envelope?.error?.fieldErrors,
+        conflictField: envelope?.error?.conflictField,
+        reapplyAt: envelope?.error?.reapplyAt
       });
       if (envelope?.meta?.schemaVersion !== 1 || !envelope?.data || typeof envelope.data.id !== 'string'
         || !/^[A-Za-z0-9_-]{22,128}$/.test(envelope.data.applicationCode ?? '')
@@ -65,18 +69,22 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
 
   const request = createApiClient({ fetchImpl, getCsrfToken });
   return Object.freeze({ uploadDocument, submit,
-    async getMine({signal}={}) {const result=await request('/applications/me',{signal});if(!result.data||!Object.hasOwn(result.data,'application'))throw new ApiError('INVALID_RESPONSE');return result;},
+    async getMine({signal}={}) {const result=await request('/applications/me',{signal});if(!result.data||!Object.hasOwn(result.data,'application'))throw new ApiError('INVALID_RESPONSE');intakeToken=null;return result;},
     async updateMine(body,{key}={}){const result=await request('/applications/me/updates',{method:'POST',body,idempotencyKey:key});if(result.pending||!result.data?.id||!Number.isSafeInteger(result.data.version))throw new ApiError('INVALID_RESPONSE');return result;}, createIdempotencyKey: keyFactory, uploadsAvailable: Boolean(uploadDocumentImpl),
-    async loadIntake({ signal } = {}) { return request('/applications/intake', { signal }); } });
+    async loadIntake({ signal } = {}) {
+      const result = await request('/applications/intake', { signal });
+      if (!/^[a-f0-9]{64}$/.test(result.data?.csrfToken ?? '')) throw new ApiError('INVALID_RESPONSE');
+      intakeToken = result.data.csrfToken;
+      return result;
+    } });
 }
 
 const uploadKeys = new WeakMap();
-async function uploadApplicantImage(file, { signal } = {}) {
+async function uploadApplicantImage(file, { signal, intakeToken, csrfToken } = {}) {
   if (!['image/jpeg', 'image/png'].includes(file.type) || !file.size || file.size > 5 * 1024 * 1024) {
     throw new ApiError('INVALID_DOCUMENT', 422);
   }
-  const csrf = apiSessionAdapter.getCsrfToken();
-  if (!csrf) throw new ApiError('CSRF_UNAVAILABLE');
+  if (!intakeToken && !csrfToken) throw new ApiError('INTAKE_VERIFICATION_REQUIRED', 403);
   if (!uploadKeys.has(file)) uploadKeys.set(file, idempotencyKey());
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -86,7 +94,7 @@ async function uploadApplicantImage(file, { signal } = {}) {
   try {
     const response = await fetchFromCurrentRuntime('/api/v1/applicant-documents', {
       method: 'POST', body: file, credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: controller.signal,
-      headers: { Accept: 'application/json', 'Content-Type': file.type, 'X-CSRF-Token': csrf, 'Idempotency-Key': uploadKeys.get(file) }
+      headers: { Accept: 'application/json', 'Content-Type': file.type, ...(intakeToken ? { 'X-Application-Token': intakeToken } : { 'X-CSRF-Token': csrfToken }), 'Idempotency-Key': uploadKeys.get(file) }
     });
     const result = await response.json();
     if (!response.ok) throw new ApiError(result?.error?.code ?? 'HTTP_ERROR', response.status, { fieldErrors: result?.error?.fieldErrors });
@@ -131,6 +139,11 @@ export function createSitterApplicationAdminApi({
     startInterview({ applicationId, expectedVersion, signal }) {
       return request(`/applications/${encodeURIComponent(applicationId)}/interview`, {
         method: 'POST', body: { expectedVersion }, idempotencyKey: keyFactory(), signal
+      });
+    },
+    saveAssessment({ applicationId, expectedVersion, expectedAssessmentVersion, checklist, callAt, outcome, idempotencyKey = keyFactory(), signal }) {
+      return request(`/applications/${encodeURIComponent(applicationId)}/assessment`, {
+        method: 'PATCH', body: { expectedVersion, expectedAssessmentVersion, checklist, callAt, outcome }, idempotencyKey, signal
       });
     },
     decide({ applicationId, action, reason, interviewNote, expectedVersion, signal }) {

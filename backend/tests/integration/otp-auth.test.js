@@ -8,6 +8,8 @@ import { userModel } from '../../src/models/user.model.js';
 import { userAdminAuditModel } from '../../src/models/user-admin-audit.model.js';
 import { createUserAdminService } from '../../src/services/user-admin.service.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
+import { createCounterCustomerService } from '../../src/services/counter-booking/counter-customer.service.js';
+import { createCustomerPhoneDirectory } from '../../src/services/product-sales/customer-phone-directory.service.js';
 import { createOtpService } from '../../src/services/otp-verification.service.js';
 import { createSessionService, lockUserAndRevokeSessions } from '../../src/services/session.service.js';
 import { createAccountSettingsService } from '../../src/services/account-settings.service.js';
@@ -33,6 +35,14 @@ async function createActiveUser({ channel = 'EMAIL', contact = 'person@example.t
   await models.Contact.create({ userId: user._id, channel, canonicalCiphertext: contactCrypto.encrypt(canonical.canonicalValue),
     lookupKey: canonical.lookupKey, state: 'VERIFIED', verifiedAt: new Date(clockNow) });
   return { user, canonical };
+}
+
+async function counterFixture() {
+  const { user } = await createActiveUser({ role: 'SALE_STAFF' });
+  const actor = { userId: String(user._id), state: 'ACTIVE', roles: ['SALE_STAFF'] };
+  const service = createCounterCustomerService({ connection, User, Contact: models.Contact, contactCrypto,
+    contacts: createCustomerPhoneDirectory({ connection, contactCrypto }) });
+  return { actor, service };
 }
 
 beforeAll(async () => {
@@ -112,6 +122,70 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
       .rejects.toMatchObject({ code: 'OTP_ALREADY_USED' });
     await sessionService.revoke(req);
     await expect(sessionService.authenticate(req)).resolves.toBeNull();
+  });
+  test('counter-created Customer owns the same account on first phone OTP login, converting UNVERIFIED contact exactly once', async () => {
+    const channel = 'PHONE', contact = '+84912345678';
+    const identity = contactCrypto.lookup(channel, contact);
+    const { actor, service } = await counterFixture();
+    const { customer } = await service.createCustomer(actor, { displayName: ' Counter  Customer ', phone: '0912345678' });
+    const user = await User.findById(customer.id).lean();
+    expect(user).toMatchObject({ displayName: 'Counter Customer', roles: ['CUSTOMER'], state: 'ACTIVE',
+      createdChannel: 'COUNTER', synthetic: false });
+    expect(String(user.createdBy)).toBe(actor.userId);
+    const pending = await models.Contact.findOne({ userId: user._id, channel }).select('+lookupKey +canonicalCiphertext').lean();
+    expect(pending).toMatchObject({ state: 'UNVERIFIED', lookupKey: identity.lookupKey });
+    expect(pending.verifiedAt).toBeUndefined();
+    expect(pending.canonicalCiphertext).not.toBe(contact);
+    expect(contactCrypto.decrypt(pending.canonicalCiphertext)).toBe(contact);
+    await expect(service.lookup(actor, { phone: contact })).resolves.toEqual({ customer });
+    const { otpService, sessionService } = fixture();
+    const challenge = await otpService.begin({ channel, contact, purpose: 'LOGIN' });
+    await expect(otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '999999' }))
+      .rejects.toMatchObject({ code: 'OTP_INCORRECT' });
+    expect((await models.Contact.findById(pending._id)).state).toBe('UNVERIFIED');
+    expect(await models.AuthSession.countDocuments({})).toBe(0);
+    const issued = await otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '004201' });
+    expect(issued).toMatchObject({ authenticated: true, session: { user: { id: String(user._id) } } });
+    expect(await models.Contact.countDocuments({ userId: user._id, channel, state: 'VERIFIED' })).toBe(1);
+    expect(await models.Contact.countDocuments({ userId: user._id, state: 'UNVERIFIED' })).toBe(0);
+    const verified = await models.Contact.findById(pending._id).lean();
+    expect(verified.state).toBe('VERIFIED');
+    expect(verified.verifiedAt).toEqual(new Date(clockNow));
+    expect(await User.countDocuments({ roles: 'CUSTOMER' })).toBe(1);
+    const req = { headers: { cookie: sessionService.cookieName + '=' + issued.session.token } };
+    await expect(sessionService.authenticate(req)).resolves.toMatchObject({ userId: String(user._id) });
+    await expect(otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '004201' }))
+      .rejects.toMatchObject({ code: 'OTP_ALREADY_USED' });
+  });
+  test.each(['CUSTOMER', 'PET_SITTER', 'STAFF', 'SALE_STAFF', 'ADMIN'])(
+    'counter creation rejects a phone already verified by a %s account', async role => {
+      const { actor, service } = await counterFixture();
+      const { user } = await createActiveUser({ channel: 'PHONE', contact: '+84912345678', role });
+      await expect(service.createCustomer(actor, { displayName: 'Another Customer', phone: '0912345678' }))
+        .rejects.toMatchObject({ status: 409, code: 'CONTACT_ALREADY_LINKED' });
+      expect(await User.countDocuments()).toBe(2);
+      expect(await models.Contact.countDocuments({ channel: 'PHONE' })).toBe(1);
+      expect(String((await models.Contact.findOne({ channel: 'PHONE' })).userId)).toBe(String(user._id));
+    });
+  test('concurrent counter creation with equivalent phone formats leaves one customer and one pending identity', async () => {
+    const { actor, service } = await counterFixture();
+    const results = await Promise.allSettled(['0912345678', '+84912345678'].map(phone =>
+      service.createCustomer(actor, { displayName: 'Counter Customer', phone })));
+    const winners = results.filter(result => result.status === 'fulfilled');
+    expect(winners).toHaveLength(1);
+    expect(results.find(result => result.status === 'rejected').reason)
+      .toMatchObject({ status: 409, code: 'CONTACT_ALREADY_LINKED' });
+    const { customer } = winners[0].value;
+    expect(await User.countDocuments({ roles: 'CUSTOMER' })).toBe(1);
+    expect(await models.Contact.countDocuments({ channel: 'PHONE' })).toBe(1);
+    const pending = await models.Contact.findOne({ channel: 'PHONE' }).select('+lookupKey +canonicalCiphertext').lean();
+    expect(String(pending.userId)).toBe(customer.id);
+    const { user: other } = await createActiveUser({ contact: 'other@example.test' });
+    await expect(models.Contact.create({ userId: other._id, channel: 'PHONE', lookupKey: pending.lookupKey,
+      canonicalCiphertext: pending.canonicalCiphertext, state: 'VERIFIED', verifiedAt: new Date(clockNow) }))
+      .rejects.toMatchObject({ code: 11000 });
+    expect(await models.Contact.countDocuments({ channel: 'PHONE' })).toBe(1);
+    await expect(service.lookup(actor, { phone: '0912345678' })).resolves.toEqual({ customer });
   });
   test('stores only digests, sends six digits, and expires at five minutes', async () => {
     await createActiveUser();

@@ -14,6 +14,26 @@ import { ApplicationImagePreview } from './ApplicationImagePreview.jsx';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SUPPORTING_FILES = 5;
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png']);
+const MSG49 = 'Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.';
+const MSG49_DIMENSIONS = 'Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB và tối đa 4 megapixel.';
+const CONFLICT_FIELD_LABELS = {
+  phone: 'số điện thoại',
+  email: 'email',
+  identityNumber: 'số CCCD'
+};
+
+function isValidImageFile(file) {
+  return Boolean(file && ACCEPTED_TYPES.has(file.type) && file.size > 0 && file.size <= MAX_FILE_BYTES);
+}
+
+function formatVietnamDate(value) {
+  if (typeof value !== 'string') return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric'
+  }).format(new Date(timestamp));
+}
 
 function lines(value) {
   return [
@@ -28,18 +48,29 @@ function lines(value) {
 
 function errorMessage(error) {
   if (error?.code === 'POLICY_NOT_AVAILABLE') return 'Chính sách đăng ký đã thay đổi hoặc chưa có hiệu lực. Vui lòng tải lại trang và xác nhận chính sách hiện hành.';
+  if (error?.code === 'INTAKE_VERIFICATION_REQUIRED') return 'Phiên nộp hồ sơ đã hết hạn. Hãy tải lại biểu mẫu trước khi thử lại.';
+  if (error?.code === 'APPLICATION_SUBMISSION_UNAVAILABLE') {
+    return 'Chưa thể tiếp nhận hồ sơ với thông tin này. Nếu đã nộp, hãy tra cứu bằng mã hồ sơ và OTP hoặc liên hệ PawWorld.';
+  }
+  if (error?.code === 'CONTACT_UNAVAILABLE') return 'Email hoặc số điện thoại đã thuộc một tài khoản. Vui lòng kiểm tra lại thông tin hoặc liên hệ PawWorld.';
   if (error?.code === 'UNAUTHENTICATED' || error?.code === 'CSRF_UNAVAILABLE') return 'Phiên đăng nhập cần được xác nhận lại. Vui lòng đăng nhập rồi mở lại hồ sơ.';
   if (error?.code === 'MEDIA_QUOTA_EXCEEDED') return 'Tài khoản đã đạt giới hạn lưu trữ 20 ảnh. Vui lòng liên hệ PawWorld để được hỗ trợ.';
-  if (error?.code === 'INVALID_DOCUMENT') return 'Chọn ảnh JPG hoặc PNG hợp lệ, tối đa 5 MB.';
+  if (error?.code === 'INVALID_DOCUMENT') return MSG49;
   if (error?.code === 'PROVIDER_UNAVAILABLE')
     return 'Chưa thể tải giấy tờ lên kho riêng tư. Hồ sơ chưa được gửi; vui lòng thử lại sau.';
   if (error?.code === 'AGE_REQUIREMENT_NOT_MET')
     return 'Ứng viên cần đủ 18 tuổi tại thời điểm nộp hồ sơ.';
-  if (
-    error?.code === 'APPLICATION_ALREADY_PENDING' ||
-    error?.code === 'REAPPLY_NOT_AVAILABLE'
-  ) {
-    return 'Không thể tiếp nhận hồ sơ này lúc này. Vui lòng liên hệ Paw World Care để được hỗ trợ.';
+  if (error?.code === 'APPLICATION_ALREADY_PENDING') {
+    const label = CONFLICT_FIELD_LABELS[error.conflictField];
+    return label
+      ? `Hồ sơ dùng ${label} này vẫn đang được xét duyệt.`
+      : 'Hồ sơ dùng thông tin liên hệ hoặc số CCCD này vẫn đang được xét duyệt.';
+  }
+  if (error?.code === 'REAPPLY_NOT_AVAILABLE') {
+    const dateText = formatVietnamDate(error.reapplyAt);
+    return dateText
+      ? `Bạn có thể ứng tuyển lại từ ngày ${dateText}.`
+      : 'Hồ sơ trước chưa đủ 30 ngày kể từ ngày bị từ chối. Vui lòng ứng tuyển lại sau.';
   }
   if (error?.code === 'VALIDATION_FAILED')
     return 'Một số thông tin chưa hợp lệ. Hãy kiểm tra lại các trường bắt buộc.';
@@ -53,8 +84,8 @@ function errorMessage(error) {
 
 function validate({
   displayName,
-  contactChannel,
   contactValue,
+  phone,
   dateOfBirth,
   identityNumber,
   experience,
@@ -72,18 +103,13 @@ function validate({
   else if (displayName.trim().length > 100)
     errors.displayName = 'Tối đa 100 ký tự.';
   if (!contactValue.trim())
-    errors.contactValue = 'Nhập email hoặc số điện thoại.';
+    errors.contactValue = 'Nhập email.';
   else if (
-    contactChannel === 'EMAIL' &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactValue.trim())
   )
     errors.contactValue = 'Email chưa đúng định dạng.';
-  else if (
-    contactChannel === 'PHONE' &&
-    !/^\+[1-9]\d{7,14}$/.test(contactValue.trim())
-  )
-    errors.contactValue =
-      'Dùng số điện thoại dạng quốc tế, ví dụ +84912345678.';
+  if (!/^(?:0[35789]\d{8}|\+84[35789]\d{8})$/.test((phone ?? '').trim()))
+    errors.phone = 'Nhập số điện thoại Việt Nam hợp lệ, ví dụ 0912345678.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))
     errors.dateOfBirth = 'Chọn ngày sinh hợp lệ.';
   if (!/^[A-Z0-9]{8,20}$/.test(identityNumber.normalize('NFKC').replace(/[\s-]/g, '').toUpperCase()))
@@ -104,12 +130,12 @@ function validate({
   if (!portraitFile) errors.portraitFile = 'Chọn ảnh chân dung.';
   if (supportingFiles.length > MAX_SUPPORTING_FILES)
     errors.supportingFiles = `Tối đa ${MAX_SUPPORTING_FILES} giấy tờ bổ sung.`;
-  for (const [field, label, file] of [
-    ['identityFile', 'Mặt trước CCCD', identityFile], ['identityBackFile', 'Mặt sau CCCD', identityBackFile],
-    ['portraitFile', 'Ảnh chân dung', portraitFile], ...supportingFiles.map((file, index) => ['supportingFiles', `Giấy tờ bổ sung ${index + 1}`, file])
+  for (const [field, file] of [
+    ['identityFile', identityFile], ['identityBackFile', identityBackFile],
+    ['portraitFile', portraitFile], ...supportingFiles.map(file => ['supportingFiles', file])
   ]) {
-    if (file && (!ACCEPTED_TYPES.has(file.type) || file.size <= 0 || file.size > MAX_FILE_BYTES)) {
-      errors[field] = `${label} phải là JPG hoặc PNG, dung lượng từ 1 byte đến 5 MB.`;
+    if (file && !isValidImageFile(file)) {
+      errors[field] = MSG49;
     }
   }
   return errors;
@@ -126,6 +152,7 @@ export function SitterApplicationPage({
     displayName: '',
     contactChannel: 'EMAIL',
     contactValue: '',
+    phone: '',
     dateOfBirth: '',
     identityNumber: '',
     experience: '',
@@ -139,6 +166,7 @@ export function SitterApplicationPage({
   const [portraitFile, setPortraitFile] = useState(null);
   const [imageIssues, setImageIssues] = useState(new Map());
   const [supportingFiles, setSupportingFiles] = useState([]);
+  const [supportingFileRejection, setSupportingFileRejection] = useState(null);
   const [uploadedDocuments, setUploadedDocuments] = useState(null);
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null);
@@ -152,13 +180,83 @@ export function SitterApplicationPage({
       serverErrorsToFocus.current = null;
     }
   }, [busy]);
-  const identityInput = useRef(null), supportingInput = useRef(null);
-  function changeFiles(identity, supporting) {
-    setImageIssues(previous => new Map([...previous].filter(([file]) => file === identity || file === identityBackFile || file === portraitFile || supporting.includes(file))));
-    setIdentityFile(identity); setSupportingFiles(supporting); setUploadedDocuments(null);
-    idempotencyKey.current = null; setNotice(null);
-    const next = validate({ ...form, identityFile: identity, supportingFiles: supporting });
-    setErrors(previous => ({ ...previous, identityFile: next.identityFile, supportingFiles: next.supportingFiles, files: next.files }));
+  const identityInput = useRef(null), identityBackInput = useRef(null), portraitInput = useRef(null), supportingInput = useRef(null);
+  function handleSingleFile(field, inputRef, setFile, previousFile, nextFile) {
+    setImageIssues(previous => {
+      const next = new Map(previous);
+      if (previousFile) next.delete(previousFile);
+      return next;
+    });
+    setUploadedDocuments(null);
+    idempotencyKey.current = null;
+    setNotice(null);
+    if (!nextFile) {
+      setFile(null);
+      setErrors(previous => ({ ...previous, [field]: undefined, files: undefined }));
+      return;
+    }
+    if (!isValidImageFile(nextFile)) {
+      if (inputRef.current) inputRef.current.value = '';
+      setFile(null);
+      setErrors(previous => ({ ...previous, [field]: MSG49, files: undefined }));
+      return;
+    }
+    setFile(nextFile);
+    setErrors(previous => ({ ...previous, [field]: undefined, files: undefined }));
+  }
+
+  function handleSupportingFiles(selectedFiles, { replaceSelection = true } = {}) {
+    if (replaceSelection) setSupportingFileRejection(null);
+    setErrors(previous => ({ ...previous, supportingFiles: undefined, files: undefined }));
+    setImageIssues(previous => new Map([...previous].filter(([file]) => file === identityFile || file === identityBackFile || file === portraitFile)));
+    setUploadedDocuments(null);
+    idempotencyKey.current = null;
+    setNotice(null);
+    if (!selectedFiles.length) {
+      setSupportingFiles([]);
+      return;
+    }
+    if (selectedFiles.length > MAX_SUPPORTING_FILES) {
+      if (supportingInput.current) supportingInput.current.value = '';
+      setSupportingFiles([]);
+      setSupportingFileRejection(`Tối đa ${MAX_SUPPORTING_FILES} giấy tờ bổ sung.`);
+      return;
+    }
+    const invalid = selectedFiles.some(file => !isValidImageFile(file));
+    if (invalid) {
+      if (supportingInput.current) supportingInput.current.value = '';
+      setSupportingFiles([]);
+      setSupportingFileRejection(MSG49);
+      return;
+    }
+    setSupportingFiles(selectedFiles);
+  }
+
+  function handlePreviewValidation(field, inputRef, setFile, file, message, kind) {
+    if (!message) {
+      setImageIssues(previous => {
+        const next = new Map(previous);
+        next.delete(file);
+        return next;
+      });
+      return;
+    }
+    const text = kind === 'dimensions' ? MSG49_DIMENSIONS : MSG49;
+    if (inputRef.current) inputRef.current.value = '';
+    if (field === 'supportingFiles') {
+      setSupportingFiles(previous => previous.filter(item => item !== file));
+      setSupportingFileRejection(text);
+    } else {
+      setFile(null);
+    }
+    setUploadedDocuments(null);
+    idempotencyKey.current = null;
+    setImageIssues(previous => {
+      const next = new Map(previous);
+      next.delete(file);
+      return next;
+    });
+    if (field !== 'supportingFiles') setErrors(previous => ({ ...previous, [field]: text, files: undefined }));
   }
 
   function update(field, value) {
@@ -177,6 +275,7 @@ export function SitterApplicationPage({
     const ids = {
       displayName: 'sitter-applicant-displayName',
       contactValue: 'sitter-applicant-contactValue',
+      phone: 'sitter-applicant-phone',
       dateOfBirth: 'sitter-applicant-dateOfBirth',
       identityNumber: 'sitter-applicant-identityNumber',
       experience: 'sitter-applicant-experience',
@@ -206,9 +305,9 @@ export function SitterApplicationPage({
     if (imageIssues.size) nextErrors.files = [...imageIssues.values()].join(' ');
     if (!policies.current().ready || agreementKey !== policies.current().key) nextErrors.agreement = 'Bạn cần đồng ý với các chính sách đang có hiệu lực.';
     setErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean)) {
+    if (supportingFileRejection || Object.values(nextErrors).some(Boolean)) {
       setNotice(null);
-      focusFirst(nextErrors);
+      focusFirst({ ...nextErrors, supportingFiles: supportingFileRejection || nextErrors.supportingFiles });
       return;
     }
     setBusy(true);
@@ -230,11 +329,10 @@ export function SitterApplicationPage({
           let uploaded;
           try { uploaded = await api.uploadDocument(item.file, { documentType: item.documentType }); }
           catch (failure) {
-            const documentLabel = APPLICATION_DOCUMENT_LABELS[item.documentType];
             const message = failure.code === 'IMAGE_DIMENSIONS_EXCEEDED'
-              ? `${documentLabel} vượt 4 megapixel. Giảm kích thước ảnh, ví dụ 2000 × 2000 pixel, rồi chọn lại.`
+              ? MSG49_DIMENSIONS
               : failure.code === 'VALIDATION_FAILED' || failure.code === 'INVALID_DOCUMENT'
-                ? `Không đọc được ${documentLabel.toLowerCase()}. Dùng JPG/PNG, tối đa 5 MB và 4 megapixel.` : errorMessage(failure);
+                ? MSG49 : errorMessage(failure);
             failure.fieldErrors = { [({ IDENTITY_FRONT: 'identityFile', IDENTITY_BACK: 'identityBackFile', PORTRAIT: 'portraitFile' })[item.documentType] ?? 'supportingFiles']: message };
             throw failure;
           }
@@ -254,8 +352,8 @@ export function SitterApplicationPage({
       const result = await api.submit(
         {
           displayName: form.displayName.trim(),
-          contactChannel: form.contactChannel,
-          contactValue: form.contactValue.trim(),
+          email: form.contactValue.trim(),
+          phone: form.phone.trim(),
           dateOfBirth: form.dateOfBirth,
           identityNumber: form.identityNumber.trim(),
           experience: form.experience.trim(),
@@ -272,6 +370,7 @@ export function SitterApplicationPage({
         displayName: '',
         contactChannel: 'EMAIL',
         contactValue: '',
+        phone: '',
         dateOfBirth: '',
         identityNumber: '',
         experience: '',
@@ -294,7 +393,7 @@ export function SitterApplicationPage({
           && typeof value === 'string' && value.length <= 300) next[field] = value;
       }
       if (error.code === 'AGE_REQUIREMENT_NOT_MET') next.dateOfBirth = 'Bạn cần đủ 18 tuổi để ứng tuyển.';
-      if (error.code === 'INVALID_DOCUMENT' && !next.identityFile && !next.supportingFiles) next.identityFile = 'Ảnh không đọc được hoặc vượt giới hạn. Chọn ảnh JPG/PNG khác, tối đa 5 MB.';
+      if (error.code === 'INVALID_DOCUMENT' && !next.identityFile && !next.supportingFiles) next.identityFile = MSG49;
       setErrors(previous => ({ ...previous, ...next }));
       serverErrorsToFocus.current = next;
       const message = Object.values(next).length ? Object.values(next).join(' ') : errorMessage(error);
@@ -315,7 +414,7 @@ export function SitterApplicationPage({
         <span className="sitter-application__success-icon" aria-hidden="true">{receipt.state === 'REJECTED' ? '!' : '✓'}</span>
         <p className="sitter-application__eyebrow">PawWorld · Hồ sơ của bạn</p>
         <h2 id="sitter-application-receipt-title">{labels[receipt.state] || 'Đã tiếp nhận hồ sơ'}</h2>
-        <p>Hồ sơ chỉ được cấp quyền Pet Sitter sau khi PawWorld xét duyệt. Bạn vẫn có thể sử dụng tài khoản khách hàng trong thời gian chờ.</p>
+        <p>Hồ sơ đang chờ PawWorld xét duyệt. Tài khoản Pet Sitter chỉ được tạo khi Admin duyệt hồ sơ.</p>
         {receipt.state === 'REJECTED' && <>
           <h3>Lý do từ chối</h3>
           <p>{receipt.rejectionReason || 'Chưa có nội dung lý do được cung cấp.'}</p>
@@ -324,23 +423,16 @@ export function SitterApplicationPage({
         </>}
         <div className="sitter-application__tracking">
           <span>Mã hồ sơ của bạn</span><strong>{receipt.applicationCode}</strong>
-          <small>Khi đăng nhập đúng tài khoản, bạn mở trực tiếp hồ sơ mà không cần nhập lại mã hoặc OTP.</small>
+          <small>Lưu mã này để tra cứu hồ sơ và xác minh bằng mã OTP gửi tới email đã nộp.</small>
         </div>
         <Link className="registration-submit" to="/sitter/application-status">Theo dõi hồ sơ →</Link>
         {onRefreshApplication && <Button variant="secondary" onClick={onRefreshApplication}>Cập nhật trạng thái hồ sơ</Button>}
-        <Link to="/account">Về tài khoản của tôi</Link>
+        <Link to="/">Về trang chủ</Link>
       </div>
     </section>;
   }
 
   const apiUnavailable = !api?.uploadDocument || uploadsAvailable === false;
-  function imageValidation(file, message) {
-    setImageIssues(previous => {
-      const next = new Map(previous);
-      if (message) next.set(file, message); else next.delete(file);
-      return next;
-    });
-  }
   function field(name, label, options = {}) {
     return <label className="sitter-application__field" htmlFor={`sitter-applicant-${name}`}>
       <span>{label} <b aria-hidden="true">*</b></span>
@@ -356,16 +448,18 @@ export function SitterApplicationPage({
         <p className="sitter-application__eyebrow">PawWorld · Pet Sitter</p>
         <h2 id="sitter-application-title">Kể chúng mình nghe về bạn</h2>
         <p>Hoàn thiện hồ sơ để bắt đầu hành trình chăm sóc những người bạn nhỏ.</p>
-        <span className="sitter-application__verified">✓ Email đã xác minh · {form.contactValue}</span>
+        <p>Nhập cả email và số điện thoại. Bạn chưa cần có tài khoản để ứng tuyển.</p>
       </header>
       {apiUnavailable && <Notice state="pending" title="Chưa mở tiếp nhận giấy tờ">Kho giấy tờ riêng tư hiện chưa sẵn sàng. Bạn có thể chuẩn bị thông tin; hồ sơ chỉ được gửi khi hệ thống tiếp nhận hoạt động.</Notice>}
       <form className="sitter-application__form" noValidate onSubmit={submit}>
+        {notice && <Notice state={notice.state} title={notice.title}>{notice.message}</Notice>}
         <fieldset className="sitter-application__body" disabled={busy}>
           <legend className="pwc-visually-hidden">Thông tin ứng tuyển</legend>
           <div className="sitter-application__section-heading"><span>01</span><h3>Thông tin cá nhân</h3><small>Cần đủ 18 tuổi để ứng tuyển</small></div>
           <div className="sitter-application__grid">
             {field('displayName', 'Họ và tên', { autoComplete: 'name', maxLength: 100, placeholder: 'Nguyễn Văn A' })}
-            {field('contactValue', 'Email', { type: 'email', readOnly: true, autoComplete: 'email' })}
+            {field('contactValue', 'Email', { type: 'email', autoComplete: 'email' })}
+            {field('phone', 'Số điện thoại', { type: 'tel', autoComplete: 'tel', placeholder: '0912345678' })}
             {field('dateOfBirth', 'Ngày sinh', { type: 'date', autoComplete: 'bday' })}
             {field('identityNumber', 'Số CCCD hoặc giấy tờ định danh', { maxLength: 24, placeholder: 'Nhập số trên giấy tờ của bạn' })}
           </div>
@@ -405,38 +499,44 @@ export function SitterApplicationPage({
             {errors.experience && <small className="sitter-application__error">{errors.experience}</small>}
           </label>
           <div className="sitter-application__section-heading"><span>03</span><h3>Giấy tờ ứng tuyển</h3></div>
-          <p className="sitter-application__file-hint">Ảnh JPG hoặc PNG, tối đa 5 MB và 4 megapixel/tệp (ví dụ 2000 × 2000 pixel), tối đa 20 ảnh/tài khoản. Giấy tờ được lưu riêng tư, chỉ bạn và người xét duyệt có quyền xem.</p>
+          <p className="sitter-application__file-hint">Ảnh JPG hoặc PNG, tối đa 5 MB và 4 megapixel/tệp (ví dụ 2000 × 2000 pixel). Giấy tờ được lưu riêng tư để xét duyệt hồ sơ.</p>
           <div className="sitter-application__upload"><label htmlFor="sitter-applicant-id-file">Ảnh mặt trước CCCD <b aria-hidden="true">*</b></label>
             <small>Ảnh rõ nét, đầy đủ thông tin trên giấy tờ</small>
             <input ref={identityInput} id="sitter-applicant-id-file" type="file" accept="image/jpeg,image/png" required aria-invalid={!!(errors.identityFile || errors.files)}
-              onChange={event => changeFiles(event.target.files?.[0] ?? null, supportingFiles)} />
-            {identityFile && <ApplicationImagePreview documentLabel="Mặt trước CCCD" key={identityFile.name + identityFile.lastModified} file={identityFile} disabled={busy} onValidation={message => imageValidation(identityFile, message)} onRemove={() => { identityInput.current.value = ''; changeFiles(null, supportingFiles); }} />}
-            {errors.identityFile && <small className="sitter-application__error">{errors.identityFile}</small>}
+              onChange={event => handleSingleFile('identityFile', identityInput, setIdentityFile, identityFile, event.target.files?.[0] ?? null)} />
+            {identityFile && <ApplicationImagePreview documentLabel="Mặt trước CCCD" key={identityFile.name + identityFile.lastModified} file={identityFile} disabled={busy} onValidation={(message, kind) => handlePreviewValidation('identityFile', identityInput, setIdentityFile, identityFile, message, kind)} onRemove={() => { if (identityInput.current) identityInput.current.value = ''; handleSingleFile('identityFile', identityInput, setIdentityFile, identityFile, null); }} />}
+            {errors.identityFile && <small className="sitter-application__error" role="alert">{errors.identityFile}</small>}
           </div>
-          {[['IDENTITY_BACK', 'sitter-applicant-back-file', identityBackFile, setIdentityBackFile, 'identityBackFile'], ['PORTRAIT', 'sitter-applicant-portrait-file', portraitFile, setPortraitFile, 'portraitFile']].map(([type, id, file, setFile, errorKey]) => <div className="sitter-application__upload" key={type}>
+          {[['IDENTITY_BACK', 'sitter-applicant-back-file', identityBackInput, identityBackFile, setIdentityBackFile, 'identityBackFile'], ['PORTRAIT', 'sitter-applicant-portrait-file', portraitInput, portraitFile, setPortraitFile, 'portraitFile']].map(([type, id, inputRef, file, setFile, errorKey]) => <div className="sitter-application__upload" key={type}>
             <label htmlFor={id}>{APPLICATION_DOCUMENT_LABELS[type]} <b aria-hidden="true">*</b></label>
             <small>{type === 'PORTRAIT' ? 'Ảnh rõ mặt, chụp một người; chỉ dùng xét duyệt hồ sơ.' : 'Chụp rõ toàn bộ mặt sau căn cước.'}</small>
-            <input id={id} type="file" required accept="image/jpeg,image/png" aria-invalid={!!errors[errorKey]} onChange={event => {
-              const next = event.target.files?.[0] ?? null; setFile(next); setUploadedDocuments(null); idempotencyKey.current = null;
-              setImageIssues(old => { const issues = new Map(old); issues.delete(file); return issues; }); setErrors(old => ({ ...old, [errorKey]: undefined }));
+            <input ref={inputRef} id={id} type="file" required accept="image/jpeg,image/png" aria-invalid={!!errors[errorKey]} onChange={event => {
+              handleSingleFile(errorKey, inputRef, setFile, file, event.target.files?.[0] ?? null);
             }} />
-            {file && <ApplicationImagePreview documentLabel={APPLICATION_DOCUMENT_LABELS[type]} file={file} disabled={busy} onValidation={message => imageValidation(file, message)} onRemove={() => {
-              document.getElementById(id).value = ''; setFile(null); setUploadedDocuments(null); idempotencyKey.current = null;
-              setImageIssues(old => { const issues = new Map(old); issues.delete(file); return issues; });
+            {file && <ApplicationImagePreview documentLabel={APPLICATION_DOCUMENT_LABELS[type]} key={file.name + file.lastModified} file={file} disabled={busy} onValidation={(message, kind) => handlePreviewValidation(errorKey, inputRef, setFile, file, message, kind)} onRemove={() => {
+              if (inputRef.current) inputRef.current.value = '';
+              handleSingleFile(errorKey, inputRef, setFile, file, null);
             }} />}
-            {errors[errorKey] && <small className="sitter-application__error">{errors[errorKey]}</small>}
+            {errors[errorKey] && <small className="sitter-application__error" role="alert">{errors[errorKey]}</small>}
           </div>)}
           <div className="sitter-application__upload"><label htmlFor="sitter-applicant-supporting-files">Ảnh chứng chỉ hoặc tài liệu bổ sung <small>(không bắt buộc)</small></label>
             <small>Tối đa 5 ảnh bổ sung về kinh nghiệm hoặc chứng chỉ của bạn</small>
-            <input ref={supportingInput} id="sitter-applicant-supporting-files" type="file" accept="image/jpeg,image/png" multiple
-              onChange={event => changeFiles(identityFile, Array.from(event.target.files ?? []))} />
+            <input ref={supportingInput} id="sitter-applicant-supporting-files" type="file" accept="image/jpeg,image/png" multiple aria-invalid={!!(supportingFileRejection || errors.supportingFiles)}
+              onChange={event => handleSupportingFiles(Array.from(event.target.files ?? []))} />
             {supportingFiles.length > 0 && <small>Đã chọn {supportingFiles.length} ảnh</small>}
-            {supportingFiles.map((file, index) => <ApplicationImagePreview documentLabel={`Giấy tờ bổ sung ${index + 1}`} key={index + file.name + file.lastModified} file={file} disabled={busy} onValidation={message => imageValidation(file, message)} onRemove={() => {
-              supportingInput.current.value = ''; changeFiles(identityFile, supportingFiles.filter((_, i) => i !== index));
+            {supportingFiles.map((file, index) => <ApplicationImagePreview documentLabel={`Giấy tờ bổ sung ${index + 1}`} key={index + file.name + file.lastModified} file={file} disabled={busy} onValidation={(message, kind) => handlePreviewValidation('supportingFiles', supportingInput, setSupportingFiles, file, message, kind)} onRemove={() => {
+              if (supportingInput.current) supportingInput.current.value = '';
+              handleSupportingFiles(supportingFiles.filter((_, i) => i !== index), { replaceSelection: false });
             }} />)}
+            {(supportingFileRejection || errors.supportingFiles) && <small className="sitter-application__error" role="alert">
+              {supportingFileRejection || errors.supportingFiles}
+            </small>}
+            {supportingFileRejection && <Button type="button" variant="secondary" onClick={() => handleSupportingFiles(supportingFiles)}>
+              Bỏ ảnh bổ sung lỗi
+            </Button>}
           </div>
           {imageIssues.size > 0 && <p className="sitter-application__error" role="alert">{[...imageIssues.values()].join(' ')}</p>}
-          {(errors.files || errors.supportingFiles) && <p className="sitter-application__error" role="alert">{errors.files || errors.supportingFiles}</p>}
+          {errors.files && <p className="sitter-application__error" role="alert">{errors.files}</p>}
           <div className="registration-consent">
             <input id="sitter-agreement" type="checkbox" checked={agreementKey === policies.key && policies.ready} disabled={!policies.ready}
               onChange={event => { setAgreementKey(event.target.checked ? policies.current().key : ''); setErrors(previous => ({ ...previous, agreement: undefined })); }} />
@@ -446,7 +546,6 @@ export function SitterApplicationPage({
             {errors.agreement && <p className="sitter-application__error" role="alert">{errors.agreement}</p>}
           </div>
         </fieldset>
-        {notice && <Notice state={notice.state} title={notice.title}>{notice.message}</Notice>}
         <Button className="sitter-application__submit" type="submit" loading={busy} loadingLabel="Đang gửi hồ sơ…" disabled={apiUnavailable || !policies.ready}>Gửi hồ sơ ứng tuyển →</Button>
         <p className="sitter-application__review-hint">PawWorld sẽ kiểm tra hồ sơ và liên hệ với bạn về bước tiếp theo.</p>
       </form>

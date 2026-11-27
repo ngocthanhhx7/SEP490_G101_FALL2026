@@ -66,8 +66,11 @@ export function createVisitWorkflowService({ connection, clock = Date.now }) {
         { $inc: { workflowGuardVersion: 1 } },
         { session }
       );
+      const allowedStatuses = visit.state === 'IN_PROGRESS' && visit.checkInAt instanceof Date
+        ? ['ACTIVE', 'SUSPENDED']
+        : ['ACTIVE'];
       const status = await col('sitterstatuses').updateOne(
-        { userId, status: 'ACTIVE' },
+        { userId, status: { $in: allowedStatuses } },
         { $inc: { schedulingGuardVersion: 1 } },
         { session }
       );

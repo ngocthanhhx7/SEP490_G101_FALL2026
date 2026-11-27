@@ -6,7 +6,9 @@ const EMAIL = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~
 
 // MSG03: ten digits starting with 0; spaces, dots and hyphens are dropped. Returns { value } (empty when not given) or { error }.
 export function parseSupplierPhoneInput(raw) {
-  const digits = (typeof raw === 'string' ? raw : '').trim().replace(/[\s.-]/gu, '');
+  if (raw === undefined || raw === null) return { value: '' };
+  if (typeof raw !== 'string') return { error: 'INVALID' };
+  const digits = raw.trim().replace(/[\s.-]/gu, '');
   if (!digits) return { value: '' };
   return PHONE.test(digits) ? { value: digits } : { error: 'INVALID' };
 }
@@ -22,10 +24,12 @@ export function parseSupplierEmailInput(raw) {
 // The reason each field of the supplier form is wrong, or nothing when it can be sent:
 // REQUIRED is MSG01, phone INVALID is MSG03, email INVALID is MSG02, CONTACT_REQUIRED (phone and email) is MSG125.
 export function validateSupplierForm(values) {
+  const source = values && typeof values === 'object' ? values : {};
   const errors = {};
-  if (!values.name.trim()) errors.name = 'REQUIRED';
-  const phone = parseSupplierPhoneInput(values.phone);
-  const email = parseSupplierEmailInput(values.email);
+  const name = typeof source.name === 'string' ? source.name : '';
+  if (!name.trim()) errors.name = 'REQUIRED';
+  const phone = parseSupplierPhoneInput(source.phone);
+  const email = parseSupplierEmailInput(source.email);
   if (phone.error) errors.phone = phone.error;
   if (email.error) errors.email = email.error;
   if (!phone.error && !email.error && !phone.value && !email.value) {

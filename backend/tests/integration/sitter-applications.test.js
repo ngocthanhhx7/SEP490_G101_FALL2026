@@ -1,4 +1,5 @@
 import { employmentTerms } from '../fixtures/employment-terms.js';
+import { assessmentInput, completeChecklist } from '../fixtures/application-assessment.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -69,10 +70,20 @@ function submit(appInstance, body, key = 'submit-key-0001') {
 
 async function advanceToInterview(instance, admin, applicationId) {
   for (const [path, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    if (path === 'interview') await saveAssessment(instance, admin, applicationId, assessmentInput(1, 0));
     await request(instance).post(`/api/v1/applications/${applicationId}/${path}`)
       .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .set('Idempotency-Key', `stage-${path}-${applicationId}`).send({ expectedVersion }).expect(200);
   }
+  await saveAssessment(instance, admin, applicationId, assessmentInput(2, 1, {
+    callAt: new Date(clockNow).toISOString(), outcome: 'PASSED'
+  }));
+}
+
+function saveAssessment(instance, admin, applicationId, input) {
+  return request(instance).patch(`/api/v1/applications/${applicationId}/assessment`)
+    .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
+    .set('Idempotency-Key', `assessment-${applicationId}-${input.expectedAssessmentVersion}`).send(input).expect(200);
 }
 
 async function signedContract(instance, admin, applicationId) {
@@ -82,6 +93,47 @@ async function signedContract(instance, admin, applicationId) {
   await post(`${root}/${draft.id}/decisions`).set('Idempotency-Key','synthetic-contract-issue').send({action:'ISSUE',termsHash:draft.termsHash}).expect(200);
   await post(`${root}/${draft.id}/decisions`).set('Idempotency-Key','synthetic-contract-sign').send({action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-10-14',archiveReference:'Synthetic signed physical archive',bothPartiesSigned:true}).expect(200);
 }
+
+test('UC-18: saved checks and a passed interview gate approval without invalidating a signed contract', async () => {
+  const instance = app();
+  const { id } = (await submit(instance, applicationBody()).expect(201)).body.data;
+  const admin = await login('ADMIN'), customer = await login('CUSTOMER');
+  const root = `/api/v1/applications/${id}`;
+  const command = (method, path, key, session = admin) => request(instance)[method](root + path)
+    .set('Cookie', session.cookie).set('X-CSRF-Token', session.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
+    .set('Idempotency-Key', key);
+  const save = (key, payload) => command('patch', '/assessment', key).send(payload);
+  const interview = () => command('post', '/interview', 'assessment-start-interview').send({ expectedVersion: 1 });
+  const approve = () => command('post', '/decisions', 'assessment-approve')
+    .send({ expectedVersion: 2, action: 'APPROVE', reason: 'Synthetic assessment passed' });
+
+  await command('post', '/review', 'assessment-start-review').send({ expectedVersion: 0 }).expect(200);
+  await interview().expect(409).expect(res => expect(res.body.error.code).toBe('APPLICATION_CHECKLIST_REQUIRED'));
+  await command('patch', '/assessment', 'assessment-forbidden', customer).send(assessmentInput(1, 0)).expect(403);
+  await save('assessment-malformed', assessmentInput(1, 0, { checklist: { ...completeChecklist, adult: 'true' } })).expect(422);
+  await save('assessment-invalid-stage', assessmentInput(1, 0, { outcome: 'PASSED' })).expect(409);
+  const partial = assessmentInput(1, 0, { checklist: { ...completeChecklist, portrait: false } });
+  await save('assessment-partial', partial).expect(200);
+  await save('assessment-partial', partial).expect(200).expect(res => expect(res.body.data.replayed).toBe(true));
+  await save('assessment-stale', assessmentInput(1, 0)).expect(409);
+  await interview().expect(409);
+  await save('assessment-checks', assessmentInput(1, 1)).expect(200);
+  await interview().expect(200);
+
+  await signedContract(instance, admin, id);
+  await approve().expect(409).expect(res => expect(res.body.error.code).toBe('APPLICATION_INTERVIEW_REQUIRED'));
+  const callAt = new Date(clockNow).toISOString();
+  await save('assessment-invalid-time', assessmentInput(2, 2, { callAt: '2026-02-30T09:00:00+07:00', outcome: 'PASSED' })).expect(422);
+  await save('assessment-not-passed', assessmentInput(2, 2, { callAt, outcome: 'NOT_PASSED' })).expect(200);
+  await approve().expect(409).expect(res => expect(res.body.error.code).toBe('APPLICATION_INTERVIEW_REQUIRED'));
+  await save('assessment-passed', assessmentInput(2, 3, { callAt, outcome: 'PASSED' })).expect(200);
+  await request(instance).get(root).set('Cookie', admin.cookie).expect(200).expect(res => {
+    expect(res.body.data.version).toBe(2);
+    expect(res.body.data.assessment).toEqual({ checklist: completeChecklist, callAt, outcome: 'PASSED', version: 4 });
+  });
+  await request(instance).get(root).set('Cookie', customer.cookie).expect(403);
+  await approve().expect(200).expect(res => expect(res.body.data.state).toBe('APPROVED'));
+});
 
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' },
@@ -164,14 +216,43 @@ describe('P16 public sitter application submission', () => {
     expect(await sitterApplicationModels(connection).SitterApplicationAudit.countDocuments({ action: 'APPLICATION_SUBMITTED' })).toBe(1);
   });
 
-  test('blocks duplicate pending contact and identity without disclosing which value matched', async () => {
+  test('ST-ONB-01 creates an in-app notification for active Admins with the application code and detail link', async () => {
+    await User.create({
+      _id: ADMIN_ID, displayName: 'Admin One', roles: ['ADMIN'],
+      state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+    });
+    const instance = app();
+    const first = await submit(instance, applicationBody(), 'submit-notify-admin-01').expect(201);
+    await submit(instance, applicationBody(), 'submit-notify-admin-01').expect(200);
+    const notices = await connection.db.collection('notifications').find({
+      recipientId: ADMIN_ID, eventType: 'ApplicationSubmitted'
+    }).toArray();
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({
+      recipientId: ADMIN_ID,
+      role: 'ADMIN',
+      channel: 'IN_APP',
+      deepLink: `/admin/sitter-applications/${first.body.data.id}`
+    });
+    expect(notices[0].message).toContain(first.body.data.applicationCode);
+  });
+
+  test('ST-ONB-09 blocks duplicate pending phone, email and identity with the same unverified response', async () => {
     const application = app();
-    await submit(application, applicationBody()).expect(201);
-    const sameContact = await submit(application, applicationBody({ identityNumber: '987654321098' }), 'submit-key-0002').expect(409);
-    expect(sameContact.body.error.code).toBe('APPLICATION_ALREADY_PENDING');
-    const sameIdentity = await submit(application, applicationBody({ contactValue: 'second@example.test' }), 'submit-key-0003').expect(409);
-    expect(sameIdentity.body.error.code).toBe('APPLICATION_ALREADY_PENDING');
-    expect(JSON.stringify(sameContact.body)).not.toMatch(/sitter@example|012345678901|987654321098/i);
+    await submit(application, applicationBody({ email: 'sitter@example.test', phone: '0912345678' })).expect(201);
+    const samePhone = await submit(application, applicationBody({
+      email: 'other1@example.test', phone: '0912345678', identityNumber: '987654321098'
+    }), 'submit-key-phone').expect(409);
+    expect(samePhone.body.error).toEqual({ code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time' });
+    const sameEmail = await submit(application, applicationBody({
+      email: 'sitter@example.test', phone: '0987654321', identityNumber: '987654321098'
+    }), 'submit-key-email').expect(409);
+    expect(sameEmail.body.error).toEqual(samePhone.body.error);
+    const sameIdentity = await submit(application, applicationBody({
+      email: 'other2@example.test', phone: '0987654321', identityNumber: '012345678901'
+    }), 'submit-key-id').expect(409);
+    expect(sameIdentity.body.error).toEqual(samePhone.body.error);
+    expect(JSON.stringify(sameEmail.body)).not.toMatch(/sitter@example|0912345678|012345678901|987654321098/i);
     expect(await User.countDocuments({})).toBe(0);
   });
 
@@ -184,7 +265,7 @@ describe('P16 public sitter application submission', () => {
     expect(await sitterApplicationModels(connection).SitterApplication.countDocuments({ state: 'PENDING' })).toBe(1);
   });
 
-  test('enforces the rejection waiting period and permits a new submission at the exact eligible instant', async () => {
+  test('ST-ONB-13 enforces the rejection waiting period without exposing dates to an unverified caller', async () => {
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
@@ -194,7 +275,10 @@ describe('P16 public sitter application submission', () => {
       .set('Idempotency-Key', 'decision-reject-0001')
       .send({ action: 'REJECT', reason: 'Cần bổ sung hồ sơ kinh nghiệm.', expectedVersion: 2 }).expect(200);
     const eligibleAt = clockNow + 30 * 24 * 60 * 60 * 1000;
-    await submit(application, applicationBody(), 'submit-key-after-reject').expect(409);
+    const tooEarly = await submit(application, applicationBody(), 'submit-key-after-reject').expect(409);
+    expect(tooEarly.body.error).toEqual({
+      code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time'
+    });
     clockNow = eligibleAt;
     const newApplication = await submit(application, applicationBody(), 'submit-key-after-wait').expect(201);
     expect(newApplication.body.data.id).not.toBe(submitted.body.data.id);
@@ -471,6 +555,7 @@ describe('P46 composed applicant status runtime', () => {
       .set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .send({ expectedVersion: version });
     await transition('review', 0, 'review-interview-1').expect(200);
+    await saveAssessment(f.instance, admin, f.receipt.id, assessmentInput(1, 0));
     await transition('interview', 1, 'interview-step-1').expect(200);
     await transition('interview', 1, 'interview-step-1').expect(200);
     await transition('interview', 1, 'interview-step-2').expect(409);

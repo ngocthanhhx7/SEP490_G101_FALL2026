@@ -37,6 +37,7 @@ export function servicePriceModule({
       suppliedSessionService ??
       createSessionService({
         connection,
+        clock,
         tokenSecret: config.auth.tokenSecret,
         csrfSecret: config.auth.csrfSecret
       });

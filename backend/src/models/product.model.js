@@ -6,6 +6,7 @@ import {
   PRODUCT_RECEIVE_METHODS,
   PRODUCT_PAYMENT_METHODS,
   PRODUCT_ORDER_STATUSES,
+  PRODUCT_DELIVERED_BY,
   PRODUCT_RETURN_REASONS,
   PRODUCT_RETURN_LIMITS,
   PRODUCT_REFUSAL_REASONS,
@@ -17,21 +18,27 @@ import { SUPPLIER_STATUSES, SUPPLIER_LIMITS } from '../constants/supplier-fields
 import { COUNTER_CHANNEL, COUNTER_RECEIVE_METHOD, COUNTER_PAYMENT_METHODS, COUNTER_ORDER_STATUSES } from '../constants/counter-sale-fields.js';
 import { GOODS_RECEIPT_LIMITS } from '../constants/goods-receipt-fields.js';
 import { STOCK_ADJUSTMENT_TYPES, STOCK_ADJUSTMENT_REASONS, STOCK_ADJUSTMENT_LIMITS } from '../constants/stock-adjustment-fields.js';
+import {
+  FAULTY_CLAIM_DECISIONS,
+  FAULTY_CLAIM_LIMITS,
+  FAULTY_CLAIM_PROBLEM_TYPES,
+  FAULTY_CLAIM_STATUSES
+} from '../constants/faulty-product-claim-fields.js';
 
 const cartLine = sub({
   productId: { type: oid, required: true },
-  quantity: { ...integer(1, 99), required: true }
+  quantity: { ...integer(1), required: true }
 });
 const orderLine = sub({
   productId: { type: oid, required: true },
   productCode: { type: String, required: true, maxlength: 20 },
   productName: { type: String, required: true, maxlength: 200 },
-  quantity: { ...integer(1, 99), required: true },
+  quantity: { ...integer(1), required: true },
   // Price at the moment of ordering; later price changes never touch placed orders (GBR-35).
   sellingPriceWhenOrdered: { ...integer(), required: true },
   unitDiscount: { ...integer(), default: 0 },
   // Set when a returned order is confirmed: how many of this line go back on sale (0 to quantity).
-  resellableQuantity: { ...integer(0, 99) }
+  resellableQuantity: { ...integer() }
 });
 // One product of a goods receipt. The code and name are copied when the receipt is saved, like an order line.
 const receiptLine = sub({
@@ -70,6 +77,11 @@ const orderPayment = sub({
   paymentLinkId: { type: String, maxlength: 128 },
   paidAt: { type: Date },
   receipts: { type: [paymentReceipt], default: [], validate: (list) => list.length <= PRODUCT_PAYMENT_LIMITS.maxReceipts }
+});
+const faultyReportPolicy = sub({
+  version: { ...integer(0), required: true },
+  days: { ...integer(1, 365), required: true },
+  deadlineAt: { type: Date, required: true }
 });
 const cashPayment = sub({
   amount: { ...integer(), required: true },
@@ -150,6 +162,8 @@ export function productSalesModels(connection) {
         cashPayment: { type: cashPayment },
         completedAt: { type: Date },
         cancelledAt: { type: Date },
+        cancelledBy: { type: String, enum: ['CUSTOMER', 'STAFF', 'SYSTEM'] },
+        cancelIdempotencyKey: { type: String, maxlength: 128 },
         tierDiscount: { ...integer(), default: 0 },
         tierCode: { type: String, enum: [...CUSTOMER_TIERS, null], default: null },
         tierPolicyVersion: { ...integer(1), default: null, validate: value => value === null || Number.isSafeInteger(value) },
@@ -165,9 +179,13 @@ export function productSalesModels(connection) {
         paymentDeadlineAt: { type: Date },
         payment: { type: orderPayment },
         trackingCode: { type: String, maxlength: 64 },
+        handedToCarrierAt: { type: Date },
         status: { type: String, enum: [...new Set([...PRODUCT_ORDER_STATUSES, ...COUNTER_ORDER_STATUSES])], default: 'PLACED' },
         pickupDeadlineAt: { type: Date },
+        // Serializes faulty-item submissions against the same purchased quantities without changing order state.
+        faultyClaimSubmissionVersion: { ...integer(), select: false },
         deliveredAt: { type: Date },
+        deliveredBy: { type: String, enum: PRODUCT_DELIVERED_BY },
         // Entered when the order goes back (the carrier's own words), then the shop's reason when it confirms the return.
         carrierReturnReason: { type: String, maxlength: PRODUCT_RETURN_LIMITS.carrierReasonMax },
         returnReason: { type: String, enum: PRODUCT_RETURN_REASONS },
@@ -190,6 +208,7 @@ export function productSalesModels(connection) {
         [{ counterCreatedBy: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { channel: COUNTER_CHANNEL } }],
         [{ channel: 1, status: 1, createdAt: 1, _id: 1 }, {}],
         [{ status: 1, receiveMethod: 1, pickupDeadlineAt: 1, _id: 1 }, {}],
+        [{ status: 1, receiveMethod: 1, handedToCarrierAt: 1, _id: 1 }, {}],
         [{ status: 1, paymentMethod: 1, paymentDeadlineAt: 1, _id: 1 }, { partialFilterExpression: { paymentMethod: 'PREPAID', paid: false } }],
         [{ 'payment.providerReferences': 1 }, { unique: true, partialFilterExpression: { 'payment.providerReferences': { $type: 'string' } } }]
       ]
@@ -264,6 +283,56 @@ export function productSalesModels(connection) {
         value: { ...integer(), default: 0 }
       },
       indexes: []
+    },
+    FaultyProductClaim: {
+      fields: {
+        code: { type: String, required: true, maxlength: 20 },
+        number: { ...integer(1), required: true },
+        orderId: { type: oid, required: true },
+        orderCode: { type: String, required: true, maxlength: 20 },
+        orderDeliveredAt: { type: Date, required: true },
+        reportPolicy: { type: faultyReportPolicy, immutable: true },
+        customerId: { type: oid, required: true },
+        customerName: { type: String, required: true, maxlength: 100 },
+        productId: { type: oid, required: true },
+        productCode: { type: String, required: true, maxlength: 20 },
+        productName: { type: String, required: true, maxlength: 200 },
+        orderedQuantity: { ...integer(1), required: true },
+        unitPriceVnd: { ...integer(), required: true },
+        quantity: { ...integer(1), required: true },
+        problemType: { type: String, enum: FAULTY_CLAIM_PROBLEM_TYPES, required: true },
+        description: { type: String, default: '', maxlength: FAULTY_CLAIM_LIMITS.descriptionMax },
+        photoIds: {
+          type: [String],
+          required: true,
+          validate: list => Array.isArray(list) && list.length >= FAULTY_CLAIM_LIMITS.minPhotos && list.length <= FAULTY_CLAIM_LIMITS.maxPhotos
+        },
+        status: { type: String, enum: FAULTY_CLAIM_STATUSES, default: 'WAITING_CHECK' },
+        inspectionResult: { type: String, maxlength: FAULTY_CLAIM_LIMITS.inspectionMax },
+        inspectedBy: { type: oid },
+        inspectedByName: { type: String, maxlength: 100 },
+        inspectedAt: { type: Date },
+        decision: { type: String, enum: FAULTY_CLAIM_DECISIONS },
+        decisionNote: { type: String, maxlength: FAULTY_CLAIM_LIMITS.decisionNoteMax },
+        refundAmountVnd: { ...integer() },
+        decidedBy: { type: oid },
+        decidedByName: { type: String, maxlength: 100 },
+        decidedAt: { type: Date },
+        exchangeSentBy: { type: oid },
+        exchangeSentByName: { type: String, maxlength: 100 },
+        exchangeSentAt: { type: Date },
+        idempotencyKey: { type: String, required: true, maxlength: 128 },
+        requestFingerprint: { type: String, required: true, maxlength: 128 },
+        version: { ...integer(), default: 0 }
+      },
+      indexes: [
+        [{ code: 1 }, { unique: true }],
+        [{ number: 1 }, { unique: true }],
+        [{ customerId: 1, idempotencyKey: 1 }, { unique: true }],
+        [{ orderId: 1, productId: 1, status: 1 }, {}],
+        [{ status: 1, createdAt: -1, _id: -1 }, {}],
+        [{ productId: 1, status: 1, exchangeSentAt: -1, _id: -1 }, {}]
+      ]
     }
   });
 }

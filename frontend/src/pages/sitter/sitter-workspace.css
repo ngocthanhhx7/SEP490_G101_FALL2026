@@ -64,6 +64,11 @@
 .sitter-offer-actions > .sitter-offer-actions__accept { gap: .45rem; color: #322014; }
 .sitter-offer-actions > .sitter-offer-actions__decline { border: 1px solid #a992bd; color: #4e2b72; background: #fff; }
 .sitter-offer-actions > .sitter-offer-actions__decline:not(:disabled):hover { background: #f2ebf8; }
+.sitter-offer-decline { display: grid; gap: .5rem; padding: .75rem; border: 1px solid #e8def0; border-radius: .75rem; background: #faf7fc; }
+.sitter-offer-decline label { display: grid; gap: .25rem; font-weight: 700; font-size: .9rem; }
+.sitter-offer-decline select, .sitter-offer-decline textarea { width: 100%; padding: .5rem .65rem; border: 1px solid #cbbad9; border-radius: .5rem; font: inherit; background: #fff; }
+.sitter-offer-decline__error { margin: 0; color: #b42318; font-size: .875rem; font-weight: 600; }
+.sitter-offer-decline__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 768px) {
   .sitter-offer-card__controls { margin-top: .3rem; }
   .employee-invitations .sitter-offer-card__details { width: 100%; padding-inline: .15rem; border-radius: 0; border-bottom: 1px solid #e8def0; }

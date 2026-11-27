@@ -243,3 +243,19 @@ test('ST-CTR-04 shows MSG32 after cancelling on payOS and lets Sale Staff retry 
   expect(await screen.findByText('Đã nhận 125.000 đ tiền mặt lúc 10:20')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Hoàn tất bán' })).toBeEnabled();
 });
+
+test('ST-CTR-03 keeps + enabled at stock limit, shows red MSG58 under the line stepper and clears on decrease', async () => {
+  await draft(api({ products: jest.fn().mockResolvedValue(page([{ ...p, available: 2 }])) }));
+  const increase = screen.getByRole('button', { name: 'Tăng số lượng' });
+  fireEvent.click(increase);
+  expect(screen.getByLabelText('Số lượng Hạt cho mèo', { selector: 'output' })).toHaveTextContent('2');
+  expect(increase).toBeEnabled();
+  expect(increase).not.toHaveAttribute('aria-disabled');
+  fireEvent.click(increase);
+  const lineEl = screen.getByRole('button', { name: 'Bỏ Hạt cho mèo' }).closest('.counter-line');
+  expect(within(lineEl).getByRole('alert')).toHaveTextContent('Chỉ còn 2 sản phẩm. Vui lòng giảm số lượng.');
+  expect(screen.getByLabelText('Số lượng Hạt cho mèo', { selector: 'output' })).toHaveTextContent('2');
+  fireEvent.click(screen.getByRole('button', { name: 'Giảm số lượng' }));
+  expect(within(lineEl).queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Số lượng Hạt cho mèo', { selector: 'output' })).toHaveTextContent('1');
+});

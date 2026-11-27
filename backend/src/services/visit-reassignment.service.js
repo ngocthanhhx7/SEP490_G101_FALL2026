@@ -83,7 +83,8 @@ export function createVisitReassignmentService({ repository, clock = Date.now } 
           fail(409, 'VISIT_NOT_REASSIGNABLE', 'Visit is not currently assigned');
         }
         if (visit.sitterId === targetSitterId) fail(409, 'ALREADY_ASSIGNED', 'Sitter is already assigned');
-        if (instant(visit.startAt, 'startAt').getTime() <= clock()) {
+        if ((visit.checkInAt !== null && visit.checkInAt !== undefined)
+          || instant(visit.endAt, 'endAt').getTime() <= clock()) {
           fail(409, 'VISIT_STARTED', 'A started visit cannot be reassigned');
         }
         const candidate = await transaction.getSitter({ sitterId: targetSitterId, visit });

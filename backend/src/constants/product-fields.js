@@ -6,6 +6,10 @@ export const PRODUCT_RECEIVE_METHODS = Object.freeze(['DELIVERY', 'PICKUP']);
 export const PRODUCT_PAYMENT_METHODS = Object.freeze(['COD', 'PAY_AT_SHOP', 'PREPAID']);
 export const PRODUCT_PREPAID_PAYMENT_METHODS = Object.freeze(['PREPAID']);
 export const DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS = 72;
+// R3 GBR-36 / JOB-04: a delivery order handed to the carrier becomes Delivered automatically after 7 days.
+export const PRODUCT_DELIVERY_AUTO_CONFIRM_DAYS = 7;
+export const PRODUCT_DELIVERY_AUTO_CONFIRM_MS = PRODUCT_DELIVERY_AUTO_CONFIRM_DAYS * 24 * 3_600_000;
+export const PRODUCT_DELIVERED_BY = Object.freeze(['CUSTOMER', 'STAFF', 'SYSTEM']);
 export const PRODUCT_ORDER_STATUSES = Object.freeze([
   'PLACED',
   'HANDED_TO_CARRIER',
@@ -40,7 +44,6 @@ export const PRODUCT_PAYMENT_LINK_STATES = Object.freeze(['CREATING', 'READY', '
 export const PRODUCT_PAYMENT_RECEIPT_STATES = Object.freeze(['VERIFIED', 'RECONCILIATION_REQUIRED']);
 
 export const PRODUCT_LIMITS = Object.freeze({
-  maxLineQuantity: 99,
   maxCartLines: 30,
   maxSearchLength: 100,
   defaultPageSize: 20,

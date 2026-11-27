@@ -42,7 +42,7 @@ export function createGroomingPricing({ connection, clock = Date.now, shopServic
     return { code: result.tierCode, discountBps: result.discountBps, blockedReason: result.discountBlockedReason, policyVersion: result.tierPolicyVersion };
   }
 
-  async function price(customerId, input, { session = null } = {}) {
+  async function price(customerId, input, { session = null, counter = false } = {}) {
     const shop = await shopServices.resolve(input.pets.flatMap(row => row.serviceIds), { session });
     const ids = input.pets.map(row => new Types.ObjectId(row.petId));
     const pets = await Pet.find({ _id: { $in: ids }, ownerId: customerId, state: 'ACTIVE' }).session(session).lean();
@@ -50,7 +50,7 @@ export function createGroomingPricing({ connection, clock = Date.now, shopServic
     const priced = [];
     for (const row of input.pets) {
       const pet = pets.find(item => String(item._id) === row.petId);
-      if (row.answers.biteOrScratch === GROOMING_BLOCKING_BITE_ANSWER) {
+      if (!counter && row.answers.biteOrScratch === GROOMING_BLOCKING_BITE_ANSWER) {
         throw new AppError(422, 'GROOMING_PET_REFERRAL_REQUIRED', 'This pet can only be booked by calling the shop', { petId: row.petId, petName: pet.name, hotline });
       }
       priced.push({ pet, row });

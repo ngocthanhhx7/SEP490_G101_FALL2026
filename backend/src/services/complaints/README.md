@@ -20,8 +20,8 @@ All paths below use `/api/v1/complaints`. Writes require a session, CSRF, an `Id
 | `GET /`, `GET /:complaintId` | Scoped list and detail. Staff/Admin list supports `state`, `q`, `sort`, `limit`, `cursor` and per-tab counts. |
 | `POST /:complaintId/resolution` | Staff/Admin. `handlingNotes`, `customerResult` and optional `proposal {amountVnd,reason,evidenceRefs}`. Returns MSG131 or MSG147. |
 | `POST /:complaintId/objections` | Owner. Required `reason`, returns MSG129. |
-| `GET /refund-proposals`, `GET /:complaintId/refund-proposal` | Admin. Pending list and proposal detail, including the authoritative bill basis when available. |
-| `POST /:complaintId/refund-decision` | Admin. `outcome` of `APPROVE`, `REDUCE` or `REJECT`. `amountVnd` is required to reduce and `reason` is required to reject. |
+| `GET /refund-proposals`, `GET /:complaintId/refund-proposal` | Admin. Pending/decided list and proposal detail (complaints and incident refund proposals), including the authoritative bill basis when available. |
+| `POST /:complaintId/refund-decision` | Admin. `outcome` of `APPROVE`, `REDUCE` or `REJECT` for both complaint and incident proposals. `amountVnd` is required to reduce and `reason` is required to reject. |
 | `POST /:complaintId/decision` | Admin. `customerResult` and optional `amountVnd` for the final decision on an escalated case. |
 | `GET /:complaintId/evidence/:mediaId/content` | Owner for own photos, or Staff/Admin for case evidence. Requires configured private media. |
 

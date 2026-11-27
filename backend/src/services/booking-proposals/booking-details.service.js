@@ -4,6 +4,7 @@ import { DEMO_WORK_AREAS } from '../../constants/demo-work-areas.js';
 import { hasRole } from '../../utils/roles.js';
 import { fail, id } from '../../validators/pet-care.validator.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
+import { pickupHandoverActions } from '../pickup/visit-pickup.service.js';
 
 const CARE_FIELDS = ['feeding', 'handling', 'health', 'allergies', 'medication'];
 const areas = new Map(DEMO_WORK_AREAS.map(({ code, label }) => [code, label]));
@@ -46,6 +47,9 @@ function savedPrice(booking, visits) {
     visitCount: money(quote?.visitCount) ?? money(booking.originalVisitCount) ?? (visits.length || null),
     visitPricesVnd: prices.includes(null) ? [] : [...new Set(prices)].sort((a, b) => a - b),
     discountVnd: money(quote?.discountVnd),
+    tierDiscountVnd: money(quote?.tierDiscountVnd),
+    tierCode: quote?.tier?.code ?? null,
+    subtotalVnd: money(quote?.subtotalVnd),
     orderFeeVnd: money(quote?.orderFeeVnd),
     totalVnd: money(quote?.totalVnd) ?? money(booking.paymentSnapshot?.amountVnd)
   };
@@ -74,8 +78,14 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
     const visits = await connection.db.collection('visits').find({
       bookingId: booking._id, state: { $ne: 'SUPERSEDED' },
       ...(booking.visitIds?.length ? { _id: { $in: booking.visitIds } } : {})
-    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, bookingChangeRequestId: 1, checkInAt: 1, checkOutAt: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, workflowResults: 1, location: 1, evidenceRefs: 1 }, maxTimeMS: 2000 })
+    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, bookingChangeRequestId: 1, checkInAt: 1, checkOutAt: 1, cancelledAt: 1, cancellationFeeVnd: 1, cancellationReason: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, 'snapshots.pickup': 1, pickedUpAt: 1, returnedAt: 1, workflowResults: 1, location: 1, evidenceRefs: 1,
+      ...(includeCustomerName ? {} : { customerNote: 1 }) }, maxTimeMS: 2000 })
       .sort({ startAt: 1, _id: 1 }).limit(60).toArray();
+    const refundRows = await connection.db.collection('refunds').find({
+      bookingId: booking._id,
+      state: { $in: ['RECORDED', 'APPROVED', 'TRANSFER_PENDING', 'PAID'] }
+    }, { projection: { visitId: 1, sourceType: 1, state: 1, amountVnd: 1, lateFeeVnd: 1, comboDiscountAdjustmentVnd: 1, reason: 1, recordedAt: 1 }, maxTimeMS: 2000 })
+      .sort({ recordedAt: -1, _id: -1 }).limit(60).toArray();
     const changeIds = [...new Set(visits.map(visit => visit.bookingChangeRequestId).filter(Boolean).map(String))]
       .filter(validOid).map(oid);
     const unassignedVisitIds = visits.filter(visit => visit.state === 'SCHEDULED' && !visit.sitterId).map(visit => visit._id);
@@ -123,20 +133,40 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
           const saved = savedTerms(visit, names, areaNames);
           const actual = visits.filter(row => row.customerVisitId === String(visit._id));
           return actual.length === 1 ? { ...saved, startAt: actual[0].startAt, endAt: actual[0].endAt } : saved;
-        }),
+        }).sort((a, b) => new Date(a.startAt) - new Date(b.startAt)),
         visits: visits.map(visit => ({
           id: String(visit._id), ...(visit.snapshots?.workflow ? { workflow: workflowProjection(visit, { customer: !includeCustomerName }) } : {}), startAt: visit.startAt ?? null, endAt: visit.endAt ?? null,
           ...previousSlotFor(visit),
           ...(pendingOfferVisitIds.has(String(visit._id)) ? { hasPendingOffer: true } : {}),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
+          ...(visit.location === 'FACILITY' && visit.snapshots?.pickup ? { pickup: {
+            addressText: visit.snapshots.pickup.addressText, distanceMeters: visit.snapshots.pickup.distanceMeters,
+            feeVnd: visit.snapshots.pickup.feeVnd, pickedUpAt: visit.pickedUpAt ?? null, returnedAt: visit.returnedAt ?? null,
+            ...(includeCustomerName ? pickupHandoverActions(visit, clock()) : {})
+          } } : {}),
+          ...(!includeCustomerName && visit.customerNote ? { customerNote: visit.customerNote } : {}),
           checklist: (visit.checklist ?? []).slice(0, 100).map(item => ({ itemId: item.itemId,
             label: visit.snapshots?.checklistItems?.find(row => row.itemId === item.itemId)?.label ?? item.itemId,
             status: item.status, ...(item.reason ? { reason: item.reason } : {}) })),
           evidence: (visit.evidenceRefs ?? []).filter(item => ['CHECK_IN','CHECK_OUT'].includes(item.kind) && /^[a-f0-9]{64}$/.test(item.mediaId)).slice(0,2)
             .map(({kind,mediaId}) => ({kind,mediaId})),
-          state: visit.state, sitterName: personName(names, visit.sitterId)
+          state: visit.state, sitterName: personName(names, visit.sitterId),
+          ...(visit.cancelledAt ? { cancelledAt: visit.cancelledAt } : {}),
+          ...(Number.isSafeInteger(visit.cancellationFeeVnd) ? { cancellationFeeVnd: visit.cancellationFeeVnd } : {}),
+          ...(visit.cancellationReason ? { cancellationReason: visit.cancellationReason } : {})
         })),
-        price: savedPrice(booking, original)
+        price: savedPrice(booking, original),
+        refunds: refundRows.map(row => ({
+          id: String(row._id),
+          visitId: row.visitId ? String(row.visitId) : null,
+          sourceType: row.sourceType ?? 'COMPLAINT',
+          state: row.state ?? 'RECORDED',
+          amountVnd: money(row.amountVnd) ?? 0,
+          lateFeeVnd: money(row.lateFeeVnd) ?? 0,
+          comboDiscountAdjustmentVnd: money(row.comboDiscountAdjustmentVnd) ?? 0,
+          reason: row.reason ?? null,
+          recordedAt: row.recordedAt ?? null
+        }))
       }
     };
   }
@@ -152,10 +182,9 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
       const booking = await connection.db.collection('bookings').findOne({ _id: oid(bookingId) },
         { maxTimeMS: 2000 });
       if (!booking) fail('RESOURCE_NOT_FOUND', 'Booking unavailable', 404);
-      const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt <= new Date(clock());
       return {
         id: String(booking._id),
-        state: expired ? 'PAYMENT_EXPIRED' : booking.state,
+        state: booking.state,
         paymentMode: booking.paymentMode,
         paymentState: booking.paymentState,
         ...(booking.paymentMode === 'PREPAY' ? { paymentDeadlineAt: booking.paymentDeadlineAt } : {}),

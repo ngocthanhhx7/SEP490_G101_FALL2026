@@ -199,7 +199,7 @@ export function RoleDashboardLayout({
     <PublicFooter />
   </div>;
 
-  return <div className="pwc-role-shell pwc-workspace-shell">
+  return <div className={'pwc-role-shell pwc-workspace-shell' + (location.pathname === '/sale-staff/counter-booking' ? ' pwc-role-shell--counter-booking' : '')}>
     <a className="pwc-role-shell__skip" href="#pwc-role-main">Đến nội dung chính</a>
     <header className="pwc-role-shell__header">
       <Link to="/" className="pwc-role-shell__brand" aria-label="Paw World Care — Trang chủ">

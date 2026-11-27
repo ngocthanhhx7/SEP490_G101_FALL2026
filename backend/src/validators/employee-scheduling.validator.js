@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error.js';
 import { exact, id, number, fail, instant } from './pet-care.validator.js';
 import { VISIT_WITHDRAWAL_REASONS } from '../constants/visit-withdrawal.js';
 
@@ -12,20 +13,70 @@ export function withdrawalInput(value) {
   const note = value.note?.trim();
   return { expectedVersion, expectedMode, reasonCode, ...(note ? { note } : {}) };
 }
+function validCalendarDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return Number.isFinite(dt.getTime()) && dt.toISOString().slice(0, 10) === value;
+}
 export function availabilityInput(value) {
   exact(value, ['zone', 'workingWindows', 'effectiveFrom', 'expectedVersion'], ['zone', 'workingWindows', 'effectiveFrom', 'expectedVersion']);
+  if (typeof value.zone !== 'string' || !['Asia/Saigon', 'Asia/Ho_Chi_Minh'].includes(value.zone)) {
+    fail('VALIDATION_FAILED', 'Supported Vietnam timezone required');
+  }
+  if (!Array.isArray(value.workingWindows)) fail('VALIDATION_FAILED', 'workingWindows must be an array');
+  for (const win of value.workingWindows) {
+    exact(win, ['weekday', 'startLocalTime', 'endLocalTime'], ['weekday', 'startLocalTime', 'endLocalTime']);
+    number(win.weekday, 1, 7, true);
+    if (typeof win.startLocalTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(win.startLocalTime)
+      || typeof win.endLocalTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(win.endLocalTime)) {
+      fail('VALIDATION_FAILED', 'Invalid working window time');
+    }
+  }
+  if (!validCalendarDate(value.effectiveFrom)) fail('VALIDATION_FAILED', 'Valid effectiveFrom calendar date required');
+  number(value.expectedVersion, 0, Number.MAX_SAFE_INTEGER, true);
   return value;
 }
 export function workAreasInput(value) {
-  exact(value, ['areas', 'expectedVersion'], ['areas', 'expectedVersion']); return value;
+  exact(value, ['areas', 'expectedVersion'], ['areas', 'expectedVersion']);
+  if (!Array.isArray(value.areas) || value.areas.some(code => typeof code !== 'string' || !code.trim())) {
+    fail('VALIDATION_FAILED', 'areas must be an array of non-empty strings');
+  }
+  number(value.expectedVersion, 0, Number.MAX_SAFE_INTEGER, true);
+  return value;
 }
 export function invitationInput(value) {
-  exact(value, ['expectedVersion', 'sitterId'], ['expectedVersion']);
+  exact(value, ['expectedVersion', 'sitterId', 'expectedAction'], ['expectedVersion']);
   number(value.expectedVersion, 0, 1000000, true); if (value.sitterId !== undefined) id(value.sitterId);
+  if (value.expectedAction !== undefined) {
+    if (!['DIRECT_ASSIGN', 'INVITE'].includes(value.expectedAction))
+      fail('VALIDATION_FAILED', 'expectedAction must be DIRECT_ASSIGN or INVITE');
+    if (!value.sitterId) fail('VALIDATION_FAILED', 'expectedAction requires a selected sitterId');
+  }
   return value;
 }
 export function decisionInput(value) {
   exact(value, ['expectedVersion'], ['expectedVersion']); number(value.expectedVersion, 0, 1000000, true); return value;
+}
+export function declineInput(value) {
+  exact(value, ['expectedVersion', 'reasonCode', 'note'], ['expectedVersion']);
+  number(value.expectedVersion, 0, 1000000, true);
+  if (value.reasonCode === undefined || value.reasonCode === null || (typeof value.reasonCode === 'string' && !value.reasonCode.trim())) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'This field is required.', {
+      fieldErrors: { reasonCode: 'This field is required.' },
+      messageCode: 'MSG01'
+    });
+  }
+  if (!VISIT_WITHDRAWAL_REASONS.includes(value.reasonCode)) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'Decline reason is invalid', {
+      fieldErrors: { reasonCode: 'Decline reason is invalid' }
+    });
+  }
+  if (value.note !== undefined && (typeof value.note !== 'string' || value.note.trim().length > 1000)) {
+    fail('VALIDATION_FAILED', 'Decline note must be no more than 1000 characters');
+  }
+  const note = value.note?.trim();
+  return { expectedVersion: value.expectedVersion, reasonCode: value.reasonCode, ...(note ? { note } : {}) };
 }
 export function proposalConfirmationInput(value) {
   exact(value, ['expectedVersion', 'selectedSlot'], ['expectedVersion', 'selectedSlot']);

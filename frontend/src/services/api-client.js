@@ -22,6 +22,9 @@ export class ApiError extends Error {
     this.retryAfterAt = typeof details.retryAfterAt === 'string' && Number.isFinite(Date.parse(details.retryAfterAt)) ? details.retryAfterAt : undefined;
     this.remainingAttempts = Number.isSafeInteger(details.remainingAttempts) && details.remainingAttempts >= 0 ? details.remainingAttempts : undefined;
     this.reason = typeof details.reason === 'string' ? details.reason : undefined;
+    this.conflictField = ['phone', 'email', 'identityNumber'].includes(details.conflictField) ? details.conflictField : undefined;
+    this.reapplyAt = typeof details.reapplyAt === 'string' && Number.isFinite(Date.parse(details.reapplyAt)) ? details.reapplyAt : undefined;
+    this.effectiveAt = typeof details.effectiveAt === 'string' && Number.isFinite(Date.parse(details.effectiveAt)) ? details.effectiveAt : undefined;
     this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
   }
 }
@@ -92,6 +95,9 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
           retryAfterAt: envelope?.error?.retryAfterAt,
           remainingAttempts: envelope?.error?.remainingAttempts,
           reason: envelope?.error?.reason,
+          conflictField: envelope?.error?.conflictField,
+          reapplyAt: envelope?.error?.reapplyAt,
+          effectiveAt: envelope?.error?.effectiveAt,
           correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         });
       }

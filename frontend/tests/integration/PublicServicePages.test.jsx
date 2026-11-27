@@ -179,7 +179,7 @@ test('catalog query links filter published results without inventing extra servi
   ).toHaveAttribute('href', '/contact');
 });
 
-test('service detail reads price and policy from the catalog and links to sign in', async () => {
+test('service detail reads price and policy and opens the same booking flow from both actions', async () => {
   renderAt('/services/dog-walk-1');
   expect(
     await screen.findByRole('heading', { name: 'Dắt chó đi dạo' })
@@ -188,19 +188,44 @@ test('service detail reads price and policy from the catalog and links to sign i
   expect(
     screen.getByText('Nội dung hiện hành do catalog cung cấp.')
   ).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Đặt dịch vụ này' })).toHaveAttribute(
-    'href',
-    '/booking/dog-walk-1'
-  );
+  expect(screen.queryByRole('navigation', { name: 'Đường dẫn' })).not.toBeInTheDocument();
+  const actions = screen.getAllByRole('link', { name: 'Đặt dịch vụ này' });
+  expect(actions).toHaveLength(2);
+  for (const action of actions) expect(action).toHaveAttribute('href', '/booking/dog-walk-1');
+  expect(screen.queryByRole('link', { name: 'Chọn dịch vụ này' })).not.toBeInTheDocument();
   expect(
-    screen.getByRole('heading', { name: 'Giá dịch vụ hiện hành' })
+    screen.getByRole('heading', { name: 'Giá và phụ phí' })
   ).toBeVisible();
   expect(screen.getByText('Không bao gồm huấn luyện.')).toBeVisible();
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Chủ nuôi cần chuẩn bị' })
-  );
+  expect(screen.getByRole('heading', { name: 'Chủ nuôi cần chuẩn bị' })).toBeVisible();
   expect(screen.getByText('Chuẩn bị dây dắt phù hợp.')).toBeVisible();
   expect(screen.getByText('Cần chuẩn bị gì?')).toBeVisible();
+});
+
+test('service detail keeps the safety clause and current base price when old prose contains a different price', async () => {
+  const service = {
+    ...services[0],
+    code: 'post-operative-care',
+    policy: {
+      ...services[0].policy,
+      body: [
+        services[0].description,
+        'Địa điểm: Tại gia. Giá cơ bản 99.000 VND/lần. Thời lượng tham khảo: 30 phút.',
+        'Phụ phí lấy mức cao nhất trong từng nhóm lông/da, cân nặng và hành vi/sức khỏe; các nhóm cộng trên giá cơ bản. Combo giảm 1% mỗi lượt, tối đa 10% tiền dịch vụ trước phụ phí. Phí bậc giá áp dụng theo chính sách báo giá hiện hành. Chăm sóc sức khỏe không thay thế chẩn đoán hoặc điều trị của bác sĩ thú y.',
+        'Giữ nguyên điều khoản công bố riêng.'
+      ].join('\n')
+    }
+  };
+  const loadCatalog = async () => ({ data: { available: true, services: [service] } });
+  render(
+    <MemoryRouter initialEntries={['/services/dog-walk-1']}>
+      <Routes><Route path="/services/:serviceId" element={<ServiceDetailsPage loadCatalog={loadCatalog} />} /></Routes>
+    </MemoryRouter>
+  );
+  const safety = await screen.findByRole('region', { name: 'Lưu ý an toàn và giới hạn chăm sóc' });
+  expect(within(safety).getByText(/không thay thế chẩn đoán/)).toBeVisible();
+  expect(screen.queryByText(/99\.000|Combo giảm 1%/)).not.toBeInTheDocument();
+  expect(screen.getByText('Giữ nguyên điều khoản công bố riêng.')).toBeVisible();
 });
 
 test('service details return a not-found state for an unpublished service', async () => {

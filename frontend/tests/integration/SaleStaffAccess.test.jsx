@@ -8,6 +8,7 @@ jest.mock('../../src/pages/admin/ProductOrderManagementPage.jsx', () => ({
 }));
 
 jest.mock('../../src/pages/admin/CounterSalePage.jsx', () => ({ CounterSalePage: () => <h1>Bán tại quầy</h1> }));
+jest.mock('../../src/pages/admin/CounterBookingPage.jsx', () => ({ CounterBookingPage: () => <h1>Đặt dịch vụ tại quầy</h1> }));
 const originalFetch = globalThis.fetch;
 beforeEach(() => {
   window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -16,7 +17,7 @@ beforeEach(() => {
 beforeEach(() => {
   globalThis.fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => ({
     data: url === '/api/v1/dashboards/sale-staff'
-      ? { counts: { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 } }
+      ? { counts: { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0, LOW_STOCK: 0 } }
       : { unreadCount: 0, items: [] },
     meta: { schemaVersion: 1 }
   }) }));
@@ -38,12 +39,22 @@ test.each(['/sign-in', '/register', '/sitter/apply', '/products'])('GBR-01 Sale 
   expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeVisible();
   const sidebar = screen.getByRole('complementary');
   expect(within(sidebar).getByText('Bán hàng')).toBeVisible();
-  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đơn hàng', 'Nhập hàng', 'Tồn kho']);
+  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đặt dịch vụ tại quầy', 'Đơn hàng', 'Khiếu nại sản phẩm', 'Nhập hàng', 'Tồn kho']);
 });
 
 test('Sale Staff opens the counter workspace', async () => {
   open('/admin/counter-sale', 'SALE_STAFF');
   expect(await screen.findByRole('heading', { name: 'Bán tại quầy' })).toBeVisible();
+});
+
+test.each(['SALE_STAFF', 'ADMIN'])('%s can open counter booking', async role => {
+  open('/sale-staff/counter-booking', role);
+  expect(await screen.findByRole('heading', { name: 'Đặt dịch vụ tại quầy' })).toBeVisible();
+});
+
+test.each(['CUSTOMER', 'STAFF', 'PET_SITTER'])('%s cannot open counter booking', async role => {
+  open('/sale-staff/counter-booking', role);
+  expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
 });
 
 test('Permission Matrix Admin keeps the existing order menu', async () => {

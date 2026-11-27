@@ -62,11 +62,13 @@ JOB-04 cancels ready pickup orders at or after their stored deadline when the wo
 401 and other signed-in roles receive 403. The route returns
 `Cache-Control: private, no-store`.
 
-The `data` object is `{ counts: { PREPARE, AWAITING_PICKUP, RETURNING } }`.
-The counts use the same status aggregation as the Order Management list and
-are independent of search and pagination. Before the first order, all three
-counts are zero even if MongoDB has yet to create the order collection.
-An order count query failure returns `503 SALES_DASHBOARD_SOURCE_UNAVAILABLE`.
+The `data` object is `{ counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK } }`.
+The order counts use the same status aggregation as the Order Management list
+and are independent of search and pagination; `LOW_STOCK` uses the same
+available-stock expression and threshold as Stock List (UC-71), including out-of-stock
+products. Before the first order or product, all counts are zero even if MongoDB
+has yet to create the collections.
+A count query failure returns `503 SALES_DASHBOARD_SOURCE_UNAVAILABLE`.
 Disabling product sales yields `404 RESOURCE_NOT_FOUND`.
 
 ## Product Management (Admin)
@@ -208,8 +210,13 @@ Codes are `PN-0001`, `PN-0002`, ...: at least four digits and **no upper limit**
 
 The public `GET /api/v1/products` accepts `page` (starting at 1) and `limit`
 (default 20, maximum 50), returning `{ items, page, limit, total }`. Filters remain
-applied across pages. Cart additions validate the accumulated quantity against
-the 99-per-line ceiling and serialize read/update in a retryable transaction.
+applied across pages. Cart quantities must be positive safe integers. Adding
+checks the current quantity plus the requested increment against sellable stock
+and serializes the cart read/update in a retryable transaction. Setting a line
+checks the requested quantity against sellable stock. Either operation accepts
+an exact match and rejects a larger quantity with a stock conflict. Both writes
+roll back if the resulting cart amount cannot be represented as an exact
+integer VND amount (`422 PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE`).
 Concurrent order retries with one key return the committed winner even when that
 winner already emptied the cart. The frontend discards mutation responses from
 an invalidated/different session.

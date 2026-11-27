@@ -1,6 +1,6 @@
 import { AppError } from '../utils/app-error.js';
 import { PRODUCT_LIMITS } from '../constants/product-fields.js';
-import { COUNTER_CONTACT_MAX_LENGTH } from '../constants/counter-sale-fields.js';
+import { COUNTER_CONTACT_MAX_LENGTH, COUNTER_MAX_LINE_QUANTITY } from '../constants/counter-sale-fields.js';
 import { parseObjectId, parseQuantity, requireOnlyKeys } from './product.validator.js';
 import { parsePageQuery, PAGE_QUERY_KEYS } from './pagination.validator.js';
 
@@ -11,7 +11,7 @@ function parseLines(lines, allowEmpty) {
   }
   const parsed = lines.map(line => {
     requireOnlyKeys(line, ['productId', 'quantity'], ['productId', 'quantity']);
-    return { productId: parseObjectId(line.productId, 'productId').toLowerCase(), quantity: parseQuantity(line.quantity) };
+    return { productId: parseObjectId(line.productId, 'productId').toLowerCase(), quantity: parseQuantity(line.quantity, COUNTER_MAX_LINE_QUANTITY) };
   });
   if (new Set(parsed.map(line => line.productId)).size !== parsed.length) throw invalid({ lines: 'DUPLICATE' });
   return parsed;

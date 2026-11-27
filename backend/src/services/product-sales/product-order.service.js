@@ -5,14 +5,26 @@ import { productSalesModels } from '../../models/product.model.js';
 import { createProductPricingEligibility } from './product-pricing-eligibility.service.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
-import { DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS } from '../../constants/product-fields.js';
+import {
+  DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, PRODUCT_DELIVERY_AUTO_CONFIRM_MS, PRODUCT_PREPAID_PAYMENT_METHODS
+} from '../../constants/product-fields.js';
 import { createProductOrderCodeService } from './product-order-code.service.js';
-import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseObjectId } from '../../validators/product-order.validator.js';
+import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseCancelOrder, parseObjectId } from '../../validators/product-order.validator.js';
+import { parseNoBody } from '../../validators/product-order-management.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
-import { priceProductOrder, sellableQuantity } from './product-order-pricing.js';
+import { createDeliveryCompletion, createOrderTransition } from './product-order-transition.js';
+import { priceProductOrder, ProductOrderAmountError, productOrderRefundAmount, sellableQuantity } from './product-order-pricing.js';
+import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
 
 const HOUR_MS = 3_600_000;
+const customerRefundChanges = (order) => PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid
+  ? { refundMarked: true, refundAmountVnd: productOrderRefundAmount(order) } : {};
+const providerRefs = (order) => order?.payment?.providerReferences ?? [];
+const sameProviderReferences = (a, b) => {
+  const left = providerRefs(a), right = providerRefs(b);
+  return left.length === right.length && left.every((ref, index) => ref === right[index]);
+};
 
 export function toOrderView(doc) {
   return {
@@ -26,7 +38,16 @@ export function toOrderView(doc) {
     paymentDeadlineAt: doc.paymentDeadlineAt ?? null,
     paidAt: doc.payment?.paidAt ?? null,
     status: doc.status,
+    cancelledAt: doc.cancelledAt ?? null,
+    cancelledBy: doc.cancelledBy ?? null,
+    version: doc.version ?? 0,
     trackingCode: doc.trackingCode ?? null,
+    handedToCarrierAt: doc.handedToCarrierAt ?? null,
+    autoDeliverAt: doc.receiveMethod === 'DELIVERY' && doc.status === 'HANDED_TO_CARRIER' && doc.handedToCarrierAt
+      ? new Date(new Date(doc.handedToCarrierAt).getTime() + PRODUCT_DELIVERY_AUTO_CONFIRM_MS)
+      : null,
+    deliveredAt: doc.deliveredAt ?? null,
+    deliveredBy: doc.deliveredBy ?? null,
     deliveryAddress: doc.deliveryAddress
       ? { label: doc.deliveryAddress.label, location: doc.deliveryAddress.location, areaCode: doc.deliveryAddress.areaCode }
       : null,
@@ -54,12 +75,14 @@ const fingerprintOf = (customerId, input) =>
 // serviceAreas is injected by route composition (the same demo work areas used by Customer addresses).
 export function createProductOrderService({
   connection, serviceAreas = [], eligibility = createProductPricingEligibility({ connection }),
-  clock = Date.now, paymentDeadlineHours = DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS
+  clock = Date.now, paymentDeadlineHours = DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, payments = null
 }) {
   const { Product, ProductCart, ProductOrder } = productSalesModels(connection);
   const { CustomerAddress } = petCareModels(connection);
   const unitOfWork = createUnitOfWork(connection);
-  const notifications = createDomainNotifications({ connection });
+  const notifications = createDomainNotifications({ connection, clock });
+  const updateOrder = createOrderTransition({ connection, Product, ProductOrder, clock });
+  const completeDelivery = createDeliveryCompletion({ updateOrder, clock });
   const { nextCode: nextOrderCode } = createProductOrderCodeService({ connection });
 
   async function replay(customerId, key, fingerprint) {
@@ -149,6 +172,7 @@ export function createProductOrderService({
         });
         return toOrderView(order);
       } catch (error) {
+        if (error instanceof ProductOrderAmountError) throw productSalesErrors.amountOutOfRange();
         // A concurrent request with the same key committed first: return that order instead of failing.
         if (error?.code === 11000 || error?.code === 'CART_EMPTY' || error?.code === 'PRODUCT_ORDER_PREPAY_REQUIRED') {
           const winner = await replay(customerId, key, fingerprint);
@@ -169,6 +193,109 @@ export function createProductOrderService({
       const doc = await ProductOrder.findOne({ _id: parseObjectId(orderId, 'orderId'), customerId, channel: { $ne: COUNTER_CHANNEL } }).lean();
       if (!doc) throw productSalesErrors.notFound();
       return toOrderView(doc);
+    },
+    // Customer cancels own order while still PLACED (UC-63, GBR-36, GBR-37, MSG154-MSG156).
+    // Releases quantityHeld only (stockOnHand unchanged), never writes a refusal record, marks full refund when prepaid & paid.
+    async cancel(actor, orderId, body, idempotencyKey) {
+      const customerId = requireCustomer(actor);
+      const id = parseObjectId(orderId, 'orderId');
+      const input = parseCancelOrder(body);
+      const key = idempotencyKey ? parseIdempotencyKey(idempotencyKey) : null;
+
+      const current = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (!current) throw productSalesErrors.notFound();
+      if (String(current.customerId) !== customerId) throw productSalesErrors.forbidden();
+      if (key && current.status === 'CANCELLED' && current.cancelIdempotencyKey === key) return toOrderView(current);
+      if (current.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(current.status);
+      if (input.expectedVersion !== undefined && current.version !== input.expectedVersion) {
+        throw productSalesErrors.versionConflict('order');
+      }
+
+      // Always verify unpaid orders with payOS when a payment link exists (matches Sale Staff cancel):
+      // missing/failing payOS throws 503 and RECONCILE throws 409; PAID reloads the settled order before cancelling with full refund (GBR-37).
+      let checked = current;
+      if (!current.paid) {
+        const outcome = await checkProductPayment(current, payments);
+        if (outcome === 'PAID') {
+          const settled = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).lean();
+          if (!settled || !settled.paid) throw productSalesErrors.orderStateConflict(settled?.status ?? current.status);
+          if (settled.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(settled.status);
+          checked = settled;
+        } else {
+          requireUnpaidProductOutcome(outcome);
+        }
+      }
+
+      const cancelled = await unitOfWork.run(async (session) => {
+        const order = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).session(session).lean();
+        if (!order) throw productSalesErrors.notFound();
+        if (key && order.status === 'CANCELLED' && order.cancelIdempotencyKey === key) return order;
+        if (order.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(order.status);
+        if (order.version !== checked.version || order.paid !== checked.paid || !sameProviderReferences(order, checked)) {
+          throw productSalesErrors.versionConflict('order');
+        }
+        const now = new Date(clock());
+        const updated = await ProductOrder.findOneAndUpdate(
+          {
+            _id: id,
+            customerId,
+            channel: { $ne: COUNTER_CHANNEL },
+            status: 'PLACED',
+            version: checked.version,
+            paid: checked.paid
+          },
+          {
+            $set: {
+              status: 'CANCELLED',
+              cancelledAt: now,
+              cancelledBy: 'CUSTOMER',
+              ...(key ? { cancelIdempotencyKey: key } : {}),
+              ...customerRefundChanges(order)
+            },
+            $inc: { version: 1 }
+          },
+          { returnDocument: 'after', session }
+        ).lean();
+        if (!updated) {
+          const latest = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).session(session).lean();
+          if (key && latest?.status === 'CANCELLED' && latest.cancelIdempotencyKey === key) return latest;
+          if (latest?.status && latest.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(latest.status);
+          throw productSalesErrors.versionConflict('order');
+        }
+        for (const line of [...order.lines].sort((a, b) => String(a.productId).localeCompare(String(b.productId)))) {
+          const applied = await Product.updateOne(
+            { _id: line.productId, quantityHeld: { $gte: line.quantity } },
+            { $inc: { quantityHeld: -line.quantity, version: 1 } },
+            { session }
+          );
+          if (applied.modifiedCount !== 1) throw productSalesErrors.orderStockMismatch(String(id));
+        }
+        await notifications.productOrder({ order: updated, previous: order }, session);
+        return updated;
+      });
+      return toOrderView(cancelled);
+    },
+    // Customer confirms receiving a delivery order (GBR-36): HANDED_TO_CARRIER -> DELIVERED.
+    // Re-confirming an already Delivered order is idempotent and changes nothing.
+    async confirmReceived(actor, orderId, body) {
+      const customerId = requireCustomer(actor);
+      const id = parseObjectId(orderId, 'orderId');
+      parseNoBody(body);
+      const existing = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (!existing) throw productSalesErrors.notFound();
+      if (String(existing.customerId) !== customerId) throw productSalesErrors.forbidden();
+      if (existing.receiveMethod === 'DELIVERY' && existing.status === 'DELIVERED') {
+        return toOrderView(existing);
+      }
+      try {
+        return toOrderView(await completeDelivery(id, { deliveredBy: 'CUSTOMER', filter: { customerId } }));
+      } catch (error) {
+        if (error?.code === 'ORDER_STATE_CONFLICT') {
+          const latest = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).lean();
+          if (latest?.receiveMethod === 'DELIVERY' && latest.status === 'DELIVERED') return toOrderView(latest);
+        }
+        throw error;
+      }
     }
   });
 }

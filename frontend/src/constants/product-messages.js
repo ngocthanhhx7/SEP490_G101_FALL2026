@@ -12,6 +12,8 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG58: 'Chỉ còn {n} sản phẩm. Vui lòng giảm số lượng.',
   MSG59: 'Đơn hàng {code} đã được đặt.',
   MSG60: 'Đơn hàng này chỉ có thể thanh toán trước.',
+  MSG61: 'Thời hạn báo lỗi của đơn này đã hết vào ngày {date}.',
+  MSG62: 'Đã gửi báo lỗi. Chúng tôi sẽ báo kết quả cho bạn.',
   MSG97: 'Không tìm thấy sản phẩm nào.',
   MSG98: 'Sản phẩm này đã hết hàng.',
   MSG99: 'Đã thêm sản phẩm vào giỏ hàng.',
@@ -22,6 +24,9 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG104: 'Số bán lại được không thể lớn hơn số lượng hoàn về.',
   MSG105: 'Đơn hàng này chưa được thanh toán đủ. Vui lòng thu tiền trước.',
   MSG106: 'Đơn hàng {code} đã được cập nhật.',
+  MSG107: 'Vui lòng ghi kết quả kiểm tra.',
+  MSG108: 'Đã gửi khiếu nại cho Admin.',
+  MSG109: 'Đã lưu quyết định. Khách đã được báo.',
   MSG110: 'Không tìm thấy khách. Đơn vẫn bán nhưng không giảm theo hạng.',
   MSG111: 'Đơn {code} đã hoàn tất.',
   MSG112: 'Đơn {code} đã được huỷ. Hàng đã được trả lại để bán.',
@@ -38,7 +43,12 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG123: 'Số giảm không được lớn hơn số có thể bán ({n}).',
   MSG124: 'Phiếu điều chỉnh {code} đã được lưu.',
   MSG92: '{name} đã nhận buổi ngày {date} lúc {time}. Khách và cả hai người chăm sóc đã được báo.',
-  MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
+  MSG125: 'Vui lòng nhập số điện thoại hoặc email.',
+  MSG154: 'Huỷ đơn hàng {code}? Nếu bạn đã thanh toán, Paw World sẽ hoàn đủ số tiền.',
+  MSG155: 'Đơn hàng {code} đã được huỷ.',
+  MSG156: 'Đơn này không thể huỷ nữa.',
+  MSG166: 'Bạn đã nhận đủ đơn {code}? Sau khi xác nhận, đơn chuyển sang Đã giao hàng.',
+  MSG167: 'Đã xác nhận nhận đơn {code}.'
 });
 
 // Backend error code -> message key.
@@ -52,5 +62,6 @@ export const PRODUCT_ERROR_MESSAGE_KEYS = Object.freeze({
   ADDRESS_OUT_OF_SERVICE_AREA: 'MSG18',
   TRACKING_CODE_REQUIRED: 'MSG103',
   ORDER_NOT_PAID: 'MSG105',
+  ORDER_NOT_CANCELLABLE: 'MSG156',
   RESELLABLE_QUANTITY_INVALID: 'MSG104'
 });

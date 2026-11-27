@@ -43,9 +43,9 @@ function Step({ step }) {
 
 export function ServiceCareWorkflow({ workflow }) {
   return (
-    <section className="pwc-service-care-workflow" aria-labelledby="pwc-service-care-title">
+    <section className="pwc-detail-section pwc-service-care-workflow" id="care-workflow" tabIndex={-1} aria-labelledby="pwc-service-care-title">
       <h2 id="pwc-service-care-title">Quy trình chăm sóc của dịch vụ</h2>
-      <div>
+      <div className="pwc-detail-care-phases">
         {PHASES.map(([phase, label]) => {
           const steps = workflow.steps.filter(step => step.phase === phase);
           return steps.length > 0 && (

@@ -18,7 +18,6 @@ const metadata = [
   ["M13","/account/bookings/:bookingId/visits/:visitId","Theo dõi buổi chăm sóc","bookings","detail",["CUSTOMER"]],
   ["M14","/account/bookings/:bookingId/complaints/new","Gửi khiếu nại","bookings","task",["CUSTOMER"]],
   ["M15","/account/schedule-proposals/:proposalId","Đề nghị đổi lịch","bookings","detail",["CUSTOMER"]],
-  ["M16","/account/sitter-recommendations","Chọn Pet Sitter","services","detail",["CUSTOMER"]],
   ["M17","/sitter","Hôm nay","home","root",["PET_SITTER"]],
   ["M18","/sitter/profile","Hồ sơ Pet Sitter","account","detail",["PET_SITTER"]],
   ["M19","/sitter/public-profile","Hồ sơ công khai","account","detail",["PET_SITTER"]],

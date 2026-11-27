@@ -8,7 +8,7 @@ import { createProductOrderReceipts } from '../../product-sales/product-order-re
 
 // Called only after the provider signature verifier. Browser redirects cannot
 // reach this repository, and a verified signature still must match server intent.
-export function createMongoPaymentWebhookRepository({ connection, finance }) {
+export function createMongoPaymentWebhookRepository({ connection, finance, getCounterCheckout }) {
   const unitOfWork = createUnitOfWork(connection);
   const notifications = createDomainNotifications({ connection });
   const orders = createProductOrderReceipts({ connection });
@@ -26,6 +26,9 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
       const intent = await col('paymentintents').findOne({ provider: 'PAYOS', providerReference });
       // A reference that is no booking's may be a prepaid product order's payment link.
       if (!intent) return orders.findIntent(providerReference);
+      if (intent.kind === 'COUNTER_BOOKING') return { kind: intent.kind, id: String(intent._id),
+        version: intent.version, state: intent.state, providerReference, amountVnd: intent.amountVnd,
+        currency: intent.currency, expiresAt: intent.expiresAt, bookingState: 'AWAITING_PAYMENT' };
       const booking = await col('bookings').findOne({ _id: intent.bookingId });
       return { id: String(intent._id), version: intent.version, state: intent.state, providerReference,
         amountVnd: intent.amountVnd, currency: intent.currency, expiresAt: intent.expiresAt,
@@ -33,6 +36,8 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
     },
     async recordWebhookOutcome({ eventId, receipt, decision }) {
       await assertFinanceSourceStorage(connection);
+      if (decision.kind === 'COUNTER_BOOKING' && getCounterCheckout?.())
+        return getCounterCheckout().recordPayment({ eventId, receipt, decision });
       const key = `payos:${eventId}`;
       const fingerprint = createHash('sha256').update(JSON.stringify(receipt)).digest('hex');
       return retry(async session => {

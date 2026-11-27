@@ -110,6 +110,55 @@ test('Admin records a contract for the selected sitter with the server version a
   expect(payroll.contract.mock.calls[0][0]).toMatchObject({ employeeId: id, expectedVersion: 3 });
   await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
 });
+
+test('ST-ONB-04 starts with the applicant preference and still lets the Admin record a different type', async () => {
+  const api = fixture(), data = (await api.get()).data;
+  api.get.mockResolvedValue({ data: { ...data, employmentType: 'FULL_TIME', application: { ...data.application, employmentType: 'PART_TIME' } } });
+  mount(api, true, { contract: jest.fn() });
+  await screen.findByText('Kinh nghiệm mẫu');
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh hợp đồng đã ký' }));
+  const type = screen.getByLabelText('Hình thức làm việc');
+  expect(type).toHaveValue('PART_TIME');
+  expect(screen.getByLabelText('Lương gross/tháng (VND)')).toHaveValue('3000000');
+  fireEvent.change(type, { target: { value: 'FULL_TIME' } });
+  expect(screen.getByLabelText('Lương gross/tháng (VND)')).toHaveValue('10000000');
+});
+
+test('ST-ONB-14 shows MSG87 under end date and prior start-date conflict at top of contract form', async () => {
+  const api = fixture();
+  const payroll = {
+    contract: jest.fn().mockRejectedValueOnce({
+      status: 422,
+      code: 'VALIDATION_FAILED',
+      reasonCode: 'CONTRACT_EFFECTIVE_DATE_NOT_AFTER_PRIOR',
+      sitterName: 'Nguyễn Hà (Demo)',
+      effectiveAt: '2026-11-26T00:00:00+07:00'
+    })
+  };
+  mount(api, true, payroll);
+  await screen.findByText('Kinh nghiệm mẫu');
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh hợp đồng đã ký' }));
+  const form = screen.getByText('Lưu hợp đồng đã xác minh').closest('form');
+  for (const [name, value] of Object.entries({
+    weeklyMinutes: '2400', signedAt: '2026-11-20', effectiveAt: '2026-11-26', endsAt: '2026-11-25',
+    contractReference: 'synthetic-reversed', workplaceRegion: '1', workplaceReference: 'Cầu Giấy'
+  })) {
+    fireEvent.change(form.elements[name], { target: { value } });
+  }
+  fireEvent.submit(form);
+  expect(await screen.findByText('Ngày kết thúc phải sau ngày bắt đầu.')).toBeVisible();
+  expect(payroll.contract).not.toHaveBeenCalled();
+
+  fireEvent.change(form.elements.endsAt, { target: { value: '2026-12-26' } });
+  expect(screen.queryByText('Ngày kết thúc phải sau ngày bắt đầu.')).not.toBeInTheDocument();
+  fireEvent.submit(form);
+  expect(await screen.findByText(
+    'Nguyễn Hà (Demo) đã có hợp đồng từ ngày 26/11/2026. Hợp đồng mới phải bắt đầu sau ngày đó.'
+  )).toBeVisible();
+});
+
 test('selected sitter reaches invitation command and cannot replace customer directed choice', async () => {
   const invite = jest.fn().mockResolvedValue({ data: { state: 'PENDING' } }), api = { invite,
     plans: async () => ({ data: { items: [] } }), queue: async () => ({ data: { items: [

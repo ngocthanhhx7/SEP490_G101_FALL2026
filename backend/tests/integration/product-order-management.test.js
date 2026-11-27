@@ -162,8 +162,9 @@ test('queue counts exclude counter orders and scan pending statuses instead of c
 describe('UC-94 Sale Staff dashboard', () => {
   const DASHBOARD = '/api/v1/dashboards/sale-staff';
   const NO_ORDERS = { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 };
+  const NO_COUNTS = { ...NO_ORDERS, LOW_STOCK: 0, CLAIMS_TO_CHECK: 0 };
 
-  test('returns only counts matching Order Management across statuses', async () => {
+  test('returns only counts matching Order Management and Stock List across statuses', async () => {
     await placeDelivery('a', 'SP-0012', 1);
     await placePickup('a', 'SP-0020', 1);
     const pickup = await placePickup('b', 'SP-0020', 1);
@@ -172,11 +173,25 @@ describe('UC-94 Sale Staff dashboard', () => {
     await placeShipped('a', [['SP-0012', 1]]);
 
     const list = await api('saleStaff').get(MANAGE + '?tab=RETURNING&limit=1').expect(200);
+    const stock = await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200);
     const { PREPARE, AWAITING_PICKUP, RETURNING } = list.body.data.counts;
+    const { LOW_STOCK } = stock.body.data.counts;
     const dashboard = await api('saleStaff').get(DASHBOARD).expect(200)
       .expect('Cache-Control', 'private, no-store');
-    expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING } });
-    expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1 });
+    expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK, CLAIMS_TO_CHECK: 0 } });
+    expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1, LOW_STOCK, CLAIMS_TO_CHECK: 0 });
+  });
+
+  test('IT-FE25-UC71-18 keeps the UC-94 Low Stock count consistent with UC-71', async () => {
+    await models.Product.updateMany({}, { $set: { stockOnHand: 100, quantityHeld: 0 } });
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 0 } });
+    const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
+    expect(stock.counts.LOW_STOCK).toBe(1);
+    const dashboard = (await api('saleStaff').get(DASHBOARD).expect(200)).body.data;
+    expect(dashboard.counts.LOW_STOCK).toBe(stock.counts.LOW_STOCK);
+    const lowStock = (await api('saleStaff').get('/api/v1/admin/stock-levels?tab=LOW_STOCK').expect(200)).body.data;
+    expect(lowStock.total).toBe(stock.counts.LOW_STOCK);
+    expect(lowStock.items).toEqual([expect.objectContaining({ code: 'SP-0012', status: 'OUT_OF_STOCK' })]);
   });
 
   test.each([[null, 401], ['a', 403], ['sitter', 403], ['staff', 403], ['admin', 403]])(
@@ -185,33 +200,38 @@ describe('UC-94 Sale Staff dashboard', () => {
     }
   );
 
-  test('returns zero with an empty provisioned collection', async () => {
+  test('returns zero with empty provisioned collections', async () => {
+    await models.Product.deleteMany({});
     const collections = await connection.db.listCollections({ name: models.ProductOrder.collection.name }).toArray();
     expect(collections).toHaveLength(1);
     const list = await api('saleStaff').get(MANAGE).expect(200);
     expect(list.body.data.counts).toEqual({ ...NO_ORDERS, IN_TRANSIT: 0 });
-    expect((await api('saleStaff').get(DASHBOARD).expect(200)).body.data).toEqual({ counts: NO_ORDERS });
+    expect((await api('saleStaff').get(DASHBOARD).expect(200)).body.data).toEqual({ counts: NO_COUNTS });
   });
 
-  test('returns the same zeros as Order Management before an order collection is created', async () => {
+  test('returns the same zeros as Order Management before order or product collections are created', async () => {
     const fresh = await mongoose.createConnection(replica.getUri(), {
       dbName: 'synthetic_uc94_unprovisioned', autoCreate: false, autoIndex: false, bufferCommands: false
     }).asPromise();
     try {
       const app = salesApp({ connection: fresh });
-      const filter = { name: productSalesModels(fresh).ProductOrder.collection.name };
-      expect(await fresh.db.listCollections(filter).toArray()).toEqual([]);
+      const freshModels = productSalesModels(fresh);
+      const orderFilter = { name: freshModels.ProductOrder.collection.name };
+      const productFilter = { name: freshModels.Product.collection.name };
+      expect(await fresh.db.listCollections(orderFilter).toArray()).toEqual([]);
+      expect(await fresh.db.listCollections(productFilter).toArray()).toEqual([]);
       const list = await request(app).get(MANAGE).set('x-test-actor', 'saleStaff').expect(200);
       expect(list.body.data.counts).toEqual({ ...NO_ORDERS, IN_TRANSIT: 0 });
       const dashboard = await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(200);
-      expect(dashboard.body.data).toEqual({ counts: NO_ORDERS });
-      expect(await fresh.db.listCollections(filter).toArray()).toEqual([]);
+      expect(dashboard.body.data).toEqual({ counts: NO_COUNTS });
+      expect(await fresh.db.listCollections(orderFilter).toArray()).toEqual([]);
+      expect(await fresh.db.listCollections(productFilter).toArray()).toEqual([]);
     } finally {
       await fresh.close();
     }
   });
 
-  test('returns a service error when the order count query fails', async () => {
+  test('returns a service error when the order or low-stock count query fails', async () => {
     const aggregate = jest.spyOn(models.ProductOrder, 'aggregate').mockImplementationOnce(() => {
       throw new Error('Synthetic query failure');
     });
@@ -223,12 +243,25 @@ describe('UC-94 Sale Staff dashboard', () => {
     } finally {
       aggregate.mockRestore();
     }
+
+    const countDocs = jest.spyOn(models.Product, 'countDocuments').mockImplementationOnce(() => {
+      throw new Error('Synthetic stock query failure');
+    });
+    try {
+      const response = await api('saleStaff').get(DASHBOARD).expect(503);
+      expect(response.body.error.code).toBe('SALES_DASHBOARD_SOURCE_UNAVAILABLE');
+      expect(response.body).not.toHaveProperty('data');
+      expect(JSON.stringify(response.body)).not.toContain('Synthetic stock query failure');
+    } finally {
+      countDocs.mockRestore();
+    }
   });
 
   test.each([false, true])('coexists with the common dashboard router (common first: %s)', async (commonFirst) => {
+    const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
     const app = salesApp({ connection, includeCommonDashboard: true, commonFirst });
     expect((await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(200)).body.data)
-      .toEqual({ counts: NO_ORDERS });
+      .toEqual({ counts: { ...NO_ORDERS, LOW_STOCK: stock.counts.LOW_STOCK, CLAIMS_TO_CHECK: 0 } });
     await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'saleStaff').expect(403);
     await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'staff').expect(202);
   });
@@ -344,12 +377,14 @@ describe('handing a delivery order to the carrier', () => {
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 15, quantityHeld: 2 });
   });
 
-  test('releases the hold and reduces the real stock, and the customer sees the tracking code', async () => {
+  test('IT-FE25-UC71-12 shows reduced stock and released hold after UC-64 hands an order to the carrier', async () => {
     const order = await placeDelivery('a', 'SP-0012', 2);
     const done = await act(order, 'hand-to-carrier', { trackingCode: ' VN7290018342 ' });
     expect(done.status).toBe(200);
     expect(done.body.data).toMatchObject({ status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342' });
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 13, quantityHeld: 0 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0012' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 13, quantityHeld: 0, available: 13 });
     const mine = await api('a').get(`/api/v1/product-orders/${order.id}`).expect(200);
     expect(mine.body.data).toMatchObject({ status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342' });
   });
@@ -419,6 +454,15 @@ describe('delivery result (UC-65, AC-04)', () => {
     expect((await act(shipped, 'mark-returning', { carrierReason: 'Late change' })).body.error.code).toBe('ORDER_STATE_CONFLICT');
   });
 
+  test('returns all 150 resellable units of an online order', async () => {
+    const code = 'SP-0012';
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: 152, quantityHeld: 2 } });
+    const order = await returning(await placeShipped('a', [[code, 150]]));
+    const returned = await act(order, 'confirm-returned', await confirmBody([[code, 150]])).expect(200);
+    expect(returned.body.data.lines[0]).toMatchObject({ quantity: 150, resellableQuantity: 150 });
+    expect(await product(code)).toMatchObject({ stockOnHand: 152, quantityHeld: 2 });
+  });
+
   test('AC-04 being returned: asks for the carrier reason and changes nothing without it', async () => {
     const order = await placeShipped('a', [['SP-0012', 2]]);
     for (const body of [{}, { carrierReason: '' }, { carrierReason: '   ' }, { carrierReason: 5 }, { carrierReason: 'x'.repeat(301) },
@@ -452,7 +496,7 @@ describe('delivery result (UC-65, AC-04)', () => {
 });
 
 describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
-  test('AC-04 puts back only the resellable quantity of each line, once, and keeps the reasons', async () => {
+  test('IT-FE25-UC71-13 shows only resellable UC-66 returns back in stock', async () => {
     const order = await returning(await placeShipped('a', [['SP-0012', 2], ['SP-0020', 1]]));
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 13, quantityHeld: 0 });
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 31, quantityHeld: 0 });
@@ -464,6 +508,10 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
     expect(done.body.data.lines.map((line) => [line.productCode, line.quantity, line.resellableQuantity])).toEqual([['SP-0012', 2, 1], ['SP-0020', 1, 0]]);
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 14, quantityHeld: 0 });
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 31, quantityHeld: 0 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0012' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 14, quantityHeld: 0, available: 14 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0020' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 31, quantityHeld: 0, available: 31 });
     // A second confirmation changes nothing and never adds stock again.
     const again = await act(order, 'confirm-returned', await confirmBody([['SP-0012', 2], ['SP-0020', 1]]));
     expect(again.status).toBe(409);
@@ -587,7 +635,7 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
 });
 
 describe('pickup orders', () => {
-  test('are readied without touching stock, then handed over once paid in full', async () => {
+  test('IT-FE25-UC71-14 shows reduced stock and released hold after UC-67 pickup handover', async () => {
     const order = await placePickup('a', 'SP-0020', 2);
     const ready = await act(order, 'mark-ready');
     expect(ready.body.data.status).toBe('READY');
@@ -605,6 +653,8 @@ describe('pickup orders', () => {
     const handed = await act(order, 'hand-to-customer');
     expect(handed.body.data.status).toBe('PICKED_UP');
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 30, quantityHeld: 0 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0020' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 30, quantityHeld: 0, available: 30 });
     expect((await act(order, 'hand-to-customer')).body.error.code).toBe('ORDER_STATE_CONFLICT');
   });
 
@@ -859,4 +909,125 @@ test('Permission Matrix Sale Staff handles pickup, delivery and returns', async 
   await step(returned, 'mark-returning', { carrierReason: 'Synthetic carrier reason' });
   await step(returned, 'confirm-returned', await confirmBody([['SP-0012', 1]]));
   await sale.post('/api/v1/product-orders').send({}).expect(403);
+});
+
+describe('customer confirm received & JOB-04 auto-delivery (GBR-36, JOB-04)', () => {
+  const SEVEN_DAYS_MS = 7 * 24 * 3_600_000;
+  const confirm = (who, order, body = {}) => api(who).post(`/api/v1/product-orders/${order.id}/confirm-received`).send(body);
+  const notificationsOf = (userId) => connection.db.collection('notifications').find({ recipientId: userId }).toArray();
+
+  test('handToCarrier stores handedToCarrierAt and exposes autoDeliverAt matching exact JOB-04 7-day threshold', async () => {
+    const order = await placeDelivery('a', 'SP-0012', 1);
+    const handed = await act(order, 'hand-to-carrier', { trackingCode: 'VN-TRACK-7D' }).expect(200);
+    expect(handed.body.data.handedToCarrierAt).toEqual(expect.any(String));
+    const expectedAuto = new Date(Date.parse(handed.body.data.handedToCarrierAt) + SEVEN_DAYS_MS).toISOString();
+    expect(handed.body.data.autoDeliverAt).toBe(expectedAuto);
+    const read = await api('a').get(`/api/v1/product-orders/${order.id}`).expect(200);
+    expect(read.body.data.handedToCarrierAt).toBe(handed.body.data.handedToCarrierAt);
+    expect(read.body.data.autoDeliverAt).toBe(expectedAuto);
+    const list = await api('a').get('/api/v1/product-orders').expect(200);
+    expect(list.body.data.items.find((item) => item.id === order.id).autoDeliverAt).toBe(expectedAuto);
+    const autoMs = Date.parse(read.body.data.autoDeliverAt);
+    expect(await productOrderManagement.createProductOrderExpiryService({ connection, clock: () => autoMs - 1 }).runBatch())
+      .toMatchObject({ delivered: 0, failed: 0 });
+    expect((await models.ProductOrder.findById(order.id).lean()).status).toBe('HANDED_TO_CARRIER');
+    expect(await productOrderManagement.createProductOrderExpiryService({ connection, clock: () => autoMs }).runBatch())
+      .toMatchObject({ delivered: 1, failed: 0 });
+    expect(await models.ProductOrder.findById(order.id).lean()).toMatchObject({
+      status: 'DELIVERED', paid: true, deliveredBy: 'SYSTEM', deliveredAt: new Date(autoMs), version: 2
+    });
+  });
+
+  test('customer confirms own COD delivery: marks DELIVERED + paid once, deliveredBy CUSTOMER, no in-app notification', async () => {
+    const order = await placeShipped('a', [['SP-0012', 1]]);
+    const beforeNotes = (await notificationsOf(actors.a.userId)).length;
+    const res = await confirm('a', order).expect(200);
+    expect(res.body.data).toMatchObject({ status: 'DELIVERED', paid: true, deliveredBy: 'CUSTOMER', autoDeliverAt: null });
+    expect(res.body.data.deliveredAt).toEqual(expect.any(String));
+    // Customer already sees Toast MSG167; no extra in-app notification is created.
+    expect((await notificationsOf(actors.a.userId)).length).toBe(beforeNotes);
+    // Double confirmation (sequential and concurrent) is idempotent and changes nothing.
+    const saved = await models.ProductOrder.findById(order.id).lean();
+    expect(saved.version).toBe(2);
+    const again = await confirm('a', order).expect(200);
+    expect(again.body.data.deliveredAt).toBe(res.body.data.deliveredAt);
+    expect((await models.ProductOrder.findById(order.id).lean()).version).toBe(saved.version);
+    // Staff mark-delivered afterwards is rejected and does not rewrite COD payment or deliveredBy.
+    expect((await act(order, 'mark-delivered').expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
+    expect(await models.ProductOrder.findById(order.id).lean()).toMatchObject({ status: 'DELIVERED', paid: true, deliveredBy: 'CUSTOMER', version: 2 });
+    const raceOrder = await placeShipped('b', [['SP-0020', 1]]);
+    const race = await Promise.all([confirm('b', raceOrder), confirm('b', raceOrder)]);
+    expect(race.map((r) => r.status)).toEqual([200, 200]);
+    expect((await models.ProductOrder.findById(raceOrder.id).lean())).toMatchObject({ status: 'DELIVERED', paid: true, deliveredBy: 'CUSTOMER', version: 2 });
+  });
+
+  test('customer confirmation enforces ownership (403), missing order (404), role, CSRF and order state (409)', async () => {
+    const shipped = await placeShipped('a', [['SP-0012', 1]]);
+    // Another customer gets 403; unknown order gets 404; non-customer roles and missing CSRF get 403.
+    await confirm('b', shipped).expect(403);
+    await confirm('a', { id: String(oid()) }).expect(404);
+    await confirm('saleStaff', shipped).expect(403);
+    await confirm('admin', shipped).expect(403);
+    await request(base).post(`/api/v1/product-orders/${shipped.id}/confirm-received`).set('x-test-actor', 'a').send({}).expect(403);
+    // Non-shipped states and pickup orders are rejected with ORDER_STATE_CONFLICT (409).
+    const placed = await placeDelivery('a', 'SP-0012', 1);
+    expect((await confirm('a', placed).expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
+    await act(placed, 'cancel').expect(200);
+    expect((await confirm('a', placed).expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
+    const pickup = await placePickup('a', 'SP-0020', 1);
+    expect((await confirm('a', pickup).expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
+    const back = await returning(await placeShipped('a', [['SP-0031', 1]]));
+    expect((await confirm('a', back).expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
+    await act(back, 'confirm-returned', await confirmBody([['SP-0031', 1]])).expect(200);
+    expect((await confirm('a', back).expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
+    expect(await models.ProductOrder.findById(shipped.id).lean()).toMatchObject({ status: 'HANDED_TO_CARRIER', paid: false });
+  });
+
+  test('Sale Staff markDelivered marks COD paid once, sets deliveredBy STAFF and sends delivered notification', async () => {
+    const order = await placeShipped('a', [['SP-0012', 1]]);
+    const res = await api('saleStaff').post(`${MANAGE}/${order.id}/mark-delivered`).send({}).expect(200);
+    expect(res.body.data).toMatchObject({ status: 'DELIVERED', paid: true, deliveredBy: 'STAFF' });
+    const afterStaff = await models.ProductOrder.findById(order.id).lean();
+    expect(afterStaff).toMatchObject({ status: 'DELIVERED', paid: true, deliveredBy: 'STAFF', version: 2 });
+    // Repeat staff call is rejected; customer re-confirm is idempotent without rewriting version/deliveredBy.
+    expect((await api('saleStaff').post(`${MANAGE}/${order.id}/mark-delivered`).send({}).expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
+    const afterConfirm = await confirm('a', order).expect(200);
+    expect(afterConfirm.body.data).toMatchObject({ status: 'DELIVERED', paid: true, deliveredBy: 'STAFF' });
+    expect((await models.ProductOrder.findById(order.id).lean()).version).toBe(2);
+    const notes = await notificationsOf(actors.a.userId);
+    expect(notes.some((n) => n.message === `Đơn ${order.code} đã giao thành công.`)).toBe(true);
+  });
+
+  test('JOB-04 auto-delivers orders >= 7 days once, marks COD paid, skips 6d23h / BEING_RETURNED / missing handedToCarrierAt', async () => {
+    const nowMs = Date.UTC(2026, 10, 26, 5, 0, 0);
+    const dueOrder = await placeShipped('a', [['SP-0012', 1]]);
+    const notYetOrder = await placeShipped('b', [['SP-0020', 1]]);
+    const returningOrder = await returning(await placeShipped('c', [['SP-0031', 1]]));
+    const legacyOrder = await placeShipped('a', [['SP-0012', 1]]);
+    await models.ProductOrder.updateOne({ _id: dueOrder.id }, { $set: { handedToCarrierAt: new Date(nowMs - SEVEN_DAYS_MS) } });
+    await models.ProductOrder.updateOne({ _id: notYetOrder.id }, { $set: { handedToCarrierAt: new Date(nowMs - SEVEN_DAYS_MS + 3_600_000) } });
+    await models.ProductOrder.updateOne({ _id: returningOrder.id }, { $set: { handedToCarrierAt: new Date(nowMs - SEVEN_DAYS_MS - 3_600_000) } });
+    await models.ProductOrder.updateOne({ _id: legacyOrder.id }, { $unset: { handedToCarrierAt: '' } });
+
+    const job = productOrderManagement.createProductOrderExpiryService({ connection, clock: () => nowMs });
+    const summary = await job.runBatch();
+    expect(summary).toMatchObject({ delivered: 1, failed: 0 });
+    expect(await job.runBatch()).toMatchObject({ delivered: 0, failed: 0 });
+    expect(await models.ProductOrder.findById(dueOrder.id).lean()).toMatchObject({
+      status: 'DELIVERED', paid: true, deliveredBy: 'SYSTEM', deliveredAt: new Date(nowMs), version: 2
+    });
+    expect((await confirm('a', dueOrder).expect(200)).body.data).toMatchObject({
+      status: 'DELIVERED', paid: true, deliveredBy: 'SYSTEM'
+    });
+    expect((await models.ProductOrder.findById(dueOrder.id).lean()).version).toBe(2);
+    expect(await models.ProductOrder.findById(notYetOrder.id).lean()).toMatchObject({ status: 'HANDED_TO_CARRIER', paid: false });
+    expect(await models.ProductOrder.findById(returningOrder.id).lean()).toMatchObject({ status: 'BEING_RETURNED', paid: false });
+    expect(await models.ProductOrder.findById(legacyOrder.id).lean()).toMatchObject({ status: 'HANDED_TO_CARRIER', paid: false });
+    const notes = await notificationsOf(actors.a.userId);
+    expect(notes.filter((n) => n.eventId === `product-order:${dueOrder.id}:2`)).toEqual([
+      expect.objectContaining({
+        message: `Đơn ${dueOrder.code} đã được tự xác nhận là đã nhận hàng sau 7 ngày vận chuyển. Nếu bạn chưa nhận được hàng, hãy liên hệ cửa hàng.`
+      })
+    ]);
+  });
 });

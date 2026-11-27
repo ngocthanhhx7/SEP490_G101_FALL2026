@@ -1,5 +1,25 @@
 # Employee Scheduling
 
+`visit-reminders.service.js` connects the reminder policy to real visits and
+in-app notifications for JOB-01 / GBR-47. Runtime starts it every 15 minutes when
+employee scheduling is enabled. Assigned future visits receive separate 120/30
+minute reminders for Customer and Pet Sitter. Schedule/start/version/assignee are
+rechecked in the notification transaction. Customer markers and notification IDs
+follow the visit/start/lead time. Sitter markers and IDs also bind the recipient,
+assignedAt and assignmentVersion, so replacing a sitter at the same time notifies
+the new assignment without repeating the customer's reminder. Acceptance and
+Staff reassignment increment assignmentVersion; unrelated visit writes do not.
+Existing visits default to assignment version zero. Legacy per-start customer
+markers remain valid, and original sitter deliveries are adopted from existing
+notifications when they predate any new assignment. Markers and notifications
+commit together, preventing duplicates across retries and server instances.
+The Mongo query joins and filters active bookings with a customer before its
+100-visit limit. Orphaned/inactive visits cannot block later valid reminders,
+including after worker recreation; no process-local cursor is required.
+The notification transaction still rechecks the booking and assignment.
+`visit-reminder.policy.js` holds the existing pure deadline/job policy; the old
+jobs import path remains a compatibility re-export.
+
 Availability windows may explicitly register `workLocation: SHOP`; legacy/omitted
 location remains HOME. `grooming-occupancy.service.js` reads bounded native shop
 reservations without registering optional models while Grooming is disabled.
@@ -13,6 +33,18 @@ not truncate matching people. Reads have explicit execution deadlines; metadata
 and contact lookup stay separate. Dispatch detail is addressed by visit ID rather
 than relying on the first queue page. UC-41 adds the pending handover deadline to
 Needs action and uses an exact visit filter on the All tab for the Staff notification.
+
+`late-check-in-alert.service.js` implements JOB-07 / GBR-29. Runtime runs it every
+5 minutes: each assigned visit of the Vietnam day without check-in 15 minutes after
+its start sends one in-app notification to Staff, linking to that visit. The
+`lateCheckInAlert.alertedAt` marker is saved on the visit in the same transaction
+as the notification. The bounded scan rotates by start time and visit ID, so a
+failing visit cannot block later ones and is retried after the scan wraps. The
+marker and notification key follow the visit ID across reschedules.
+
+A visit released by withdrawal or suspension ends with new offers or a Needs action
+entry: when automatic dispatch is off, and when an offer to a released visit is
+refused for any reason other than a concurrent change, `dispatchReview` records it.
 
 `withdrawal-review.service.js` handles pending late withdrawals. Staff/Admin must
 provide a reason to reject or release. A release serializes with employee/visit

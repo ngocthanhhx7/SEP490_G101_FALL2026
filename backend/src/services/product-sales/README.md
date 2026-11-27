@@ -51,3 +51,54 @@ Unpaid `PAY_AT_SHOP` pick-up orders in `READY` (UC-67 branch 4.1) reuse the same
 link creation (`createPickupShopLink`), webhook receipt and settler flow while
 keeping `paymentMethod: 'PAY_AT_SHOP'` and storing VietQR receipts in
 `payment.receipts`.
+
+## Delivery completion
+
+`product-order-transition.js` provides the shared guarded order transition and
+`HANDED_TO_CARRIER -> DELIVERED` helper used by Sale Staff (`markDelivered`,
+`deliveredBy: 'STAFF'`), Customer confirmation (`confirmReceived`,
+`deliveredBy: 'CUSTOMER'`) and JOB-04 (`autoDeliverShippedOrders`,
+`deliveredBy: 'SYSTEM'`, 7 days after `handedToCarrierAt`). Cash-on-delivery
+orders become `paid: true` with `deliveredAt` in the same transaction across all
+three paths. Legacy in-transit orders without `handedToCarrierAt` are skipped by
+JOB-04.
+
+## Faulty product claims
+
+`faulty-product-claim.service.js` handles post-delivery/pick-up faulty or
+wrong-product claims within the `FAULTY_PRODUCT_REPORT_DAYS` window (default 7
+days), Sale Staff inspection, Admin exchange/refund/reject decisions (read-only
+`sellingPriceWhenOrdered * quantity` refund paid outside PWC), and single-step
+`EXCHANGE_SENT` stock deduction without creating `StockAdjustment`.
+`stock-history.service.js` merges `EXCHANGE_SENT` claims as `FAULTY_EXCHANGE`
+entries alongside goods receipts and stock adjustments.
+
+Each accepted claim saves the applied settings version, day count and deadline
+alongside its order delivery date. Version 0 denotes the built-in seven-day
+default. Staff see the saved snapshot on the claim. The current setting governs
+new submissions. Historical claims without a saved snapshot stay readable.
+
+The `faultyproductclaims` collection owns the independent claim lifecycle and
+permits several product-line claims against one order. This keeps global Staff
+queues and per-product exchange history directly queryable across orders. Stock
+history reads the same claim that records the exchange and its stock deduction.
+
+| Query | Compound index |
+| --- | --- |
+| Staff queue filtered by status, newest first | `status: 1, createdAt: -1, _id: -1` |
+| Product stock history filtered to sent exchanges, newest first | `productId: 1, status: 1, exchangeSentAt: -1, _id: -1` |
+| Submission quantity check for one purchased line | `orderId: 1, productId: 1, status: 1` |
+
+New submissions serialize on the affected order and count existing claims for
+the purchased line inside the transaction. Pending, approved and fulfilled
+claims count against the purchased quantity. A rejected claim releases its
+quantity. Apply the additive claim index on `orderId, productId, status` as part
+of product storage provisioning. Customer and staff claim photos use the
+existing private image admission limit and private storage configuration.
+Customer claim responses use an allowlisted view of the submitted claim and its
+outcome. Inspection and decision notes, staff identities, and inventory controls
+are available only through the staff endpoints.
+
+Sale Staff record the inspection and mark an approved replacement as sent.
+Admin record the exchange, refund or rejection decision. Both roles can read
+claims and their photos.
