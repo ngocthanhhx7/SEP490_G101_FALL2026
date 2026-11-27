@@ -563,42 +563,217 @@ describe('reading appointments', () => {
   });
 });
 
-describe('FE-22 scenarios pending runtime implementation', () => {
-  test.todo('IT-FE22-UC58-04 blocks a new appointment when the customer has an unpaid grooming appointment (MSG21) - booking currently only removes the tier discount');
-  test.todo('IT-FE22-UC58-05 blocks online booking when the customer exceeds the no-show limit (MSG160) - no-show eligibility gate is not implemented');
-  test.todo('IT-FE22-UC58-11 cancels at least two hours before start and releases the held slot - customer cancellation is not implemented');
+test('IT-FE22-UC58-04 rejects a new appointment while a handed-back appointment has an outstanding balance', async () => {
+  await sitter();
+  const rows = [row(pets.Milo, ['pet-bathing'])];
+  const quote = await totalOf(rows);
+  const debt = await seed({
+    code: 'GR-0300',
+    status: 'HANDED_BACK_PAID',
+    more: {
+      customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId),
+      handedBackAt: new Date(NOW - DAY)
+    }
+  });
 
-  test.todo('IT-FE22-UC59-01 shows the appointment, customer, pets, answers and services to Staff - Staff check-in API is not implemented');
-  test.todo('IT-FE22-UC59-02 stores check-in condition photos for the correct pet - Staff check-in API and media flow are not implemented');
-  test.todo('IT-FE22-UC59-03 stores confirmed difficulty for difficulty bonus calculation - Staff check-in API is not implemented');
-  test.todo('IT-FE22-UC59-04 assigns an eligible on-shift grooming Pet Sitter and exposes Grooming Work - assignment API is not implemented');
-  test.todo('IT-FE22-UC59-05 allows check-in within thirty minutes and cancels work that cannot finish - late check-in flow is not implemented');
-  test.todo('IT-FE22-UC59-06 records no-show after thirty minutes - no-show transition is not implemented');
-  test.todo('IT-FE22-UC59-07 lets the shop cancel without no-show when no eligible sitter is available and notifies the customer - Staff cancellation is not implemented');
-  test.todo('IT-FE22-UC59-08 applies the configured surcharge only after customer consent - check-in surcharge flow is not implemented');
-  test.todo('IT-FE22-UC59-09 cancels the affected pet without charge when surcharge consent is refused - per-pet cancellation is not implemented');
-  test.todo('IT-FE22-UC59-10 stores independent check-in evidence, difficulty and sitter assignments for multiple pets - Staff check-in API is not implemented');
+  const denied = await book(payload(rows, quote)).expect(409);
+  expect(denied.body.error).toMatchObject({
+    code: 'GROOMING_PAYMENT_OUTSTANDING', message: expect.stringContaining('MSG21')
+  });
+  expect(await APPOINTMENTS().countDocuments()).toBe(1);
+  expect(await APPOINTMENTS().findById(debt._id).lean()).toMatchObject({
+    status: 'HANDED_BACK_PAID', handedBackAt: new Date(NOW - DAY)
+  });
+});
 
-  test.todo('IT-FE22-UC60-01 allows hand-back only after every pet is Ready, Cancelled or Stopped - hand-back API is not implemented');
-  test.todo('IT-FE22-UC60-02 notifies the customer and displays the payable amount after all pets finish - completion notification is not implemented');
-  test.todo('IT-FE22-UC60-03 records a full cash payment and updates appointment payment state - grooming payment API is not implemented');
-  test.todo('IT-FE22-UC60-04 records a successful VietQR payment confirmed by payOS - grooming payOS integration is not implemented');
-  test.todo('IT-FE22-UC60-05 rejects a failed VietQR transaction with MSG32 and permits retry - grooming payOS integration is not implemented');
-  test.todo('IT-FE22-UC60-06 records the tip against the corresponding Pet Sitter - grooming tip flow is not implemented');
-  test.todo('IT-FE22-UC60-07 excludes Stopped and Cancelled pets from the payable amount - hand-back pricing is not implemented');
-  test.todo('IT-FE22-UC60-08 closes with zero payable amount when no pet is Ready - zero-charge closure is not implemented');
-  test.todo('IT-FE22-UC60-09 hands pets back, closes as Not paid and stores the outstanding amount - grooming debt flow is not implemented');
-  test.todo('IT-FE22-UC60-10 records an additional payment against a Not paid appointment - additional grooming payment is not implemented');
-  test.todo('IT-FE22-UC60-11 refuses completion until every pet is handed back - hand-back completion validation is not implemented');
-  test.todo('IT-FE22-UC60-12 processes a repeated payOS result idempotently - grooming payment webhook is not implemented');
+describe('FE-22 scenarios pending integration coverage', () => {
+  test.todo('IT-FE22-UC58-05 blocks online booking when the customer exceeds the no-show limit (MSG160)');
 
-  test.todo('IT-FE22-UC91-01 lists only pets assigned to the signed-in Pet Sitter - Grooming Work API is not implemented');
-  test.todo('IT-FE22-UC91-02 updates the assigned pet to In Progress - grooming status command is not implemented');
-  test.todo('IT-FE22-UC91-03 updates the assigned pet to Ready and synchronizes the appointment - grooming status command is not implemented');
-  test.todo('IT-FE22-UC91-04 does not notify hand-back while another pet remains In Progress - completion notification is not implemented');
-  test.todo('IT-FE22-UC91-05 notifies the customer and enables UC-60 after all pets finish - lifecycle transition to hand-back is not implemented');
-  test.todo('IT-FE22-UC91-06 stores Stopped reason in Pet Profile and excludes the pet from charges - stop grooming flow is not implemented');
-  test.todo('IT-FE22-UC91-07 records higher-difficulty notes for future bookings without changing current confirmed difficulty - Pet Profile grooming note flow is not implemented');
-  test.todo('IT-FE22-UC91-08 rejects status updates for a pet not assigned to the Pet Sitter - Grooming Work authorization is not implemented');
-  test.todo('IT-FE22-UC91-09 updates only the selected pet in a multi-pet appointment - grooming status command is not implemented');
+  test.todo('IT-FE22-UC59-01 shows the appointment, customer, pets, answers and services to Staff');
+  test.todo('IT-FE22-UC59-02 stores check-in condition photos for the correct pet');
+  test.todo('IT-FE22-UC59-03 stores confirmed difficulty for difficulty bonus calculation');
+  test.todo('IT-FE22-UC59-04 assigns an eligible on-shift grooming Pet Sitter and exposes Grooming Work');
+  test.todo('IT-FE22-UC59-05 allows check-in within thirty minutes and cancels work that cannot finish');
+  test.todo('IT-FE22-UC59-06 records no-show after thirty minutes');
+  test.todo('IT-FE22-UC59-07 lets the shop cancel without no-show when no eligible sitter is available and notifies the customer');
+  test.todo('IT-FE22-UC59-08 applies the configured surcharge only after customer consent');
+  test.todo('IT-FE22-UC59-09 cancels the affected pet without charge when surcharge consent is refused');
+  test.todo('IT-FE22-UC59-10 stores independent check-in evidence, difficulty and sitter assignments for multiple pets');
+
+  test.todo('IT-FE22-UC60-01 allows hand-back only after every pet is Ready, Cancelled or Stopped');
+  test.todo('IT-FE22-UC60-02 notifies the customer and displays the payable amount after all pets finish');
+  test.todo('IT-FE22-UC60-03 records a full cash payment and updates appointment payment state');
+  test.todo('IT-FE22-UC60-04 records a successful VietQR payment confirmed by payOS');
+  test.todo('IT-FE22-UC60-05 rejects a failed VietQR transaction with MSG32 and permits retry');
+  test.todo('IT-FE22-UC60-06 records the tip against the corresponding Pet Sitter');
+  test.todo('IT-FE22-UC60-07 excludes Stopped and Cancelled pets from the payable amount');
+  test.todo('IT-FE22-UC60-08 closes with zero payable amount when no pet is Ready');
+  test.todo('IT-FE22-UC60-09 hands pets back, closes as Not paid and stores the outstanding amount');
+  test.todo('IT-FE22-UC60-10 records an additional payment against a Not paid appointment');
+  test.todo('IT-FE22-UC60-11 refuses completion until every pet is handed back');
+  test.todo('IT-FE22-UC60-12 processes a repeated payOS result idempotently');
+
+  test.todo('IT-FE22-UC91-01 lists only pets assigned to the signed-in Pet Sitter');
+  test.todo('IT-FE22-UC91-02 updates the assigned pet to In Progress');
+  test.todo('IT-FE22-UC91-03 updates the assigned pet to Ready and synchronizes the appointment');
+  test.todo('IT-FE22-UC91-04 does not notify hand-back while another pet remains In Progress');
+  test.todo('IT-FE22-UC91-05 notifies the customer and enables UC-60 after all pets finish');
+  test.todo('IT-FE22-UC91-06 stores Stopped reason in Pet Profile and excludes the pet from charges');
+  test.todo('IT-FE22-UC91-07 records higher-difficulty notes for future bookings without changing current confirmed difficulty');
+  test.todo('IT-FE22-UC91-08 rejects status updates for a pet not assigned to the Pet Sitter');
+  test.todo('IT-FE22-UC91-09 updates only the selected pet in a multi-pet appointment');
+});
+
+describe('customer cancellation (ST-GRM-07, GBR-40)', () => {
+  const HOTLINE = '024-7300-8899';
+  const mine = more => ({ customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId), ...more });
+  const cancel = (id, role = 'CUSTOMER', csrf = true, body = {}) => call('post', `/appointments/${id}/cancel`, role, csrf).send(body);
+
+  test('ST-GRM-07: cancels an appointment 3 hours away at no charge, frees the slot for others, and lets the same pet rebook the same hour', async () => {
+    await startApp({ hotline: HOTLINE });
+    await sitter();
+    const booked = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201)).body.data;
+    const otherPet = await petOf('CUSTOMER2', 'Lu');
+    const slotsFor = async (role, ...petRows) => (await call('post', '/slots', role).send(slotBody(TODAY, ...petRows)).expect(200)).body.data.slots;
+    expect((await slotsFor('CUSTOMER2', { petId: String(otherPet._id), serviceIds: [sid('pet-bathing')] }))
+      .find(slot => slot.time === '11:00')?.state).toBe('FULL');
+
+    const cancelled = (await cancel(booked.id).expect(200)).body.data;
+    expect(cancelled).toMatchObject({
+      id: booked.id, code: booked.code, status: 'CANCELLED', depositRequired: false,
+      cancellation: { at: new Date(NOW).toISOString(), byRole: 'CUSTOMER' }
+    });
+    expect(cancelled.pets.every(pet => pet.status === 'CANCELLED_NO_CHARGE')).toBe(true);
+    expect(JSON.stringify(cancelled)).not.toContain('byUserId');
+
+    const saved = await APPOINTMENTS().findById(booked.id).select('+requestReceipt').lean();
+    expect(saved).toMatchObject({
+      status: 'CANCELLED', version: 1, closedAt: new Date(NOW),
+      cancellation: { at: new Date(NOW), byRole: 'CUSTOMER', byUserId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId) }
+    });
+    expect(saved.payment).toBeUndefined();
+    expect(saved.pets.every(pet => pet.status === 'CANCELLED_NO_CHARGE')).toBe(true);
+    expect(saved.requestReceipt.result.status).toBe('BOOKED');
+    expect(await held('11:00')).toBeUndefined();
+
+    // Slot opens again for another customer and the same pet can rebook the same hour.
+    expect((await slotsFor('CUSTOMER2', { petId: String(otherPet._id), serviceIds: [sid('pet-bathing')] }))
+      .find(slot => slot.time === '11:00')?.state).toBe('AVAILABLE');
+    const rebooked = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201)).body.data;
+    expect(rebooked.id).not.toBe(booked.id);
+    expect(await held('11:00')).toBe(1);
+  });
+
+  test('IT-FE22-UC58-11 / ST-GRM-07: allows cancellation at the exact 2-hour boundary and frees multi-pet slots', async () => {
+    await startApp({ hotline: HOTLINE });
+    await sitter(); await sitter();
+    const booked = (await bookFor([row(pets.Milo, ['pet-bathing']), row(pets.Bo, ['pet-bathing'])], { startAt: startOf('10:00') }).expect(201)).body.data;
+    expect(await held('10:00')).toBe(2);
+
+    const response = await cancel(booked.id).expect(200);
+    expect(response.body.data.status).toBe('CANCELLED');
+    expect(response.body.data.pets.map(pet => pet.status)).toEqual(['CANCELLED_NO_CHARGE', 'CANCELLED_NO_CHARGE']);
+    expect(await held('10:00')).toBeUndefined();
+
+    const otherPet = await petOf('CUSTOMER2', 'Lu');
+    await bookFor([row(otherPet, ['pet-bathing'])], { startAt: startOf('10:00'), role: 'CUSTOMER2' }).expect(201);
+  });
+
+  test('ST-GRM-07: refuses cancellation less than 2 hours before start (1 hour and 1ms past boundary) with GROOMING_CANCEL_TOO_LATE and hotline (MSG159)', async () => {
+    await startApp({ hotline: HOTLINE });
+    await sitter();
+    const booked = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('09:00') }).expect(201)).body.data;
+    // 1 hour before 09:00 (NOW = 08:00).
+    const oneHour = await cancel(booked.id).expect(409);
+    expect(oneHour.body.error).toMatchObject({
+      code: 'GROOMING_CANCEL_TOO_LATE',
+      hotline: HOTLINE,
+      startAt: startOf('09:00')
+    });
+    expect(oneHour.body.error.message).toContain(HOTLINE);
+    expect((await APPOINTMENTS().findById(booked.id).lean()).status).toBe('BOOKED');
+    expect(await held('09:00')).toBe(1);
+
+    // 1ms inside the 2-hour cutoff for a 10:00 appointment.
+    const bookedTen = (await bookFor([row(pets.Bo, ['pet-bathing'])], { startAt: startOf('10:00') }).expect(201)).body.data;
+    currentNow = at(TODAY, '08:00').getTime() + 1;
+    const justLate = await cancel(bookedTen.id).expect(409);
+    expect(justLate.body.error.code).toBe('GROOMING_CANCEL_TOO_LATE');
+    expect((await APPOINTMENTS().findById(bookedTen.id).lean()).status).toBe('BOOKED');
+  });
+
+  test('refuses cancellation without hotline configured cleanly (no null text)', async () => {
+    await sitter();
+    const booked = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('09:00') }).expect(201)).body.data;
+    const response = await cancel(booked.id).expect(409);
+    expect(response.body.error).toMatchObject({ code: 'GROOMING_CANCEL_TOO_LATE', hotline: null });
+    expect(response.body.error.message).not.toContain('null');
+  });
+
+  test('enforces ownership, authentication, role, CSRF and strict body validation', async () => {
+    await sitter();
+    const booked = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201)).body.data;
+    await cancel(booked.id, null).expect(401);
+    await cancel(booked.id, 'CUSTOMER', false).expect(403);
+    for (const role of ['STAFF', 'PET_SITTER', 'ADMIN']) await cancel(booked.id, role).expect(403);
+    await cancel(booked.id, 'CUSTOMER2').expect(404);
+    await cancel(String(oid())).expect(404);
+    await cancel('not-an-id').expect(404);
+    await cancel(booked.id, 'CUSTOMER', true, { unexpected: true }).expect(422);
+    expect((await APPOINTMENTS().findById(booked.id).lean()).status).toBe('BOOKED');
+  });
+
+  test('refuses second cancellation, checked-in and closed appointments without modifying state', async () => {
+    await sitter();
+    const booked = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201)).body.data;
+    await cancel(booked.id).expect(200);
+    const afterFirst = await APPOINTMENTS().findById(booked.id).lean();
+    const second = await cancel(booked.id).expect(409);
+    expect(second.body.error.code).toBe('GROOMING_APPOINTMENT_NOT_CANCELLABLE');
+    expect((await APPOINTMENTS().findById(booked.id).lean()).version).toBe(afterFirst.version);
+
+    for (const status of ['CHECKED_IN', 'HANDED_BACK_PAID', 'NO_SHOW', 'CLOSED_NO_CHARGE']) {
+      const seeded = await seed({ code: `GR-09${status.slice(0, 2)}`, status, times: ['11:00'], more: mine({ code: `GR-900${['CHECKED_IN', 'HANDED_BACK_PAID', 'NO_SHOW', 'CLOSED_NO_CHARGE'].indexOf(status)}` }) });
+      const res = await cancel(String(seeded._id)).expect(409);
+      expect(res.body.error.code).toBe('GROOMING_APPOINTMENT_NOT_CANCELLABLE');
+      expect((await APPOINTMENTS().findById(seeded._id).lean()).status).toBe(status);
+    }
+  });
+
+  test('still allows customer cancellation even if the reserved employee was suspended afterwards', async () => {
+    const employeeId = await sitter();
+    const booked = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201)).body.data;
+    await db.collection('sitterstatuses').updateOne({ userId: employeeId }, { $set: { status: 'SUSPENDED' } });
+    const response = await cancel(booked.id).expect(200);
+    expect(response.body.data.status).toBe('CANCELLED');
+  });
+
+  test('serializes concurrent double-cancel and concurrent cancel + booking on the same slot without corrupting holds', async () => {
+    await sitter();
+    const first = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201)).body.data;
+    const [c1, c2] = await Promise.all([cancel(first.id), cancel(first.id)]);
+    expect([c1.status, c2.status].sort()).toEqual([200, 409]);
+    expect((await APPOINTMENTS().findById(first.id).lean()).version).toBe(1);
+
+    // Book again, then race Customer 1 cancelling with Customer 2 booking the exact same single-sitter slot.
+    const second = (await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201)).body.data;
+    const lu = await petOf('CUSTOMER2', 'Lu');
+    const c2Rows = [row(lu, ['pet-bathing'])];
+    const c2Body = payload(c2Rows, await totalOf(c2Rows, 'CUSTOMER2'), startOf('11:00'));
+    const [cancelRes, bookRes] = await Promise.all([
+      cancel(second.id),
+      book(c2Body, 'synthetic-race-cancel-book', 'CUSTOMER2')
+    ]);
+    expect(cancelRes.status).toBe(200);
+    expect([201, 409]).toContain(bookRes.status);
+    if (bookRes.status === 201) {
+      expect(await held('11:00')).toBe(1);
+    } else {
+      expect(bookRes.body.error.code).toBe('GROOMING_SLOT_TAKEN');
+      expect(await held('11:00')).toBeUndefined();
+      // Immediately afterwards, Customer 2 can book the freed slot cleanly.
+      await book(c2Body, 'synthetic-after-cancel-book', 'CUSTOMER2').expect(201);
+      expect(await held('11:00')).toBe(1);
+    }
+  });
 });
