@@ -559,7 +559,7 @@ describe('what is refused', () => {
     expect(res.body.error.code).toBe('SUPPLIER_NOT_FOUND');
   });
 
-  test('IT-FE25-UC70-05 refuses a product outside the catalog and rolls back all lines', async () => {
+  test('IT-FE21-UC57-13 / IT-FE25-UC70-05 refuses a product outside the catalog and rolls back all lines', async () => {
     const supplierId = await makeSupplier();
     const before = await stockSnapshotAll();
     const ghost = String(oid());
