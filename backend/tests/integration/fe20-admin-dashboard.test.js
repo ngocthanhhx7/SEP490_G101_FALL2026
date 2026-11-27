@@ -49,7 +49,7 @@ beforeEach(async () => {
 });
 
 describe('FE-20 UC-54 - View Admin Dashboard', () => {
-  test('IT-FE20-UC54-01 Admin signs in and opens the Admin Dashboard', async () => {
+  test('IT-FE20-UC54-01 requires an Admin session and returns dashboard counts', async () => {
     await connection.db.collection('visits').insertOne({
       state: 'ASSIGNED',
       startAt: new Date('2026-11-24T04:00:00.000Z'),
@@ -83,6 +83,12 @@ describe('FE-20 UC-54 - View Admin Dashboard', () => {
   test.todo('IT-FE20-UC54-08 calculates monthly service revenue after recorded refunds');
   test.todo('IT-FE20-UC54-09 aggregates product sales from online orders and counter sales');
   test.todo('IT-FE20-UC54-10 navigates each See list action to the corresponding Admin page');
-  test.todo('IT-FE20-UC54-11 returns zero indicators when there is no activity today');
+  test('IT-FE20-UC54-11 returns zero pending applications and visits needing action for an empty database', async () => {
+    const response = await request(api).get('/api/v1/dashboards/admin').set('x-test-role', 'ADMIN').expect(200);
+    expect(response.body.data.metrics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'pendingApplications', value: 0 }),
+      expect.objectContaining({ key: 'needsAction', value: 0 })
+    ]));
+  });
   test.todo('IT-FE20-UC54-12 refreshes Incident and Complaint indicators after state changes');
 });
