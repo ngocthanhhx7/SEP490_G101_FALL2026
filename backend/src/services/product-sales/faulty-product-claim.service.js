@@ -46,21 +46,11 @@ function formatVietnamDate(value) {
   return `${map.day}/${map.month}/${map.year}`;
 }
 
-function requireClaimHandler(actor) {
+function requireClaimRole(actor, roles) {
   if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles) || typeof actor.userId !== 'string' || !/^[a-f\d]{24}$/iu.test(actor.userId)) {
     throw productSalesErrors.unauthenticated();
   }
-  if (!PRODUCT_PERMISSIONS.HANDLE_FAULTY_CLAIMS.some(role => hasRole(actor.roles, role))) {
-    throw productSalesErrors.forbidden();
-  }
-  return actor.userId;
-}
-
-function requireClaimDecider(actor) {
-  if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles) || typeof actor.userId !== 'string' || !/^[a-f\d]{24}$/iu.test(actor.userId)) {
-    throw productSalesErrors.unauthenticated();
-  }
-  if (!PRODUCT_PERMISSIONS.DECIDE_FAULTY_CLAIMS.some(role => hasRole(actor.roles, role))) {
+  if (!roles.some(role => hasRole(actor.roles, role))) {
     throw productSalesErrors.forbidden();
   }
   return actor.userId;
@@ -355,7 +345,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
     },
 
     async list(actor, query) {
-      requireClaimHandler(actor);
+      requireClaimRole(actor, PRODUCT_PERMISSIONS.HANDLE_FAULTY_CLAIMS);
       const { tab, page, limit } = parseClaimListQuery(query);
       const filter = { status: { $in: FAULTY_CLAIM_TAB_STATUSES[tab] } };
       const [docs, counts, total] = await Promise.all([
@@ -372,7 +362,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
     },
 
     async read(actor, rawClaimId) {
-      requireClaimHandler(actor);
+      requireClaimRole(actor, PRODUCT_PERMISSIONS.HANDLE_FAULTY_CLAIMS);
       const claimId = parseClaimObjectId(rawClaimId, 'claimId');
       const doc = await FaultyProductClaim.findById(claimId).lean();
       if (!doc) throw productSalesErrors.notFound();
@@ -400,7 +390,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
     },
 
     async inspect(actor, rawClaimId, body) {
-      const handlerId = requireClaimHandler(actor);
+      const handlerId = requireClaimRole(actor, PRODUCT_PERMISSIONS.PROCESS_FAULTY_CLAIMS);
       const claimId = parseClaimObjectId(rawClaimId, 'claimId');
       const input = parseInspectClaim(body);
       const at = new Date(clock());
@@ -438,7 +428,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
     },
 
     async decide(actor, rawClaimId, body) {
-      const adminId = requireClaimDecider(actor);
+      const adminId = requireClaimRole(actor, PRODUCT_PERMISSIONS.DECIDE_FAULTY_CLAIMS);
       const claimId = parseClaimObjectId(rawClaimId, 'claimId');
       const input = parseDecideClaim(body);
       const at = new Date(clock());
@@ -489,7 +479,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
     },
 
     async markExchangeSent(actor, rawClaimId, body) {
-      const handlerId = requireClaimHandler(actor);
+      const handlerId = requireClaimRole(actor, PRODUCT_PERMISSIONS.PROCESS_FAULTY_CLAIMS);
       const claimId = parseClaimObjectId(rawClaimId, 'claimId');
       const input = parseExchangeSent(body);
       const at = new Date(clock());

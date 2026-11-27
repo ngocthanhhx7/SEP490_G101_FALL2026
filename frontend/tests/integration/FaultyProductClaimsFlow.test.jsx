@@ -159,6 +159,19 @@ test('FaultyProductClaimsPage enforces MSG107 for Sale Staff, MSG108/MSG109, and
   expect(await screen.findByText('Đã lưu quyết định. Khách đã được báo.')).toBeInTheDocument();
 });
 
+test.each([
+  ['WAITING_CHECK', 'WAITING_CHECK', 'Gửi Admin duyệt'],
+  ['EXCHANGE_APPROVED', 'DONE', 'Đã gửi hàng đổi']
+])('Admin can view a %s claim without its Sale Staff action', async (status, tab, action) => {
+  const api = {
+    listClaims: jest.fn().mockResolvedValue({ items: [{ id: CLAIM_ID, code: 'KN-0001', status,
+      quantity: 1, productAvailable: 5, canSendExchange: true }], total: 1 })
+  };
+  withRole(<FaultyProductClaimsPage api={api} />, ['ADMIN'], `/admin/faulty-product-claims?tab=${tab}`);
+  expect(await screen.findByRole('heading', { name: /KN-0001/ })).toBeVisible();
+  expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
+});
+
 test('staff loads only the selected claim photo and can retry when private media is busy', async () => {
   globalThis.URL.createObjectURL = jest.fn(() => 'blob:claim-photo');
   globalThis.URL.revokeObjectURL = jest.fn();

@@ -357,7 +357,7 @@ export function FaultyProductClaimsPage({ api: suppliedApi } = {}) {
 
               {actionError && <p className="faulty-claims__error" role="alert">{actionError}</p>}
 
-              {selected.status === 'WAITING_CHECK' && (isSaleStaff || isAdmin) && (
+              {selected.status === 'WAITING_CHECK' && isSaleStaff && (
                 <form className="faulty-claims__section" onSubmit={handleInspect} noValidate>
                   <label htmlFor="claim-inspection-result"><strong>Kết quả kiểm tra *</strong></label>
                   <textarea
@@ -414,13 +414,14 @@ export function FaultyProductClaimsPage({ api: suppliedApi } = {}) {
                   <p style={{ margin: 0 }}>
                     Số có sẵn hiện tại: <strong>{selected.productAvailable ?? 0}</strong> (cần {selected.quantity}).
                   </p>
-                  {selected.canSendExchange ? (
+                  {selected.canSendExchange && isSaleStaff && (
                     <div className="faulty-claims__actions">
                       <Button type="button" loading={busy} loadingLabel="Đang cập nhật…" onClick={handleExchangeSent}>
                         Đã gửi hàng đổi
                       </Button>
                     </div>
-                  ) : (
+                  )}
+                  {!selected.canSendExchange && (
                     <>
                       <p className="faulty-claims__error" role="status">
                         Không đủ hàng có sẵn để gửi hàng đổi.

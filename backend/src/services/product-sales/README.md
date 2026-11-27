@@ -98,3 +98,7 @@ existing private image admission limit and private storage configuration.
 Customer claim responses use an allowlisted view of the submitted claim and its
 outcome. Inspection and decision notes, staff identities, and inventory controls
 are available only through the staff endpoints.
+
+Sale Staff record the inspection and mark an approved replacement as sent.
+Admin record the exchange, refund or rejection decision. Both roles can read
+claims and their photos.

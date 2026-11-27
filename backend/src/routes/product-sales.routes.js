@@ -237,9 +237,10 @@ export function productSalesRuntimeModules({ config, connection, ports, env = {}
   faultyClaimsRouter.get('/', faultyClaims.list);
   faultyClaimsRouter.get('/:claimId', faultyClaims.read);
   faultyClaimsRouter.get('/:claimId/photos/:photoId', readClaimPhoto);
-  faultyClaimsRouter.post('/:claimId/inspect', csrf, faultyClaims.inspect);
+  const processClaim = requireRoles(...PRODUCT_PERMISSIONS.PROCESS_FAULTY_CLAIMS);
+  faultyClaimsRouter.post('/:claimId/inspect', processClaim, csrf, faultyClaims.inspect);
   faultyClaimsRouter.post('/:claimId/decide', requireRoles(...PRODUCT_PERMISSIONS.DECIDE_FAULTY_CLAIMS), csrf, faultyClaims.decide);
-  faultyClaimsRouter.post('/:claimId/exchange-sent', csrf, faultyClaims.exchangeSent);
+  faultyClaimsRouter.post('/:claimId/exchange-sent', processClaim, csrf, faultyClaims.exchangeSent);
 
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },

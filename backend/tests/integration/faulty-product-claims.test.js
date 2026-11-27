@@ -351,6 +351,11 @@ test('ST-ORD-14 full exchange flow: submit, MSG107/MSG108, Admin approve exchang
     .set(authHeaders(saleSession))
     .expect(200);
 
+  const staffPath = `/api/v1/admin/faulty-product-claims/${claim.id}`;
+  await request(app).get(staffPath).set(authHeaders(adminSession)).expect(200);
+  await request(app).post(staffPath + '/inspect').set(authHeaders(adminSession))
+    .send({ expectedVersion: 0, inspectionResult: 'Synthetic admin attempt' }).expect(403);
+
   // Sale Staff tries to send without inspection result -> MSG107 (422 INSPECTION_RESULT_REQUIRED)
   const emptyInspect = await request(app)
     .post(`/api/v1/admin/faulty-product-claims/${claim.id}/inspect`)
@@ -382,6 +387,9 @@ test('ST-ORD-14 full exchange flow: submit, MSG107/MSG108, Admin approve exchang
     .expect(200);
   expect(decided.body.data.status).toBe('EXCHANGE_APPROVED');
   expect(decided.body.data.canSendExchange).toBe(true); // available = 5 - 1 = 4 >= 2
+
+  await request(app).post(staffPath + '/exchange-sent').set(authHeaders(adminSession))
+    .send({ expectedVersion: 2 }).expect(403);
 
   // Sale Staff clicks "Đã gửi hàng đổi" -> stockOnHand 5 -> 3 (quantityHeld stays 1)
   const sent = await request(app)
