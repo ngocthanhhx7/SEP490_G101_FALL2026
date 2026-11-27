@@ -31,7 +31,7 @@ import { assertNoUnpaidGrooming, hasUnpaidGrooming } from '../grooming/grooming-
 import { assertBookingSpan } from './booking-span-policy.js';
 import { bookingEndedAt, RATING_WINDOW_MS } from '../reviews/booking-rating-window.js';
 
-export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
+export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard, pickup }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
   const { Notification } = notificationModels(connection);
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
@@ -89,16 +89,22 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         .sort((a, b) => new Date(a.startAt) - new Date(b.startAt)) };
   }
   return {
+    async pickupQuote(actor, body) {
+      customer(actor);
+      if (!pickup) fail('PICKUP_DISTANCE_UNAVAILABLE', 'Pickup distance unavailable', 503);
+      if (!body || Object.keys(body).length !== 1) fail('VALIDATION_FAILED', 'Select a pickup address');
+      return pickup.quoteForCustomer(actor.userId, id(body.addressId));
+    },
     async options(actor) {
       customer(actor);
       const sitters = await listPreviousPetSitters(connection.db, actor.userId);
       return { recommendationAllowed: false, facilityAddress: facilityAddress ?? null, sitters, groomingPaymentOutstanding: await hasUnpaidGrooming(connection, actor.userId), paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
     },
-    async confirm(actor, body, key) {
+    async confirm(actor, body, key, { session: outerSession = null, counter = null } = {}) {
       customer(actor); const input = bookingCheckoutInput(body);
       if (typeof key !== 'string' || !/^[A-Za-z0-9_:-]{8,128}$/.test(key)) fail('VALIDATION_FAILED', 'Idempotency key required');
       const fingerprint = digest(input), commandId = digest([actor.userId, 'BOOKING_CHECKOUT', key]);
-      return transact(async session => {
+      const work = async session => {
         const previous = await commands.findById(commandId).session(session).lean();
         if (previous) {
           if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_KEY_REUSED', 'Checkout key already used', 409);
@@ -166,6 +172,9 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             }
             if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
             if (row.startAt <= deadline) fail('VALIDATION_FAILED', 'Visit must start after payment window');
+            if (counter && (row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS ||
+              row.startAt.getTime() > at.getTime() + 30 * 86400000))
+              fail('VALIDATION_FAILED', 'Counter visits must start at least two hours and within thirty days');
             if (row.location === 'HOME' && row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS)
               fail('HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance');
             let privateAccessNotes = '', selectedAddress;
@@ -193,6 +202,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             const boarding = pricing.billingMode === 'PER_DAY';
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
             const matchReference = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
+            if (row.pickup && !pickup) fail('PICKUP_DISTANCE_UNAVAILABLE', 'Pickup distance unavailable', 503);
+            const pickupSnapshot = row.pickup ? await pickup.confirm(actor.userId, row.pickup, session) : null;
             visitInputs.push(row);
             visits.push({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), serviceId: oid(selection.serviceId),
               petIds: pets.map(p => p._id), sitterId: null, state: 'SCHEDULED', version: 0, sequence: visits.length,
@@ -200,7 +211,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               bookingMode: row.bookingMode ?? (row.requestedSitterId ? 'DIRECT' : 'SYSTEM'),
               ...(row.matchId ? { recommendationRef: { matchId: row.matchId, selectedAt: at, advisory: true, ...matchReference } } : {}),
               location: row.location, ...(row.addressId ? { addressId: oid(row.addressId) } : {}), startAt: row.startAt, endAt,
-              evidenceRefs: [], snapshots: { ...amounts[index], ...(workflow ? { workflow } : {}), boarding, serviceName: version.name, serviceAddress, ...(point ? { point } : {}),
+              evidenceRefs: [], snapshots: { ...amounts[index], ...(pickupSnapshot ? { pickup: pickupSnapshot } : {}), ...(workflow ? { workflow } : {}), boarding, serviceName: version.name, serviceAddress, ...(point ? { point } : {}),
                 serviceScope: version.scope, checklistItemIds: ['service-scope', 'pet-condition'],
                 checklistItems: [{ itemId: 'service-scope', label: version.scope }, { itemId: 'pet-condition', label: 'Ghi nhận tình trạng thú cưng sau chăm sóc' }],
                 serviceVersion: version.version, servicePolicyVersion: policy.version, priceVersion: price.version, pricingPolicyVersion: pricing.version,
@@ -228,6 +239,13 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             startAt: { $lt: visit.endAt }, endAt: { $gt: visit.startAt }
           }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });
           if (conflict) fail('VISIT_SCHEDULE_OVERLAP', 'A pet already has an overlapping visit', 409);
+          if (counter) {
+            const shop = await col('groomingappointments').findOne({
+              status: { $in: ['BOOKED', 'CHECKED_IN'] }, 'slot.startAt': { $lt: visit.endAt }, 'slot.endAt': { $gt: visit.startAt },
+              pets: { $elemMatch: { petId: { $in: visit.petIds }, status: { $ne: 'CANCELLED_NO_CHARGE' } } }
+            }, { session, projection: { _id: 1 } });
+            if (shop) fail('VISIT_SCHEDULE_OVERLAP', 'A pet already has an overlapping grooming appointment', 409);
+          }
         }
         const unavailableVisits = {};
         for (const [index, visit] of visits.entries()) {
@@ -246,12 +264,19 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         // the complete visit records chronologically, retaining their own snapshots.
         visits.sort((a, b) => a.startAt - b.startAt || a.sequence - b.sequence);
         visits.forEach((visit, sequence) => { visit.sequence = sequence; });
+        const pickupFeeVnd = visits.reduce((total, visit) => total + (visit.snapshots.pickup?.feeVnd ?? 0), 0);
+        const payableVnd = result.totalVnd + pickupFeeVnd;
+        if (!Number.isSafeInteger(payableVnd)) fail('PRICE_OVERFLOW', 'Price exceeds supported range');
+        const counterPaid = counter?.phase !== 'PENDING';
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
-          originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: 'AWAITING_PAYMENT',
-          paymentMode: 'PREPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },
-          paymentDeadlineAt: deadline, version: 0, financeGuardVersion: 0, createdAt: at,
+          originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: counter && counterPaid ? 'DISPATCH_PENDING' : 'AWAITING_PAYMENT',
+          paymentMode: 'PREPAY', paymentState: counter && counterPaid ? 'PAID' : 'UNPAID', paymentSnapshot: { amountVnd: payableVnd, currency: 'VND' },
+          ...(counter ? { createdChannel: 'COUNTER', createdBy: oid(counter.staffId),
+            counterCheckoutId: counter.receiptId, counterReceiptId: counter.receiptId,
+            ...(counterPaid ? { paidAt: counter.paidAt } : {}) } : {}),
+          paymentDeadlineAt: counter?.expiresAt ?? deadline, version: 0, financeGuardVersion: 0, createdAt: at,
           carePlanState: 'APPROVED', careVisitCount: visits.length,
-          checkoutSnapshot: { quote: result, selections, customerVisits: visits, consentAt: at, policyVersion: CHECKOUT_POLICY_VERSION } };
+          checkoutSnapshot: { quote: pickupFeeVnd ? { ...result, pickupFeeVnd, serviceTotalVnd: result.totalVnd, totalVnd: payableVnd } : result, selections, customerVisits: visits, consentAt: at, policyVersion: CHECKOUT_POLICY_VERSION } };
         const shifts = boardingCarePlan(booking, 480).map(row => ({ ...row, _id: new Types.ObjectId(), bookingId,
           customerId: booking.customerId, sitterId: null, state: 'SCHEDULED', version: 0, evidenceRefs: [] }));
         booking.careVisitCount = shifts.length;
@@ -259,20 +284,31 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         booking.carePlanSnapshot = { shiftMinutes: 480, approvedBy: 'SYSTEM_DISPATCH', approvedAt: at,
           allocationVersion: 'PWC-BOARDING-SHIFT-2026-10-30-v1', source: 'SYSTEM_CHECKOUT' };
         await col('bookings').insertOne(booking, { session }); await col('visits').insertMany(shifts, { session });
-        await col('paymentintents').insertOne({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), provider: 'PAYOS',
-          providerReference: String(randomInt(1000000000000, 200000000000000)), amountVnd: result.totalVnd, currency: 'VND',
-          state: 'PENDING', version: 0, expiresAt: deadline, createdAt: at }, { session });
+        if (counter && counterPaid) {
+          await col('payments').insertOne({ _id: new Types.ObjectId(), bookingId, provider: counter.providerReceipt ? 'PAYOS' : counter.method,
+            providerEventId: counter.providerReceipt?.eventId ?? counter.receiptId,
+            ...(counter.providerReceipt ? { intentId: counter.providerReceipt.intentId,
+              providerTransactionReference: counter.providerReceipt.reference } : {}),
+            state: 'VERIFIED', receiptMoney: { amountVnd: payableVnd, currency: 'VND' },
+            counterReceiptId: counter.receiptId, receivedBy: oid(counter.staffId), receivedAt: counter.paidAt,
+            verifiedAt: counter.paidAt, version: 0, storageContractVersion: 1 }, { session });
+        } else if (!counter) {
+          await col('paymentintents').insertOne({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), provider: 'PAYOS',
+            providerReference: String(randomInt(1000000000000, 200000000000000)), amountVnd: payableVnd, currency: 'VND',
+            state: 'PENDING', version: 0, expiresAt: deadline, createdAt: at }, { session });
+        }
         await commands.create([{ _id: commandId, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at },
           { _id: quoteClaim, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at },
           ...matchClaims.map(_id => ({ _id, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at }))], { session, ordered: true });
         await events.create([{ _id: `booking-created:${bookingId}`, type: 'BookingCreated', bookingId: String(bookingId),
-          actorId: actor.userId, resourceId: String(bookingId), at }], { session });
+          actorId: counter?.staffId ?? actor.userId, resourceId: String(bookingId), at }], { session });
         await Notification.create([{ _id: digest(['BOOKING_CREATED', String(bookingId)]), eventId: `booking:${bookingId}`,
           recipientId: actor.userId, role: 'CUSTOMER', eventType: 'BOOKING_CREATED', title: 'Đã tiếp nhận đơn chăm sóc',
-          message: 'Đơn đã được tạo. Vui lòng hoàn tất thanh toán trước trong 15 phút.',
+          message: counter && counterPaid ? 'Đơn đã được đặt tại quầy và thanh toán.' : 'Đơn đã được tạo. Vui lòng hoàn tất thanh toán trước trong 15 phút.',
           deepLink: '/account/bookings', createdAt: at }], { session });
         return view(booking, session);
-      });
+      };
+      return outerSession ? work(outerSession) : transact(work);
     },
     async read(actor, bookingId) {
       customer(actor); id(bookingId); await assertFinanceSourceStorage(connection);

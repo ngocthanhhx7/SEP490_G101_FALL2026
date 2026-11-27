@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireSession, requireRoles } from '../middlewares/session.js';
+import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { createCustomerBookingsController } from '../controllers/customer-bookings.controller.js';
 import { createCustomerBookingsService } from '../services/customer-bookings.service.js';
 import { createWebPushService } from '../services/notifications/web-push.service.js';
@@ -12,6 +12,7 @@ import { createReviewRouter } from './review.routes.js';
 import { createBookingDetailsController } from '../controllers/booking-details.controller.js';
 import { createBookingDetailsService } from '../services/booking-proposals/booking-details.service.js';
 import { createVisitTrackerRouter } from './visit-tracker.routes.js';
+import { createVisitPickupService } from '../services/pickup/visit-pickup.service.js';
 
 export function customerReadRuntime({ config, connection, sessionService, env, clock }) {
   const router = Router();
@@ -20,10 +21,13 @@ export function customerReadRuntime({ config, connection, sessionService, env, c
   router.get('/bookings', requireSession(sessionService, { clock }), requireRoles('CUSTOMER'),
     (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, createCustomerBookingsController(bookings).list);
   if (config.auth.enabled && env.BOOKING_CHECKOUT_ENABLED === 'true' && connection?.db) {
-    const details = createBookingDetailsController(createBookingDetailsService({ connection, clock }));
+    const details = createBookingDetailsController(createBookingDetailsService({ connection, clock }), createVisitPickupService({ connection, clock }));
     router.get('/staff/bookings/:id',
       (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); },
       requireSession(sessionService, { clock }), requireRoles('STAFF', 'ADMIN'), details.readStaff);
+    router.post('/staff/bookings/:id/visits/:visitId/pickup/:action',
+      (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); },
+      requireSession(sessionService, { clock }), requireRoles('STAFF', 'ADMIN'), requireCsrf(sessionService), details.recordPickup);
     router.use(createVisitTrackerRouter({ connection, sessionService, clock,
       travelEnabled: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' && env.VISIT_TRAVEL_ENABLED === 'true' }));
   }

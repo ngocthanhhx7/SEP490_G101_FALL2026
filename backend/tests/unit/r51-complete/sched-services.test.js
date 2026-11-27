@@ -658,7 +658,8 @@ describe('Employee Scheduling & Board Services', () => {
         col: n => cols[n] ?? fallbackDisp,
         uow: { run: fn => fn({}) },
         employeeGuard: jest.fn(async () => ({})),
-        eligible: jest.fn(async () => ({ arrivalTravelMinutes: 5, adjacentTravelMinutes: 5, weeklyWorkMinutes: 120 })),
+        eligible: jest.fn(async () => ({ arrivalTravelMinutes: 5, adjacentTravelMinutes: 5, weeklyWorkMinutes: 120, workingHoursCovered: true })),
+        contractAt: jest.fn(async () => ({ employmentType: 'PART_TIME' })),
         areaKeys: async () => ['HN_CAU_GIAY'],
         coverageAreas: [{ code: 'HN_CAU_GIAY', label: 'Cầu Giấy' }],
         models: {

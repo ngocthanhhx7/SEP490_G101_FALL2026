@@ -57,6 +57,12 @@ export function createGroomingBookingApi({ getCsrfToken = () => null, fetchImpl 
   }
   return {
     async options({ signal } = {}) { return checkOptions((await call('/grooming/options', { signal })).data); },
+    async addresses({ signal } = {}) { return call('/pet-care/addresses', { signal }); },
+    async pickupQuote(body, { signal } = {}) {
+      const data = (await call('/grooming/pickup-quotes', { method: 'POST', body, signal })).data;
+      if (typeof data?.allowed !== 'boolean') invalid();
+      return data;
+    },
     async pets({ signal } = {}) {
       const [{ data }, catalog] = await Promise.all([
         call('/pet-care/pets', { signal }),

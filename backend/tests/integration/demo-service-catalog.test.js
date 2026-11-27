@@ -26,17 +26,22 @@ beforeAll(async () => {
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
-test('serves thirteen real services with metadata and immutable legacy histories', async () => {
+test('serves twelve active services with metadata and immutable legacy histories', async () => {
   expect(connection.models.ServicePresentation).toBeUndefined();
   expect(await connection.db.listCollections({ name: 'servicepresentations' }).toArray()).toEqual([]);
   const response = await request(app).get('/api/v1/services').expect(200);
-  expect(response.body.data.services).toHaveLength(13);
+  expect(response.body.data.services).toHaveLength(12);
+  expect(response.body.data.services.some(service => service.code === 'pet-transport')).toBe(false);
   for (const service of response.body.data.services) {
     expect(service.details.category).toBeTruthy(); expect(service.details.locations.length).toBeGreaterThan(0);
   }
   const care = response.body.data.services.find(s => s.code === 'home-care');
   expect(care).toMatchObject({ price: { amountVnd: 120000, unitLabel: 'lần' }, details: { category: 'Chăm sóc', locations: ['HOME'], durationMinutes: 60 } });
-  expect(await connection.models.ServiceVersion.countDocuments({ state: 'INACTIVE' })).toBe(2);
+  expect(await connection.models.ServiceVersion.countDocuments({ state: 'INACTIVE' })).toBe(3);
+  const transport = await connection.models.Service.findOne({ code: 'pet-transport' }).lean();
+  expect(transport).not.toBeNull();
+  expect(await connection.models.ServiceVersion.findOne({ serviceId: transport._id }).sort({ version: -1 }).lean())
+    .toMatchObject({ state: 'INACTIVE' });
   expect(await connection.collection('users').countDocuments()).toBe(0);
   expect((await provisionDemoCatalog({ connection })).state).toBe('ALREADY_APPLIED');
 });
@@ -48,7 +53,7 @@ test('public catalog batches policy and price reads while retaining published ef
   let response;
   try { response = await request(app).get('/api/v1/services').expect(200); }
   finally { connection.set('debug', previousDebug ?? false); }
-  expect(response.body.data.services).toHaveLength(13);
+  expect(response.body.data.services).toHaveLength(12);
   const reads = commands.filter(row => !/index/i.test(row.method));
   expect(reads).toHaveLength(5);
   expect(commands.filter(row => row.collection === 'servicepolicyversions')).toEqual([
