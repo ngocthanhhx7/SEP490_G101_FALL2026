@@ -15,11 +15,14 @@ function validCredential(value) {
     && /^[\x21-\x7e]+$/.test(value);
 }
 
-function normalizeBaseUrl(value) {
+function normalizeBaseUrl(value, { allowLocalhost = false } = {}) {
   let parsed;
   try { parsed = new URL(value); } catch { return null; }
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash
-    || parsed.pathname !== '/' || parsed.origin !== DEFAULT_API_BASE_URL) return null;
+  const local = parsed.protocol === 'http:'
+    && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
+    && allowLocalhost;
+  if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== '/') return null;
+  if (!local && (parsed.protocol !== 'https:' || parsed.origin !== DEFAULT_API_BASE_URL)) return null;
   return parsed.origin;
 }
 
@@ -40,12 +43,20 @@ export function loadPayosConfig(env = process.env) {
   }
   if (fields.length) configurationError(fields);
 
-  return Object.freeze({
+  const result = {
     clientId: env.PAYOS_CLIENT_ID,
     apiKey: env.PAYOS_API_KEY,
     checksumKey: env.PAYOS_CHECKSUM_KEY,
     timeoutMs
-  });
+  };
+  if (env.PAYOS_API_BASE_URL !== undefined) {
+    const allowLocalhost = env.PAYOS_SANDBOX === 'true';
+    const apiBaseUrl = normalizeBaseUrl(env.PAYOS_API_BASE_URL, { allowLocalhost });
+    if (!apiBaseUrl) configurationError(['PAYOS_API_BASE_URL', ...(allowLocalhost ? [] : ['PAYOS_SANDBOX'])]);
+    result.apiBaseUrl = apiBaseUrl;
+    result.allowLocalhost = allowLocalhost;
+  }
+  return Object.freeze(result);
 }
 
 function isRecord(value) {
@@ -165,7 +176,9 @@ function failure(code, message, status = 503, details = {}) {
 export function createPayosProvider(options = {}) {
   const { clientId, apiKey, checksumKey, timeoutMs = DEFAULT_TIMEOUT_MS,
     fetchImpl = globalThis.fetch } = options ?? {};
-  const apiBaseUrl = normalizeBaseUrl(options?.apiBaseUrl ?? DEFAULT_API_BASE_URL);
+  const apiBaseUrl = normalizeBaseUrl(options?.apiBaseUrl ?? DEFAULT_API_BASE_URL, {
+    allowLocalhost: options?.allowLocalhost === true
+  });
   const configured = validCredential(clientId) && validCredential(apiKey)
     && validCredential(checksumKey) && Number.isInteger(timeoutMs)
     && timeoutMs >= 100 && timeoutMs <= MAX_TIMEOUT_MS && Boolean(apiBaseUrl);

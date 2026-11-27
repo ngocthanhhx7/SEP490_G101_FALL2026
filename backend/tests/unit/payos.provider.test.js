@@ -56,6 +56,22 @@ describe('payOS provider adapter', () => {
     }
   });
 
+  test('allows a loopback API base only with the explicit sandbox gate', () => {
+    const env = {
+      PAYOS_ENABLED: 'true', PAYOS_CLIENT_ID: config.clientId, PAYOS_API_KEY: config.apiKey,
+      PAYOS_CHECKSUM_KEY: config.checksumKey, PAYOS_API_BASE_URL: 'http://127.0.0.1:4310'
+    };
+
+    expect(loadPayosConfig({ ...env, PAYOS_SANDBOX: 'true' })).toMatchObject({
+      apiBaseUrl: 'http://127.0.0.1:4310', allowLocalhost: true
+    });
+    expect(() => loadPayosConfig(env)).toThrow(expect.objectContaining({
+      code: 'PAYOS_CONFIGURATION_INVALID'
+    }));
+    expect(() => loadPayosConfig({ ...env, PAYOS_SANDBOX: 'true', PAYOS_API_BASE_URL: 'http://example.test' }))
+      .toThrow(expect.objectContaining({ code: 'PAYOS_CONFIGURATION_INVALID' }));
+  });
+
   test('validates integer positive VND amounts and provider input before making a request', async () => {
     const fetchImpl = jest.fn();
     const provider = createPayosProvider({ ...config, fetchImpl });
