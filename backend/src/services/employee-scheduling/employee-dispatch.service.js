@@ -119,7 +119,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         },
         recheckEligibility: async ({ visit }) => {
           const saved = await models.EmployeeVisitOffer.findOne({ _id: offerId, sitterId }).session(session).lean();
-          await eligible(sitterId, visit, session, { requireOrigin: saved?.originRouteRequired === true }); return { eligible: true };
+          await eligible(sitterId, visit, session, { requireOrigin: saved?.originRouteRequired === true,
+            allowOutsideWorkingHours: saved?.manualOutsideHoursAllowed === true }); return { eligible: true };
         },
         checkSlotAvailability: async () => true,
         acceptOffer: async ({ offer, expectedVersion }) => {
@@ -176,12 +177,22 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       while (next < rows.length) {
         const row = rows[next++];
         if (!activeUsers.has(row._id) || !activeStatuses.has(row._id)) { rejected.SITTER_NOT_ELIGIBLE = (rejected.SITTER_NOT_ELIGIBLE ?? 0) + 1; blocked.push({ sitterId: row._id, reason: 'SITTER_NOT_ELIGIBLE' }); continue; }
-        try { evidence.set(row._id, await eligible(row._id, visit, undefined, { requireOrigin: !manual, allowStarted })); allowed.push(row._id); }
+        try {
+          const check = await eligible(row._id, visit, undefined, { requireOrigin: !manual, allowStarted,
+            allowOutsideWorkingHours: manual && !alternatives });
+          if (manual && !alternatives) {
+            const contract = await repository.contractAt(row._id, visit.startAt, visit.endAt);
+            evidence.set(row._id, { ...check, employmentType: contract.employmentType });
+          } else evidence.set(row._id, check);
+          allowed.push(row._id);
+        }
         catch (error) { if (error.status !== 409) throw error; rejected[error.code] = (rejected[error.code] ?? 0) + 1; blocked.push({ sitterId: row._id, reason: error.code }); }
       }
     }
     await Promise.all(Array.from({ length: Math.min(4, rows.length) }, scan));
     if (explain) return { sitterIds: allowed.sort((a, b) => evidence.get(a).weeklyWorkMinutes - evidence.get(b).weeklyWorkMinutes || a.localeCompare(b)), blocked,
+      assignmentInfo: Object.fromEntries(allowed.map(sitterId => [sitterId, { employmentType: evidence.get(sitterId).employmentType,
+        canAssignDirectly: evidence.get(sitterId).employmentType === 'FULL_TIME' && evidence.get(sitterId).workingHoursCovered === true }])),
       weeklyMinutes: Object.fromEntries(allowed.map(sitterId => [sitterId, evidence.get(sitterId).weeklyWorkMinutes])), diagnostics: { registered: rows.length, eligible: allowed.length, rejected } };
     if (!allowed.length) {
       throw new AppError(409, directed ? 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' : 'NO_ELIGIBLE_SITTER', 'No eligible employee',
@@ -276,13 +287,14 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       if (manual && (startAt.getTime() !== visit.startAt.getTime() || areaCode !== visit.areaCode)) fail('VALIDATION_FAILED', 'Manual preview must retain booked time and area');
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
       try {
-        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual, alternatives: replacement });
+        const { sitterIds: ids, blocked = [], diagnostics, assignmentInfo = {} } = await candidates(revised, { manual, explain: manual, alternatives: replacement });
         const pending = input.mode === 'MANUAL' && !directedSitter(visit) && await models.EmployeeVisitOffer.exists({
           visitId: visit._id, state: 'PENDING', deadline: { $gt: new Date(clock()) }
         });
         const invited = pending ? new Set(await models.EmployeeVisitOffer.distinct('sitterId', { visitId: visit._id, sitterId: { $in: ids } })) : new Set();
         const users = await col('users').find({ _id: { $in: [...ids, ...blocked.map(row => row.sitterId)].map(oid) } }, { projection: { displayName: 1 } }).limit(101).toArray();
-        return { items: ids.filter(sitterId => !invited.has(sitterId)).map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
+        return { items: ids.filter(sitterId => !invited.has(sitterId)).map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName,
+          ...(assignmentInfo[sitterId] ?? {}) })),
           ...(pending ? { alreadyInvitedCount: invited.size } : {}),
           ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: users.find(user => String(user._id) === row.sitterId)?.displayName })) } : {}),
           areaCode, startAt, endAt: revised.endAt };
@@ -353,10 +365,41 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           invitationCount: rows.length, minimumRequested, shortfall: 0,
           invitations: rows.map(row => ({ offerId: String(row._id), sitterId: row.sitterId, deadline: row.deadline })) });
         const additional = pending.length > 0 && actor !== agentActor && Boolean(input.sitterId) && !preferred;
-        if (pending.length && !additional) return resultView(pending);
+        if (pending.length && !additional && !input.sitterId) return resultView(pending);
         if (additional && await models.EmployeeVisitOffer.exists({ visitId: visit._id, sitterId: input.sitterId }).session(session))
           fail('SITTER_ALREADY_INVITED', 'Choose an employee who has not been invited for this visit', 409);
         if (actor !== agentActor && !visit.dispatchReview && !additional) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'System dispatch must exhaust automatic invitations before staff intervention', 409);
+        // Only an explicit Staff selection can assign directly. Automatic dispatch still invites a batch.
+        let manualOutsideHoursInvitation = false;
+        if (input.sitterId && actor !== agentActor) {
+          if (preferred && preferred !== input.sitterId)
+            fail('DIRECTED_SITTER_MISMATCH', 'Only the customer selected employee may be invited', 409);
+          await employeeGuard(input.sitterId, session);
+          const eligibility = await eligible(input.sitterId, visit, session, { allowOutsideWorkingHours: true });
+          const contract = await repository.contractAt(input.sitterId, visit.startAt, visit.endAt, session);
+          manualOutsideHoursInvitation = contract.employmentType === 'FULL_TIME' && !eligibility.workingHoursCovered;
+          if (contract.employmentType === 'FULL_TIME' && eligibility.workingHoursCovered === true) {
+            const assignedAt = new Date(clock());
+            const needsHandover = handoverPending(visit);
+            const changed = await col('visits').updateOne({ _id: visit._id, state: 'SCHEDULED', sitterId: null, version: input.expectedVersion },
+              { $set: { sitterId: oid(input.sitterId), state: 'ASSIGNED', assignedAt,
+                ...(needsHandover && { handoverLateCheckInExempt: urgentReplacement(visit, assignedAt) }) },
+                $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1, dispatchReview: 1 },
+                $inc: { version: 1, assignmentVersion: 1 } }, { session });
+            if (!changed.matchedCount) fail('VERSION_CONFLICT', 'Visit changed', 409);
+            await col('bookings').updateOne({ _id: visit.bookingId }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });
+            const remaining = await col('visits').countDocuments({ bookingId: visit.bookingId, state: 'SCHEDULED' }, { session });
+            if (!remaining) await col('bookings').updateOne({ _id: visit.bookingId, state: 'DISPATCH_PENDING' }, { $set: { state: 'ASSIGNED' } }, { session });
+            await models.EmployeeVisitOffer.updateMany({ visitId: visit._id, state: 'PENDING' },
+              { $set: { state: 'REVOKED' }, $inc: { version: 1 } }, { session });
+            await event({ type: 'VisitAssignedDirectly', visitId, sitterId: input.sitterId, actorId: actor.userId,
+              detail: { version: visit.version + 1 } }, session);
+            if (needsHandover) await event({ type: 'VisitHandoverRequired', visitId, sitterId: input.sitterId,
+              actorId: actor.userId, detail: { version: visit.version + 1 } }, session);
+            const person = await col('users').findOne({ _id: oid(input.sitterId) }, { projection: { displayName: 1 }, session });
+            return { state: 'ASSIGNED', visitId, sitterId: input.sitterId, sitterName: person?.displayName ?? 'người chăm sóc', version: visit.version + 1 };
+          }
+        }
         const previous = await models.EmployeeVisitOffer.find({ visitId: visit._id, $or: [
           { state: { $in: ['DECLINED', 'EXPIRED'] } }, { state: 'PENDING', deadline: { $lte: asOf } }
         ] }, { sitterId: 1 }).session(session).lean();
@@ -374,7 +417,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         for (const sitterId of [...selected].sort()) {
           if (preferred && preferred !== sitterId)
             fail('DIRECTED_SITTER_MISMATCH', 'Only the customer selected employee may be invited', 409);
-          await employeeGuard(sitterId, session); await eligible(sitterId, visit, session, { requireOrigin: !input.sitterId });
+          await employeeGuard(sitterId, session); await eligible(sitterId, visit, session, { requireOrigin: !input.sitterId,
+            allowOutsideWorkingHours: !!input.sitterId && actor !== agentActor });
         }
         const offeredAt = new Date(clock());
         const deadline = responseDeadline(offeredAt, visit.startAt);
@@ -387,6 +431,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const saved = await models.EmployeeVisitOffer.create(selected.map(sitterId => ({ visitId: visit._id, sitterId, state: 'PENDING', version: 0,
           offeredAt, deadline,
           originRouteRequired: !input.sitterId,
+          ...(manualOutsideHoursInvitation ? { manualOutsideHoursAllowed: true } : {}),
           ...(ranking.featureSnapshot?.candidates.some(row => row.sitterId === sitterId) ? { featureSnapshot: { ...ranking.featureSnapshot, candidates: undefined,
             sitterId, features: ranking.featureSnapshot.candidates.find(row => row.sitterId === sitterId).features } } : {}),
           startAt: visit.startAt, endAt: visit.endAt, serviceName: visit.snapshots.serviceName, areaCode: visit.areaCode, pets: visit.snapshots.pets ?? [] })), { session, ordered: true });

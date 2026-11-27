@@ -11,7 +11,7 @@ function fixture(items = [{ sitterId: id, displayName: 'Sitter mới' }]) {
 }
 test('shows a newcomer, explains blocked profiles and sends an invitation only after selection', async () => {
   const { api } = fixture();
-  const invite = screen.getByRole('button', { name: 'Gửi lời mời cho người đã chọn' }); expect(invite).toBeDisabled();
+  const invite = screen.getByRole('button', { name: 'Gửi lời mời' }); expect(invite).toBeDisabled();
   fireEvent.click(await screen.findByRole('radio', { name: /Sitter mới/ }));
   expect(api.candidates).toHaveBeenCalledWith(row.id, { startAt: row.startAt, mode: 'MANUAL' });
   expect(screen.getByText('Chưa có năng lực dịch vụ đã xác minh')).toBeInTheDocument();
@@ -20,7 +20,7 @@ test('shows a newcomer, explains blocked profiles and sends an invitation only a
 });
 test('empty eligible pool keeps invitation disabled and offers a management action', async () => {
   fixture([]); await screen.findByText(/Chưa thể gửi lời mời/);
-  expect(screen.getByRole('button', { name: 'Gửi lời mời cho người đã chọn' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toBeDisabled();
 });
 
 test('a replacement sends a customer proposal and never directly invites the alternate sitter', async () => {
@@ -34,4 +34,23 @@ test('a replacement sends a customer proposal and never directly invites the alt
     { expectedVersion: row.version, startAt: row.startAt, sitterId: id }, 'replacement-operation-key'));
   expect(api.invite).not.toHaveBeenCalled();
   expect(onProposed).toHaveBeenCalledWith({ id: 'proposal' });
+});
+
+test('manual full-time candidate shows contract type and direct-assignment button', async () => {
+  const { api } = fixture([{ sitterId: id, displayName: 'Full-time sitter', employmentType: 'FULL_TIME', canAssignDirectly: true }]);
+  fireEvent.click(await screen.findByRole('radio', { name: /Full-time sitter/ }));
+  expect(screen.getByText(/Toàn thời gian · Giao buổi trực tiếp/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Giao buổi' }));
+  await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, row.version, 'stable-operation-key', id));
+});
+
+test('manual part-time and outside-hours candidates retain invitation action', async () => {
+  fixture([{ sitterId: id, displayName: 'Part-time sitter', employmentType: 'PART_TIME', canAssignDirectly: false },
+    { sitterId: blocked, displayName: 'Full-time outside', employmentType: 'FULL_TIME', canAssignDirectly: false }]);
+  fireEvent.click(await screen.findByRole('radio', { name: /Part-time sitter/ }));
+  expect(screen.getByText(/Bán thời gian · Gửi lời mời/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('radio', { name: /Full-time outside/ }));
+  expect(screen.getByText(/Toàn thời gian · Gửi lời mời/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toBeEnabled();
 });

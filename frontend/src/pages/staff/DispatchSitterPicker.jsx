@@ -8,6 +8,9 @@ export function DispatchSitterPicker({ row, api, command, selectedSitter, onProp
   const [selected, setSelected] = useState(row.requestedSitterId || selectedSitter || ''), generation = useRef(0);
   const location = useLocation(), prefix = location.pathname.startsWith('/admin') ? '/admin' : '/staff';
   const disabled = command.busy || command.pending;
+  const selectedCandidate = result?.items.find(item => item.sitterId === selected);
+  const proposesReplacement = Boolean(row.requestedSitterId && selected && selected !== row.requestedSitterId);
+  const directAssignment = !proposesReplacement && selectedCandidate?.canAssignDirectly === true;
   const find = useCallback(async () => {
     const current = ++generation.current; setLoading(true); setResult(null); setError('');
     try { const response = await api.candidates(row.id, { startAt: row.startAt, mode: row.requestedSitterId ? 'REPLACEMENT' : 'MANUAL' });
@@ -17,11 +20,11 @@ export function DispatchSitterPicker({ row, api, command, selectedSitter, onProp
   }, [api, row.id, row.startAt, row.requestedSitterId]);
   useEffect(() => { find(); return () => { generation.current++; }; }, [find]);
   return <section className="dispatch-picker" aria-label="Chọn người chăm sóc cho lịch hiện tại"><h3>{additional ? 'Mời thêm người chăm sóc' : 'Chỉ định cho lịch hiện tại'}</h3>
-    <p>{additional ? 'Chọn một người chưa được mời. Những lời mời đang chờ tiếp tục có hiệu lực.' : 'Giữ nguyên giờ khách đã đặt. Người được mời vẫn cần chấp nhận trước khi nhận ca.'}</p>
+    <p>{additional ? 'Chọn một người chưa được mời. Người toàn thời gian đủ giờ làm sẽ được giao thẳng và các lời mời còn mở sẽ đóng.' : 'Giữ nguyên giờ khách đã đặt. Người toàn thời gian trong giờ đăng ký sẽ nhận ca ngay; trường hợp khác sẽ nhận lời mời.'}</p>
     {row.requestedSitterId && <p>Khách đã chỉ định người chăm sóc. Chọn người khác sẽ gửi đề xuất để khách xác nhận trước khi mời nhận ca.</p>}
     {loading && <p role="status">Đang kiểm tra lịch, năng lực và hợp đồng…</p>}{error && <p role="alert">{error}</p>}
-    {result && <><p>{result.items.length} người có thể mời · {result.blocked?.length ?? 0} người cần bổ sung điều kiện</p>
-      {result.items.length > 0 && <DispatchCandidateOptions items={result.items} selected={selected} disabled={disabled} onSelect={setSelected} meta={() => 'Đủ điều kiện tại thời điểm kiểm tra'} />}
+    {result && <><p>{result.items.length} người đủ điều kiện xét giao hoặc mời · {result.blocked?.length ?? 0} người cần bổ sung điều kiện</p>
+      {result.items.length > 0 && <DispatchCandidateOptions items={result.items} selected={selected} disabled={disabled} onSelect={setSelected} meta={item => `${item.employmentType === 'FULL_TIME' ? 'Toàn thời gian' : item.employmentType === 'PART_TIME' ? 'Bán thời gian' : 'Hợp đồng cần kiểm tra'} · ${item.canAssignDirectly ? 'Giao buổi trực tiếp' : 'Gửi lời mời'}`} />}
       {!result.items.length && <p>{additional ? 'Chưa có người phù hợp khác để mời.' : 'Chưa thể gửi lời mời. Xử lý điều kiện còn thiếu bên dưới rồi kiểm tra lại.'}</p>}
       {result.blocked?.length > 0 && <DispatchBlockedSection blocked={result.blocked} selected={selected} prefix={prefix} />}
     </>}
@@ -32,7 +35,6 @@ export function DispatchSitterPicker({ row, api, command, selectedSitter, onProp
           onProposed?.(response.data); return response;
         }
         return api.invite(row.id, row.version, key, selected);
-      })}>{additional ? 'Gửi lời mời bổ sung' : row.requestedSitterId && selected && selected !== row.requestedSitterId
-        ? 'Gửi đề xuất đổi người cho khách' : 'Gửi lời mời cho người đã chọn'}</Button></div>
+      })}>{proposesReplacement ? 'Gửi đề xuất đổi người cho khách' : directAssignment ? 'Giao buổi' : additional ? 'Gửi lời mời bổ sung' : 'Gửi lời mời'}</Button></div>
   </section>;
 }

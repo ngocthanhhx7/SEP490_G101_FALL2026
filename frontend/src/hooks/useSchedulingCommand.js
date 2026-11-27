@@ -65,7 +65,11 @@ export function useSchedulingCommand(onSuccess) {
     try {
       const result = await operation.current.work(operation.current.key);
       if (result?.pending || result?.status === 202) { setPending(true); setMessage('Đang chờ xác nhận.'); return; }
-      operation.current = null; setPending(false); setMessage('Đã xác nhận.'); onSuccess?.(result);
+      operation.current = null; setPending(false);
+      setMessage(result?.data?.state === 'ASSIGNED' && result.data.sitterName
+        ? `Đã giao buổi cho ${result.data.sitterName}. Người chăm sóc và khách đã được thông báo.`
+        : 'Đã xác nhận.');
+      onSuccess?.(result);
     } catch (error) {
       const uncertain = !error.status || error.status >= 500 || ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'INVALID_RESPONSE'].includes(error.code);
       setPending(uncertain);

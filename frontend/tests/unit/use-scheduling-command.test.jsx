@@ -16,6 +16,11 @@ describe('FE-SCHED-CMD-01 useSchedulingCommand', () => {
     act(() => { result.current.execute(work); result.current.execute(work); });
     expect(work).toHaveBeenCalledTimes(1); await act(async () => settle({ ok: true }));
   });
+  test('manual full-time assignment displays the required confirmation with sitter name', async () => {
+    const { result } = renderHook(() => useSchedulingCommand());
+    await act(async () => result.current.execute(async () => ({ data: { state: 'ASSIGNED', sitterName: 'Lan' } })));
+    expect(result.current.message).toBe('Đã giao buổi cho Lan. Người chăm sóc và khách đã được thông báo.');
+  });
 
   test('UTCID03 retains work and key after a pending response for retry', async () => {
     const work = jest.fn().mockResolvedValueOnce({ pending: true }).mockResolvedValueOnce({ ok: true });
