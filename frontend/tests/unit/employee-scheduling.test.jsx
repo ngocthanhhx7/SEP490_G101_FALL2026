@@ -131,8 +131,8 @@ test('customer confirmation keeps the same slot and key after an unknown acknowl
   const api = { confirmProposal: jest.fn().mockRejectedValueOnce({ code: 'TIMEOUT' }).mockResolvedValueOnce({ data: { offer: { state: 'PENDING' } } }) };
   render(<MemoryRouter><DirectedBookingProposalPage api={api} proposal={proposal} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('radio'));
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' }));
-  await screen.findByText('Đang chờ máy chủ xác nhận'); expect(screen.getByRole('radio')).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi lời mời' }));
+  await screen.findByText('Đang chờ xác nhận'); expect(screen.getByRole('radio')).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại xác nhận lịch' }));
   await waitFor(() => expect(api.confirmProposal).toHaveBeenCalledTimes(2));
   expect(api.confirmProposal.mock.calls[0]).toEqual(api.confirmProposal.mock.calls[1]);
@@ -213,5 +213,5 @@ test('customer sees the previous and replacement sitter before choosing to confi
   expect(await screen.findByText('Đề xuất đổi người chăm sóc')).toBeInTheDocument();
   expect(screen.getByText(/Người đã chọn: Người ban đầu/)).toHaveTextContent('Người thay thế: Người thay thế');
   expect(api.confirmProposal).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Xác nhận lịch và gửi lời mời' })).toBeDisabled();
 });
