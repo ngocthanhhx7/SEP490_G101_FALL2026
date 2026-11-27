@@ -217,3 +217,24 @@ test('Admin payment dialog preserves unknown payment payload and key and prevent
   await waitFor(()=>expect(api.advanceDecision).toHaveBeenCalledTimes(2));
   expect(api.advanceDecision.mock.calls[0]).toEqual(api.advanceDecision.mock.calls[1]);
 });
+
+test('ST-BKG-37 and ST-BKG-38 show MSG66 toast on advance submit and clear Vietnamese error for second advance in same month', async () => {
+  const api = apiFixture();
+  api.submit.mockResolvedValueOnce({ id: 'adv-1' }).mockRejectedValueOnce({ code: 'ADVANCE_MONTH_ALREADY_USED', status: 409 });
+  render(<EmployeePayrollPage api={api} />);
+  await screen.findByText('Bán thời gian');
+  fill('Số tiền (VND)', '500000');
+  fill('Tháng đối trừ thỏa thuận', '2026-11');
+  fill('Mã thỏa thuận đối trừ', 'agreed-1');
+  fill('Lý do đề nghị', 'Synthetic first advance');
+  fireEvent.click(screen.getByText('Gửi đề nghị'));
+  expect(await screen.findByText('Đề nghị của bạn đã được gửi cho Admin.')).toBeVisible();
+
+  fill('Số tiền (VND)', '300000');
+  fill('Tháng đối trừ thỏa thuận', '2026-11');
+  fill('Mã thỏa thuận đối trừ', 'agreed-2');
+  fill('Lý do đề nghị', 'Synthetic second advance');
+  fireEvent.click(screen.getByText('Gửi đề nghị'));
+  expect(await screen.findByText('Tháng này bạn đã có một đề nghị tạm ứng. Mỗi tháng chỉ gửi được một đề nghị.')).toBeVisible();
+  expect(screen.queryByText(/ADVANCE_MONTH_ALREADY_USED/)).toBeNull();
+});

@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
 import { PayrollStatement, PayrollAdjustment, PayrollField, PayrollLoadState, PayrollPager, money, date, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
 
+const MSG66_ADVANCE_SENT = 'Đề nghị của bạn đã được gửi cho Admin.';
+
 export function EmployeePayrollPage({ api }) {
   const [advancePages, setAdvancePages] = useState([null]), [statementPages, setStatementPages] = useState([null]);
   const [adjustmentPages, setAdjustmentPages] = useState([null]);
@@ -16,9 +18,19 @@ export function EmployeePayrollPage({ api }) {
   const submit = async event => {
     event.preventDefault(); const form = event.currentTarget, data = new window.FormData(form);
     const body = { amountVnd: Number(data.get('amountVnd')), reason: data.get('reason'), settlementPeriod: data.get('settlementPeriod'), settlementConsentReference: data.get('settlementConsentReference') };
-    if (await state.command('submit', body, key => api.submit(body, key))) { form.reset(); setAdvancePages([null]); }
+    if (await state.command('submit', body, key => api.submit(body, key), { successMessage: MSG66_ADVANCE_SENT })) {
+      form.reset();
+      setAdvancePages([null]);
+    }
   };
-  return <section className="payroll-workspace sitter-payroll"><h1 data-duplicate-title>Lương và tạm ứng</h1><PayrollLoadState state={state} />
+  const showToast = state.messageKind === 'success' && state.message === MSG66_ADVANCE_SENT;
+  const loadState = showToast ? { ...state, message: null } : state;
+  return <section className="payroll-workspace sitter-payroll"><h1 data-duplicate-title>Lương và tạm ứng</h1>
+    {showToast && <div className="payroll-toast" role="status" aria-live="polite">
+      <span>{state.message}</span>
+      <button type="button" aria-label="Đóng thông báo" onClick={state.clearMessage}>×</button>
+    </div>}
+    <PayrollLoadState state={loadState} />
     {state.data && <>
       <nav className="sitter-availability__jump" aria-label="Lương và tạm ứng"><a href="#sitter-pay-slips">Phiếu lương</a><a href="#sitter-pay-advance">Tạm ứng</a><a href="#sitter-pay-adjustments">Điều chỉnh</a></nav>
       <section><h2>Hợp đồng hiện tại</h2>{contract ? <div className="payroll-summary">
