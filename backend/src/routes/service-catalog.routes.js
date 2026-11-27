@@ -11,6 +11,8 @@ import { serviceVersionModel } from '../models/service-version.model.js';
 import { servicePolicyVersionModel } from '../models/service-policy-version.model.js';
 import { createSessionService } from '../services/session.service.js';
 import { createServiceCatalogService } from '../services/service-catalog.service.js';
+import { createServiceLocationManagement } from '../services/counter-booking/service-location-management.service.js';
+import { controllerAction } from '../controllers/controller-action.js';
 
 export function serviceCatalogModule({
   config,
@@ -62,6 +64,9 @@ export function serviceCatalogModule({
       requireRoles('ADMIN')
     ];
     const csrf = requireCsrf(sessionService);
+    const serviceLocations = createServiceLocationManagement({ connection, clock });
+    router.put('/admin/:id/locations', ...admin, csrf,
+      controllerAction(200, req => serviceLocations.update(req.auth, req.params.id, req.body)));
 
     router.get(
       '/admin',

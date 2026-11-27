@@ -37,6 +37,7 @@ import { bookingChangeRuntimeModule } from './routes/booking-change.routes.js';
 import { mapsRuntimeModule } from './routes/maps.routes.js';
 import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
 import { groomingRuntimeModule } from './routes/grooming.routes.js';
+import { counterBookingRuntimeModule } from './routes/counter-booking.routes.js';
 import { customerReadRuntime } from './routes/customer-read-runtime.js';
 import { storageProfile, assertProfileModels } from './config/storage-profile.js';
 import { selectReferenceCatalogSource, assertReferenceCatalogModels } from './models/reference-catalog-source.js';
@@ -97,7 +98,8 @@ export function createApp({
     auth.router.use(customerRead.router);
     app.locals.webPush = customerRead.webPush;
   }
-  const financeSources = financeSourceRuntime(context);
+  let counterBooking;
+  const financeSources = financeSourceRuntime({ ...context, getCounterCheckout: () => counterBooking?.checkout });
   if (auth && financeSources) auth.router.use(financeSources.router);
   app.locals.financeSources = financeSources?.service ?? null;
   app.locals.complaintBilling = financeSources ? { readBookingComplaintHold: financeSources.complaints.readBookingComplaintHold } : null;
@@ -143,6 +145,22 @@ export function createApp({
     (module) =>
       !suppliedModules.some((supplied) => supplied.name === module.name)
   );
+  counterBooking = counterBookingRuntimeModule({
+    ...context, sessionService: auth?.sessionService,
+    catalog: catalogModules.find(module => module.name === 'service-catalog')?.catalog,
+    bookingCheckout: checkout?.service, grooming
+  });
+  if (counterBooking?.checkout) {
+    const onlinePaymentExpiry = app.locals.bookingPaymentExpiry;
+    app.locals.bookingPaymentExpiry = { async runBatch() {
+      const [online, counter] = await Promise.all([
+        onlinePaymentExpiry?.runBatch() ?? Promise.resolve({ expired: 0, deferred: 0 }),
+        counterBooking.checkout.expireBatch()
+      ]);
+      return { expired: (online.expired ?? 0) + counter.expired,
+        deferred: (online.deferred ?? 0) + counter.deferred };
+    } };
+  }
   const settlement = suppliedModules.some(module => module.name === 'settlement-requests')
     ? null : settlementRequestRuntimeModule(context);
   const adminSettlement = suppliedModules.some(module => module.name === 'admin-settlements')
@@ -181,6 +199,7 @@ export function createApp({
     ...(maps ? [maps] : []),
     ...productSales,
     ...(grooming ? [grooming] : []),
+    ...(counterBooking ? [counterBooking] : []),
     ...(settlement ? [settlement] : []),
     ...(dashboards && !auth ? [dashboards] : []),
     ...(adminSettlement ? [adminSettlement] : []),

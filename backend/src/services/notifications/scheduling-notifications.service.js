@@ -14,6 +14,8 @@ const roleMessages = {
 };
 
 const messages = {
+  VisitPetPickedUp: ['Đã đón thú cưng', 'Cửa hàng đã đón thú cưng của bạn.'],
+  VisitPetReturned: ['Đã trả thú cưng', 'Cửa hàng đã đưa thú cưng của bạn về nhà.'],
   VisitCheckInLate: ['Buổi chăm sóc trễ check-in', 'Buổi đã quá giờ bắt đầu 15 phút nhưng người chăm sóc chưa check-in.'],
   VisitHandoverRequired: ['Cần xác nhận bàn giao', 'Hãy đọc và xác nhận bàn giao trước khi check-in.'],
   VisitReassigned: ['Đã đổi người chăm sóc', 'Điều phối đã sắp xếp người chăm sóc khác cho buổi này. Thời gian và địa điểm không đổi.'],
@@ -51,6 +53,8 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
     if (!visit) return;
     const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
     const recipients = [];
+    if (['VisitPetPickedUp', 'VisitPetReturned'].includes(event.type) && booking?.customerId)
+      recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
     if (['VisitEndingSoon', 'VisitCheckOutReminder', 'VisitCompletionReviewRequired', 'VisitClosureVerified', 'VisitWithdrawalRequested', 'VisitWithdrawalApproved', 'VisitWithdrawalRejected', 'VisitWithdrawn'].includes(event.type))
       recipients.push({ id: event.sitterId, role: 'PET_SITTER', to: ['VisitWithdrawalApproved', 'VisitWithdrawn'].includes(event.type) ? '/sitter/invitations' : '/sitter/visits/' + String(event.visitId) });
     if (['VisitWithdrawalApproved', 'VisitWithdrawn'].includes(event.type) && booking?.customerId)

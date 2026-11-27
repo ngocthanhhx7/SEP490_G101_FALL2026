@@ -19,10 +19,11 @@ const rows = [
   ['basic-health-check', 'Kiểm tra sức khỏe cơ bản', 'Kiểm tra tổng quát ban đầu, quan sát tình trạng bên ngoài và tư vấn khi cần gặp bác sĩ thú y.', 'Chăm sóc', both, facility, 200000, 'lần', 30],
   ['basic-training', 'Huấn luyện hành vi cơ bản', 'Hướng dẫn các lệnh cơ bản như ngồi, đứng yên, đi cạnh chủ và cải thiện thói quen.', 'Huấn luyện', ['DOG'], flexible, 300000, 'tiếng', 60]
 ];
-const locationLabels = { FACILITY: 'Tại cơ sở', HOME: 'Tại gia', OUTDOOR: 'Ngoài trời' };
+const locationLabels = { FACILITY: 'Tại cửa hàng', HOME: 'Tại gia', OUTDOOR: 'Ngoài trời' };
 export const demoCatalogKey = 'pawworld-demo-sheet-2026-10-30-v1';
 export const demoServiceCatalog = Object.freeze(rows.map(([code, name, description, category, species, locations, amountVnd, unitLabel, durationMinutes]) => ({
   code, name, description, category, species, locations, amountVnd, unitLabel, durationMinutes,
+  state: code === 'pet-transport' ? 'INACTIVE' : 'ACTIVE',
   billingMode: unitLabel === 'km' ? 'PER_KM' : unitLabel === 'ngày' ? 'PER_DAY' : ['tiếng', '30 phút'].includes(unitLabel) ? 'PER_UNIT' : 'PER_VISIT',
   scope: description,
   policy: `${description}\nĐịa điểm: ${locations.map(value => locationLabels[value]).join(' / ')}. Giá cơ bản ${amountVnd.toLocaleString('vi-VN')} VND/${unitLabel}.${durationMinutes ? ` Thời lượng tham khảo: ${durationMinutes} phút.` : ''}\nPhụ phí lấy mức cao nhất trong từng nhóm lông/da, cân nặng và hành vi/sức khỏe; các nhóm cộng trên giá cơ bản. Combo giảm 1% mỗi lượt, tối đa 10% tiền dịch vụ trước phụ phí. Phí bậc giá áp dụng theo chính sách báo giá hiện hành. Chăm sóc sức khỏe không thay thế chẩn đoán hoặc điều trị của bác sĩ thú y.`

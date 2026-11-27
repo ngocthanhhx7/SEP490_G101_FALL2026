@@ -88,6 +88,8 @@ import { ProductOrderManagementPage } from '../pages/admin/ProductOrderManagemen
 import { SaleStaffDashboardPage } from '../pages/dashboards/SaleStaffDashboardPage.jsx';
 import { CounterSalePage } from '../pages/admin/CounterSalePage.jsx';
 import { createCounterSaleApi } from '../services/counter-sale-api.js';
+import { CounterBookingPage } from '../pages/admin/CounterBookingPage.jsx';
+import { createCounterBookingApi } from '../services/counter-booking-api.js';
 import { createProductOrderManagementApi } from '../services/product-order-management-api.js';
 import { ProductManagementPage } from '../pages/admin/ProductManagementPage.jsx';
 import { createProductManagementApi } from '../services/product-management-api.js';
@@ -155,6 +157,12 @@ function CounterSaleRoute() {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createCounterSaleApi({ getCsrfToken }), [getCsrfToken]);
   return <CounterSalePage key={user?.id} api={api} />;
+}
+
+function CounterBookingRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createCounterBookingApi({ getCsrfToken }), [getCsrfToken]);
+  return <CounterBookingPage key={user?.id} api={api} />;
 }
 
 function SitterManagementRoute({ detail = false }) {
@@ -253,6 +261,7 @@ const navigationByRole = {
     ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
     ['Khiếu nại sản phẩm', '/admin/faulty-product-claims', 'Bán hàng'],
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
+    ['Đặt dịch vụ tại quầy', '/sale-staff/counter-booking', 'Bán hàng'],
     ['Sản phẩm', '/admin/products', 'Cửa hàng'],
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
     ['Nhập hàng', '/admin/goods-receipts', 'Cửa hàng'],
@@ -296,6 +305,7 @@ const navigationByRole = {
   SALE_STAFF: [
     ['Tổng quan', '/sale-staff/dashboard', 'Bán hàng'],
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
+    ['Đặt dịch vụ tại quầy', '/sale-staff/counter-booking', 'Bán hàng'],
     ['Đơn hàng', '/admin/product-orders', 'Bán hàng'],
     ['Khiếu nại sản phẩm', '/admin/faulty-product-claims', 'Bán hàng'],
     ['Nhập hàng', '/admin/goods-receipts', 'Bán hàng'],
@@ -414,6 +424,7 @@ export function AppRoutes({
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
           <Route path="admin/faulty-product-claims" element={<FaultyProductClaimsRoute />} />
           <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
+          <Route path="sale-staff/counter-booking" element={<CounterBookingRoute />} />
           <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
           <Route path="admin/stock" element={<StockListRoute />} />
         </Route>

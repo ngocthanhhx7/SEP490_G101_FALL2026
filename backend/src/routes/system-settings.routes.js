@@ -1,5 +1,7 @@
 import { privateResponse } from '../middlewares/private-response.js';
 import { createSystemSettingsController } from '../controllers/system-settings.controller.js';
+import { createPickupSettingsController } from '../controllers/system-settings.controller.js';
+import { createPickupFeeSettings } from '../services/pickup/pickup-fee-settings.service.js';
 import { Router } from 'express';
 import {
   requireCsrf,
@@ -23,6 +25,7 @@ export function systemSettingsModule({
     SettingVersion: systemSettingVersionModel(connection),
     clock
   });
+  const pickup = createPickupFeeSettings({ connection, clock });
   const router = Router();
 
   if (config.auth?.enabled) {
@@ -56,6 +59,10 @@ export function systemSettingsModule({
       csrf,
       createSystemSettingsController({ service }).createServiceCatalogVisibility
     );
+    const pickupController = createPickupSettingsController(pickup);
+    router.get('/pickup', ...admin, pickupController.current);
+    router.get('/pickup/history', ...admin, pickupController.history);
+    router.post('/pickup', ...admin, csrf, pickupController.update);
     router.get(
       '/faulty-product-report-days',
       ...staff,
@@ -74,6 +81,7 @@ export function systemSettingsModule({
     mount: '/api/v1/system-settings',
     router,
     catalogSettings: service.catalogSettings,
-    settings: service
+    settings: service,
+    pickupSettings: pickup
   };
 }
