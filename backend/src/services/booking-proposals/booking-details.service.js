@@ -138,7 +138,7 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
           ...previousSlotFor(visit),
           ...(pendingOfferVisitIds.has(String(visit._id)) ? { hasPendingOffer: true } : {}),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
-          ...(!includeCustomerName && !visit.snapshots?.workflow && visit.customerNote ? { customerNote: visit.customerNote } : {}),
+          ...(!includeCustomerName && visit.customerNote ? { customerNote: visit.customerNote } : {}),
           checklist: (visit.checklist ?? []).slice(0, 100).map(item => ({ itemId: item.itemId,
             label: visit.snapshots?.checklistItems?.find(row => row.itemId === item.itemId)?.label ?? item.itemId,
             status: item.status, ...(item.reason ? { reason: item.reason } : {}) })),

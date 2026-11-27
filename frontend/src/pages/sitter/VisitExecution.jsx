@@ -62,6 +62,10 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const workflowReady = !versioned || (row.state === 'ASSIGNED' ? phaseComplete('CHECK_IN') : ['CHECK_IN','EXECUTION','CHECK_OUT'].every(phaseComplete));
   const savedChecklist = versioned || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
+  const noteField = <label>Ghi chú cho khách
+    <textarea rows={3} maxLength={2000} value={customerNote ?? row.customerNote ?? ''}
+      onChange={event => setCustomerNote(event.target.value)} />
+  </label>;
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
     {row.workflow?.mode === 'LEGACY' && <p>Ca legacy chưa có workflow snapshot; sử dụng checklist đã lưu của ca.</p>}
@@ -80,6 +84,13 @@ export function VisitExecution({ api, visitId, onChanged }) {
     {command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại thao tác ca</Button>}
     {versioned && <VisitWorkflowExecution row={row} api={api} visitId={visitId} onSaved={() => { resource.retry(); onChanged?.(); }} locked={locked || early || expired} />}
+    {versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked}>
+      <legend>Báo cáo chăm sóc</legend>
+      {noteField}
+      <Button disabled={customerNote === null || customerNote === (row.customerNote ?? '')} onClick={() => {
+        command.execute(key => api.executeVisit(visitId, 'checklists', { expectedVersion: row.version, customerNote }, key));
+      }}>Lưu ghi chú</Button>
+    </fieldset>}
     {!versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked}><legend>Nội dung chăm sóc</legend>
       {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : required.map(id => {
         const item = current(id);
@@ -90,10 +101,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
           <textarea maxLength={1000} value={item.reason ?? ''} onChange={event => setItems(value => ({ ...value, [id]: { ...item, reason: event.target.value } }))} />
         </label>}</div>;
       })}
-      <label>Ghi chú cho khách
-        <textarea rows={3} maxLength={2000} value={customerNote ?? row.customerNote ?? ''}
-          onChange={event => setCustomerNote(event.target.value)} />
-      </label>
+      {noteField}
       <Button disabled={!complete || locked} onClick={() => {
         const payload = { expectedVersion: row.version, items: required.map(id => { const item = current(id); return { itemId: id, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }; }),
           ...(customerNote !== null ? { customerNote } : {}) };

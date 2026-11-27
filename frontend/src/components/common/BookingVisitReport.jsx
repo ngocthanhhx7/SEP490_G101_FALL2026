@@ -18,7 +18,7 @@ export function BookingVisitReport({ visit, readEvidence }) {
           : visit.checklist?.length ? <ul>{visit.checklist.map(item => <li key={item.itemId}>
           <strong>{item.label}</strong><p>{item.status === 'DONE' ? 'Đã thực hiện' : item.status === 'SKIPPED' ? 'Không thực hiện' : 'Chưa ghi nhận'}{item.reason ? ` · ${item.reason}` : ''}</p>
         </li>)}</ul> : <p>Người chăm sóc chưa lưu checklist cho buổi này.</p>}
-        {visit.customerNote && (!visit.workflow || visit.workflow.mode === 'LEGACY') && <>
+        {visit.customerNote && <>
           <h3>Ghi chú cho khách</h3>
           <p className="booking-visit-report__note">{visit.customerNote}</p>
         </>}

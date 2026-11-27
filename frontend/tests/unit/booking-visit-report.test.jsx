@@ -16,3 +16,10 @@ test('customer report lazily opens real saved checklist and bound photos, then d
   expect(await screen.findByRole('button',{name:'Xem trước Ảnh check-in'})).toBeVisible();
   fireEvent.click(screen.getByRole('button',{name:'Đóng'}));await waitFor(()=>expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:customer-care'));
 });
+
+test('customer report includes the note alongside a versioned workflow', () => {
+  render(<BookingVisitReport visit={{ id: 'visit', customerNote: 'Milo uống đủ nước.',
+    workflow: { mode: 'VERSIONED', title: 'Quy trình chăm sóc', tasks: [] } }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Xem báo cáo và ảnh' }));
+  expect(screen.getByText('Milo uống đủ nước.')).toBeVisible();
+});

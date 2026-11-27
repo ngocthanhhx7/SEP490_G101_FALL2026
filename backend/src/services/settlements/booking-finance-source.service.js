@@ -196,19 +196,21 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         } else {
           if (visit.state !== 'IN_PROGRESS' || !(visit.checkInAt instanceof Date)) fail(409, 'INVALID_STATE');
           if (operation === 'CHECKLIST') {
-            if (visit.snapshots?.workflow) fail(409, 'WORKFLOW_TASKS_REQUIRED');
-            const required = visit.snapshots?.checklistItemIds;
-            if (!Array.isArray(required) || required.length > 100 || new Set(required).size !== required.length
-              || !Array.isArray(items) || items.length < 1 || items.length > required.length
-              || new Set(items.map(row => row?.itemId)).size !== items.length
-              || items.some(row => !required.includes(row?.itemId) || !['DONE', 'SKIPPED'].includes(row.status)
-                || (row.status === 'SKIPPED' && (typeof row.reason !== 'string' || !row.reason.trim() || row.reason.length > 1000)))
-              || (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote)))) fail(422, 'CHECKLIST_INVALID');
-            fields = {
-              checklist: items.map(row => ({ itemId: row.itemId, status: row.status,
-                ...(row.status === 'SKIPPED' ? { reason: row.reason.trim() } : {}) })),
-              ...(customerNote !== undefined ? { customerNote: customerNote.trim() } : {})
-            };
+            const versioned = Boolean(visit.snapshots?.workflow);
+            if (versioned && (items !== undefined || customerNote === undefined)) fail(409, 'WORKFLOW_TASKS_REQUIRED');
+            if (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000
+              || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote))) fail(422, 'CHECKLIST_INVALID');
+            fields = customerNote === undefined ? {} : { customerNote: customerNote.trim() };
+            if (!versioned) {
+              const required = visit.snapshots?.checklistItemIds;
+              if (!Array.isArray(required) || required.length > 100 || new Set(required).size !== required.length
+                || !Array.isArray(items) || items.length < 1 || items.length > required.length
+                || new Set(items.map(row => row?.itemId)).size !== items.length
+                || items.some(row => !required.includes(row?.itemId) || !['DONE', 'SKIPPED'].includes(row.status)
+                  || (row.status === 'SKIPPED' && (typeof row.reason !== 'string' || !row.reason.trim() || row.reason.length > 1000)))) fail(422, 'CHECKLIST_INVALID');
+              fields.checklist = items.map(row => ({ itemId: row.itemId, status: row.status,
+                ...(row.status === 'SKIPPED' ? { reason: row.reason.trim() } : {}) }));
+            }
           } else {
             if (!(visit.endAt instanceof Date) || at.getTime() > visit.endAt.getTime() + CHECK_OUT_GRACE_MS
               || at < visit.checkInAt) fail(409, 'CHECK_OUT_DEADLINE_PASSED');
@@ -314,7 +316,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             .map(({ kind, mediaId }) => ({ kind, mediaId })),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
           checklistItemIds: visit.snapshots?.checklistItemIds ?? null,
-          ...(!visit.snapshots?.workflow && visit.customerNote ? { customerNote: visit.customerNote } : {}),
+          ...(visit.customerNote ? { customerNote: visit.customerNote } : {}),
           checklist: (visit.checklist ?? []).map(({ itemId, status, reason }) => ({ itemId, status, ...(reason ? { reason } : {}) })) };
       });
     },
