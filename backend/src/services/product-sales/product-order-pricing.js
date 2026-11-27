@@ -11,17 +11,17 @@ export function priceProductOrder({ lines, receiveMethod, discountBps = 0, allow
       throw new TypeError('Invalid order line');
     }
     const lineTotal = unitPrice * quantity;
-    if (!isMoney(lineTotal)) throw new TypeError('Order amount is out of range');
+    if (!isMoney(lineTotal)) throw new RangeError('Order amount is out of range');
     subtotal += lineTotal;
     return lineTotal;
   });
-  if (!isMoney(subtotal)) throw new TypeError('Order amount is out of range');
+  if (!isMoney(subtotal)) throw new RangeError('Order amount is out of range');
   const shippingFee = receiveMethod === 'DELIVERY' ? PRODUCT_DEMO_SHIPPING_FEE_VND : 0;
   const unitDiscounts = lines.map(({ unitPrice }) => Math.floor(unitPrice / 10000) * discountBps
     + Math.floor((unitPrice % 10000) * discountBps / 10000));
   const tierDiscount = unitDiscounts.reduce((sum, amount, index) => sum + amount * lines[index].quantity, 0);
   const total = subtotal - tierDiscount + shippingFee;
-  if (!isMoney(total)) throw new TypeError('Order amount is out of range');
+  if (!isMoney(total)) throw new RangeError('Order amount is out of range');
   return { lineTotals, unitDiscounts, subtotal, tierDiscount, shippingFee, total };
 }
 

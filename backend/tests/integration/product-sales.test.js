@@ -245,6 +245,27 @@ describe('cart', () => {
     expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0].quantity).toBe(1);
   });
 
+  test('add and set roll back when the resulting cart subtotal would overflow', async () => {
+    const code = 'SP-0012';
+    const unitPrice = 100_000_000;
+    const safeQuantity = Math.floor(Number.MAX_SAFE_INTEGER / unitPrice);
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: safeQuantity + 1, sellingPrice: unitPrice } });
+    expect((await addToCart('a', code, safeQuantity)).status).toBe(201);
+    const differentCode = 'SP-0014';
+    await models.Product.updateOne({ code: differentCode }, { $set: { sellingPrice: unitPrice } });
+    const added = await addToCart('a', differentCode, 1);
+    expect(added.status).toBe(422);
+    expect(added.body.error.code).toBe('PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE');
+    const path = '/api/v1/product-cart/lines/' + await idOf(code);
+    const set = await api('a').patch(path).send({ quantity: safeQuantity + 1 }).expect(422);
+    expect(set.body.error.code).toBe('PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE');
+
+    const cart = (await api('a').get('/api/v1/product-cart').expect(200)).body.data;
+    expect(cart.lineCount).toBe(1);
+    expect(cart.lines[0].quantity).toBe(safeQuantity);
+    expect(await product(code)).toMatchObject({ stockOnHand: safeQuantity + 1, quantityHeld: 0 });
+  });
+
   test('two concurrent additions preserve both increments', async () => {
     await addToCart('a', 'SP-0012', 1);
     const added = await Promise.all([addToCart('a', 'SP-0012', 1), addToCart('a', 'SP-0012', 1)]);

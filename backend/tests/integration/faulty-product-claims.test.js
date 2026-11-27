@@ -13,6 +13,7 @@ let replica;
 let connection;
 let app;
 let nowMs;
+let testStartMs;
 let customerSession;
 let otherCustomerSession;
 let saleSession;
@@ -127,7 +128,9 @@ beforeAll(async () => {
   env.MONGO_DB = 'faulty_product_claims_test';
   const config = loadConfig(env);
   connection = await mongoose.createConnection(replica.getUri(), { dbName: env.MONGO_DB }).asPromise();
-  nowMs = Date.parse('2026-11-27T04:00:00.000Z');
+  // Settings authentication also checks wall-clock expiry for staff sessions.
+  testStartMs = Date.now();
+  nowMs = testStartMs;
   app = createApp({
     config,
     connection,
@@ -160,7 +163,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  nowMs = Date.parse('2026-11-27T04:00:00.000Z');
+  nowMs = testStartMs;
   memoryMedia.clear();
   for (const name of [
     'products', 'productorders', 'faultyproductclaims', 'productcounters',
@@ -171,23 +174,31 @@ beforeEach(async () => {
   }
 });
 
-async function oneItemClaim({ deliveredAt = new Date(nowMs) } = {}) {
+async function oneItemClaim({ deliveredAt = new Date(nowMs), orderedQuantity = 1 } = {}) {
   const product = await seedProduct();
   const order = await seedDeliveredOrder({
-    customerId: customerSession.user.id, product, quantity: 1, deliveredAt
+    customerId: customerSession.user.id, product, quantity: orderedQuantity, deliveredAt
   });
   const photoId = 'f'.repeat(64);
   await seedCustomerPhoto(customerSession.user.id, photoId);
-  const submit = key => request(app).post(`/api/v1/product-orders/${order._id}/faulty-claims`)
+  const submit = (key, quantity = 1) => request(app).post(`/api/v1/product-orders/${order._id}/faulty-claims`)
     .set(authHeaders(customerSession, key))
-    .send({ productId: String(product._id), quantity: 1, problemType: 'FAULTY_PRODUCT', photoIds: [photoId] });
+    .send({ productId: String(product._id), quantity, problemType: 'FAULTY_PRODUCT', photoIds: [photoId] });
   return { order, photoId, submit };
 }
+
+test('a claim may cover all 150 units of an online order', async () => {
+  const { order, submit } = await oneItemClaim({ orderedQuantity: 150 });
+  await submit('synthetic-claim-oversize', 151).expect(422);
+  await submit('synthetic-claim-full-line', 150).expect(201);
+  expect(await models.FaultyProductClaim.findOne({ orderId: order._id }).lean())
+    .toMatchObject({ orderedQuantity: 150, quantity: 150 });
+});
 
 test('concurrent claims with different idempotency keys cannot exceed the quantity bought', async () => {
   const { order, submit } = await oneItemClaim();
   const keys = ['synthetic-claim-concurrent-a', 'synthetic-claim-concurrent-b'];
-  const results = await Promise.all(keys.map(submit));
+  const results = await Promise.all(keys.map(key => submit(key)));
   expect(results.map(result => result.status).sort()).toEqual([201, 422]);
   const winner = results.findIndex(result => result.status === 201);
   expect(results[1 - winner].body.error.fieldErrors.quantity).toBeDefined();
