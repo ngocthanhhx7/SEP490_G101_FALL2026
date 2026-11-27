@@ -124,3 +124,29 @@ test('ST-ONB-11 rejects oversized image, non-image file and >4MP image with MSG4
   expect(screen.queryByText('wide.png')).not.toBeInTheDocument();
   expect(api.submit).not.toHaveBeenCalled();
 });
+
+test.each(['unsupported file type', 'image read failure'])('blocks submission after a supporting image %s until the selection is discarded', async failure => {
+  const api = makeApi(async () => ({ id: 'app-1', state: 'PENDING', applicationCode: 'a'.repeat(24) }));
+  render(<MemoryRouter><SitterApplicationPage api={api} /></MemoryRouter>);
+  await fillRequiredFields();
+  const input = screen.getByLabelText(/Ảnh chứng chỉ hoặc tài liệu bổ sung/);
+  const file = failure === 'unsupported file type'
+    ? validImage('certificate.pdf', 'application/pdf')
+    : validImage('certificate.jpg');
+  fireEvent.change(input, { target: { files: [file] } });
+  if (failure === 'image read failure') {
+    fireEvent.error(await screen.findByAltText('Ảnh đã chọn: certificate.jpg'));
+  }
+  const submit = screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ });
+  fireEvent.click(submit);
+  fireEvent.click(submit);
+  expect(api.uploadDocument).not.toHaveBeenCalled();
+  expect(api.submit).not.toHaveBeenCalled();
+  expect(input).toHaveFocus();
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Bỏ ảnh bổ sung lỗi' }));
+  fireEvent.click(submit);
+  await waitFor(() => expect(api.submit).toHaveBeenCalledTimes(1));
+  expect(api.uploadDocument).toHaveBeenCalledTimes(3);
+});

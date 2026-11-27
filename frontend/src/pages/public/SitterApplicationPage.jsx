@@ -163,6 +163,7 @@ export function SitterApplicationPage({
   const [portraitFile, setPortraitFile] = useState(null);
   const [imageIssues, setImageIssues] = useState(new Map());
   const [supportingFiles, setSupportingFiles] = useState([]);
+  const [supportingFileRejection, setSupportingFileRejection] = useState(null);
   const [uploadedDocuments, setUploadedDocuments] = useState(null);
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null);
@@ -201,31 +202,31 @@ export function SitterApplicationPage({
     setErrors(previous => ({ ...previous, [field]: undefined, files: undefined }));
   }
 
-  function handleSupportingFiles(selectedFiles) {
+  function handleSupportingFiles(selectedFiles, { replaceSelection = true } = {}) {
+    if (replaceSelection) setSupportingFileRejection(null);
+    setErrors(previous => ({ ...previous, supportingFiles: undefined, files: undefined }));
     setImageIssues(previous => new Map([...previous].filter(([file]) => file === identityFile || file === identityBackFile || file === portraitFile)));
     setUploadedDocuments(null);
     idempotencyKey.current = null;
     setNotice(null);
     if (!selectedFiles.length) {
       setSupportingFiles([]);
-      setErrors(previous => ({ ...previous, supportingFiles: undefined, files: undefined }));
       return;
     }
     if (selectedFiles.length > MAX_SUPPORTING_FILES) {
       if (supportingInput.current) supportingInput.current.value = '';
       setSupportingFiles([]);
-      setErrors(previous => ({ ...previous, supportingFiles: `Tối đa ${MAX_SUPPORTING_FILES} giấy tờ bổ sung.`, files: undefined }));
+      setSupportingFileRejection(`Tối đa ${MAX_SUPPORTING_FILES} giấy tờ bổ sung.`);
       return;
     }
     const invalid = selectedFiles.some(file => !isValidImageFile(file));
     if (invalid) {
       if (supportingInput.current) supportingInput.current.value = '';
       setSupportingFiles([]);
-      setErrors(previous => ({ ...previous, supportingFiles: MSG49, files: undefined }));
+      setSupportingFileRejection(MSG49);
       return;
     }
     setSupportingFiles(selectedFiles);
-    setErrors(previous => ({ ...previous, supportingFiles: undefined, files: undefined }));
   }
 
   function handlePreviewValidation(field, inputRef, setFile, file, message, kind) {
@@ -241,6 +242,7 @@ export function SitterApplicationPage({
     if (inputRef.current) inputRef.current.value = '';
     if (field === 'supportingFiles') {
       setSupportingFiles(previous => previous.filter(item => item !== file));
+      setSupportingFileRejection(text);
     } else {
       setFile(null);
     }
@@ -251,7 +253,7 @@ export function SitterApplicationPage({
       next.delete(file);
       return next;
     });
-    setErrors(previous => ({ ...previous, [field]: text, files: undefined }));
+    if (field !== 'supportingFiles') setErrors(previous => ({ ...previous, [field]: text, files: undefined }));
   }
 
   function update(field, value) {
@@ -300,9 +302,9 @@ export function SitterApplicationPage({
     if (imageIssues.size) nextErrors.files = [...imageIssues.values()].join(' ');
     if (!policies.current().ready || agreementKey !== policies.current().key) nextErrors.agreement = 'Bạn cần đồng ý với các chính sách đang có hiệu lực.';
     setErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean)) {
+    if (supportingFileRejection || Object.values(nextErrors).some(Boolean)) {
       setNotice(null);
-      focusFirst(nextErrors);
+      focusFirst({ ...nextErrors, supportingFiles: supportingFileRejection || nextErrors.supportingFiles });
       return;
     }
     setBusy(true);
@@ -516,14 +518,19 @@ export function SitterApplicationPage({
           </div>)}
           <div className="sitter-application__upload"><label htmlFor="sitter-applicant-supporting-files">Ảnh chứng chỉ hoặc tài liệu bổ sung <small>(không bắt buộc)</small></label>
             <small>Tối đa 5 ảnh bổ sung về kinh nghiệm hoặc chứng chỉ của bạn</small>
-            <input ref={supportingInput} id="sitter-applicant-supporting-files" type="file" accept="image/jpeg,image/png" multiple aria-invalid={!!errors.supportingFiles}
+            <input ref={supportingInput} id="sitter-applicant-supporting-files" type="file" accept="image/jpeg,image/png" multiple aria-invalid={!!(supportingFileRejection || errors.supportingFiles)}
               onChange={event => handleSupportingFiles(Array.from(event.target.files ?? []))} />
             {supportingFiles.length > 0 && <small>Đã chọn {supportingFiles.length} ảnh</small>}
             {supportingFiles.map((file, index) => <ApplicationImagePreview documentLabel={`Giấy tờ bổ sung ${index + 1}`} key={index + file.name + file.lastModified} file={file} disabled={busy} onValidation={(message, kind) => handlePreviewValidation('supportingFiles', supportingInput, setSupportingFiles, file, message, kind)} onRemove={() => {
               if (supportingInput.current) supportingInput.current.value = '';
-              handleSupportingFiles(supportingFiles.filter((_, i) => i !== index));
+              handleSupportingFiles(supportingFiles.filter((_, i) => i !== index), { replaceSelection: false });
             }} />)}
-            {errors.supportingFiles && <small className="sitter-application__error" role="alert">{errors.supportingFiles}</small>}
+            {(supportingFileRejection || errors.supportingFiles) && <small className="sitter-application__error" role="alert">
+              {supportingFileRejection || errors.supportingFiles}
+            </small>}
+            {supportingFileRejection && <Button type="button" variant="secondary" onClick={() => handleSupportingFiles(supportingFiles)}>
+              Bỏ ảnh bổ sung lỗi
+            </Button>}
           </div>
           {imageIssues.size > 0 && <p className="sitter-application__error" role="alert">{[...imageIssues.values()].join(' ')}</p>}
           {errors.files && <p className="sitter-application__error" role="alert">{errors.files}</p>}
