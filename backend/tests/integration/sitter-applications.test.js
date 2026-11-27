@@ -185,21 +185,21 @@ describe('P16 public sitter application submission', () => {
     expect(notices[0].message).toContain(first.body.data.applicationCode);
   });
 
-  test('ST-ONB-09 blocks duplicate pending phone, email and identity with exact conflictField without disclosing raw values', async () => {
+  test('ST-ONB-09 blocks duplicate pending phone, email and identity with the same unverified response', async () => {
     const application = app();
     await submit(application, applicationBody({ email: 'sitter@example.test', phone: '0912345678' })).expect(201);
     const samePhone = await submit(application, applicationBody({
       email: 'other1@example.test', phone: '0912345678', identityNumber: '987654321098'
     }), 'submit-key-phone').expect(409);
-    expect(samePhone.body.error).toMatchObject({ code: 'APPLICATION_ALREADY_PENDING', conflictField: 'phone' });
+    expect(samePhone.body.error).toEqual({ code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time' });
     const sameEmail = await submit(application, applicationBody({
       email: 'sitter@example.test', phone: '0987654321', identityNumber: '987654321098'
     }), 'submit-key-email').expect(409);
-    expect(sameEmail.body.error).toMatchObject({ code: 'APPLICATION_ALREADY_PENDING', conflictField: 'email' });
+    expect(sameEmail.body.error).toEqual(samePhone.body.error);
     const sameIdentity = await submit(application, applicationBody({
       email: 'other2@example.test', phone: '0987654321', identityNumber: '012345678901'
     }), 'submit-key-id').expect(409);
-    expect(sameIdentity.body.error).toMatchObject({ code: 'APPLICATION_ALREADY_PENDING', conflictField: 'identityNumber' });
+    expect(sameIdentity.body.error).toEqual(samePhone.body.error);
     expect(JSON.stringify(sameEmail.body)).not.toMatch(/sitter@example|0912345678|012345678901|987654321098/i);
     expect(await User.countDocuments({})).toBe(0);
   });
@@ -213,7 +213,7 @@ describe('P16 public sitter application submission', () => {
     expect(await sitterApplicationModels(connection).SitterApplication.countDocuments({ state: 'PENDING' })).toBe(1);
   });
 
-  test('ST-ONB-13 enforces the rejection waiting period with reapplyAt and permits a new submission at the exact eligible instant', async () => {
+  test('ST-ONB-13 enforces the rejection waiting period without exposing dates to an unverified caller', async () => {
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
@@ -224,9 +224,8 @@ describe('P16 public sitter application submission', () => {
       .send({ action: 'REJECT', reason: 'Cần bổ sung hồ sơ kinh nghiệm.', expectedVersion: 2 }).expect(200);
     const eligibleAt = clockNow + 30 * 24 * 60 * 60 * 1000;
     const tooEarly = await submit(application, applicationBody(), 'submit-key-after-reject').expect(409);
-    expect(tooEarly.body.error).toMatchObject({
-      code: 'REAPPLY_NOT_AVAILABLE',
-      reapplyAt: new Date(eligibleAt).toISOString()
+    expect(tooEarly.body.error).toEqual({
+      code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time'
     });
     clockNow = eligibleAt;
     const newApplication = await submit(application, applicationBody(), 'submit-key-after-wait').expect(201);

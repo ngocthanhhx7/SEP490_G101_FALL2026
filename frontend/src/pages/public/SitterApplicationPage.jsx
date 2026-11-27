@@ -49,6 +49,9 @@ function lines(value) {
 function errorMessage(error) {
   if (error?.code === 'POLICY_NOT_AVAILABLE') return 'Chính sách đăng ký đã thay đổi hoặc chưa có hiệu lực. Vui lòng tải lại trang và xác nhận chính sách hiện hành.';
   if (error?.code === 'INTAKE_VERIFICATION_REQUIRED') return 'Phiên nộp hồ sơ đã hết hạn. Hãy tải lại biểu mẫu trước khi thử lại.';
+  if (error?.code === 'APPLICATION_SUBMISSION_UNAVAILABLE') {
+    return 'Chưa thể tiếp nhận hồ sơ với thông tin này. Nếu đã nộp, hãy tra cứu bằng mã hồ sơ và OTP hoặc liên hệ PawWorld.';
+  }
   if (error?.code === 'CONTACT_UNAVAILABLE') return 'Email hoặc số điện thoại đã thuộc một tài khoản. Vui lòng kiểm tra lại thông tin hoặc liên hệ PawWorld.';
   if (error?.code === 'UNAUTHENTICATED' || error?.code === 'CSRF_UNAVAILABLE') return 'Phiên đăng nhập cần được xác nhận lại. Vui lòng đăng nhập rồi mở lại hồ sơ.';
   if (error?.code === 'MEDIA_QUOTA_EXCEEDED') return 'Tài khoản đã đạt giới hạn lưu trữ 20 ảnh. Vui lòng liên hệ PawWorld để được hỗ trợ.';

@@ -80,6 +80,14 @@ test.each([
   expect(form.firstElementChild.textContent).toContain(expectedText);
 });
 
+test('unverified submission conflict points to protected status lookup', async () => {
+  const api = makeApi(async () => { throw new ApiError('APPLICATION_SUBMISSION_UNAVAILABLE', 409); });
+  render(<MemoryRouter><SitterApplicationPage api={api} /></MemoryRouter>);
+  await fillRequiredFields();
+  fireEvent.click(screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ }));
+  expect(await screen.findByText(/tra cứu bằng mã hồ sơ và OTP/)).toBeVisible();
+});
+
 test('ST-ONB-13 shows MSG38 with Vietnam dd/mm/yyyy date at top of form when reapplying within 30 days', async () => {
   const api = makeApi(async () => {
     throw new ApiError('REAPPLY_NOT_AVAILABLE', 409, { reapplyAt: '2026-12-26T17:30:00.000Z' });
