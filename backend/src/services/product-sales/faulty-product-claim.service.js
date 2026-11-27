@@ -290,6 +290,26 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
               });
             }
 
+            // A competing submission retries the transaction and sees the committed claim in its new snapshot.
+            const guard = await ProductOrder.updateOne(
+              { _id: order._id, status: order.status },
+              { $inc: { faultyClaimSubmissionVersion: 1 } },
+              { session, timestamps: false }
+            );
+            if (!guard.matchedCount) throw new AppError(409, 'ORDER_NOT_DELIVERED', 'Order is no longer eligible');
+            const [usage] = await FaultyProductClaim.aggregate([
+              { $match: { orderId: order._id, productId: line.productId, status: { $ne: 'REJECTED' } } },
+              { $group: { _id: null, quantity: { $sum: '$quantity' } } }
+            ]).session(session).option({ maxTimeMS: 2000 });
+            const remaining = Math.max(0, line.quantity - (usage?.quantity ?? 0));
+            if (input.quantity > remaining) {
+              throw new AppError(422, 'VALIDATION_FAILED', 'Quantity exceeds the unclaimed quantity', {
+                fieldErrors: { quantity: remaining > 0
+                  ? `Số lượng còn có thể báo lỗi là ${remaining}.`
+                  : 'Toàn bộ số lượng mua đã có phiếu báo lỗi.' }
+              });
+            }
+
             const customer = await getUser().findById(customerId).select('displayName').session(session).lean();
             const number = await nextClaimNumber(session);
             const code = `${FAULTY_CLAIM_CODE_PREFIX}${String(number).padStart(4, '0')}`;

@@ -46,11 +46,13 @@ const env = {
 };
 
 const memoryMedia = new Map();
+let beforeMediaRead;
 const fakePrivateMedia = {
   async upload({ storageRef, body, contentType }) {
     memoryMedia.set(storageRef, { body, contentType });
   },
   async read({ storageRef }) {
+    await beforeMediaRead?.();
     const stored = memoryMedia.get(storageRef);
     if (!stored) throw new Error('missing');
     return stored;
@@ -167,6 +169,61 @@ beforeEach(async () => {
   ]) {
     await col(name).deleteMany({});
   }
+});
+
+async function oneItemClaim() {
+  const product = await seedProduct();
+  const order = await seedDeliveredOrder({
+    customerId: customerSession.user.id, product, quantity: 1, deliveredAt: new Date(nowMs)
+  });
+  const photoId = 'f'.repeat(64);
+  await seedCustomerPhoto(customerSession.user.id, photoId);
+  const submit = key => request(app).post(`/api/v1/product-orders/${order._id}/faulty-claims`)
+    .set(authHeaders(customerSession, key))
+    .send({ productId: String(product._id), quantity: 1, problemType: 'FAULTY_PRODUCT', photoIds: [photoId] });
+  return { order, photoId, submit };
+}
+
+test('concurrent claims with different idempotency keys cannot exceed the quantity bought', async () => {
+  const { order, submit } = await oneItemClaim();
+  const keys = ['synthetic-claim-concurrent-a', 'synthetic-claim-concurrent-b'];
+  const results = await Promise.all(keys.map(submit));
+  expect(results.map(result => result.status).sort()).toEqual([201, 422]);
+  const winner = results.findIndex(result => result.status === 201);
+  expect(results[1 - winner].body.error.fieldErrors.quantity).toBeDefined();
+  const repeated = await submit(keys[winner]).expect(201);
+  expect(repeated.body.data.id).toBe(results[winner].body.data.id);
+  await submit('synthetic-claim-after-capacity').expect(422);
+  expect(await models.FaultyProductClaim.countDocuments({ orderId: order._id })).toBe(1);
+});
+
+test('customer and staff claim photo routes share the private image admission capacity', async () => {
+  const { photoId, submit } = await oneItemClaim();
+  const created = await submit('synthetic-claim-media-capacity').expect(201);
+  const claimId = created.body.data.id;
+  const customerPhoto = `/api/v1/product-orders/faulty-claims/${claimId}/photos/${photoId}`;
+  const staffPhoto = `/api/v1/admin/faulty-product-claims/${claimId}/photos/${photoId}`;
+  const { promise: entered, resolve: notifyEntered } = Promise.withResolvers();
+  const { promise: hold, resolve: release } = Promise.withResolvers();
+  let reading = 0;
+  beforeMediaRead = () => {
+    if (++reading === 4) notifyEntered(true);
+    return hold;
+  };
+  const pending = Array.from({ length: 4 }, () => request(app).get(customerPhoto)
+    .set(authHeaders(customerSession)).then(result => result));
+  try {
+    expect(await Promise.race([entered, ...pending.map(result => result.then(() => false))])).toBe(true);
+    const saturated = await request(app).get(staffPhoto).set(authHeaders(saleSession)).timeout(5000);
+    expect(saturated.status).toBe(503);
+    expect(saturated.body.error.code).toBe('MEDIA_BUSY');
+    expect(reading).toBe(4);
+  } finally {
+    beforeMediaRead = undefined;
+    release();
+    await Promise.all(pending);
+  }
+  await request(app).get(staffPhoto).set(authHeaders(saleSession)).expect(200);
 });
 
 test('ST-ORD-14 full exchange flow: submit, MSG107/MSG108, Admin approve exchange, exchange-sent deducts stock once & writes FAULTY_EXCHANGE history without StockAdjustment', async () => {
@@ -347,7 +404,7 @@ test('deadline enforcement (MSG61), refund amount read-only, reject, and insuffi
   const activeOrder = await seedDeliveredOrder({
     customerId: customerSession.user.id,
     product,
-    quantity: 2,
+    quantity: 3,
     status: 'PICKED_UP',
     receiveMethod: 'PICKUP',
     deliveredAt: new Date(nowMs - 1 * 86_400_000)
@@ -419,4 +476,9 @@ test('deadline enforcement (MSG61), refund amount read-only, reject, and insuffi
     .expect(200);
   expect(rejected.body.data.status).toBe('REJECTED');
   expect(rejected.body.data.refundAmountVnd).toBeNull();
+  await request(app)
+    .post(`/api/v1/product-orders/${activeOrder._id}/faulty-claims`)
+    .set(authHeaders(customerSession, 'claim-after-rejection'))
+    .send({ productId: String(product._id), quantity: 1, problemType: 'FAULTY_PRODUCT', photoIds: [photoId] })
+    .expect(201);
 });

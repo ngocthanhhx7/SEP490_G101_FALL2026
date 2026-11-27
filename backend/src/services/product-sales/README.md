@@ -72,3 +72,12 @@ days), Sale Staff inspection, Admin exchange/refund/reject decisions (read-only
 `EXCHANGE_SENT` stock deduction without creating `StockAdjustment`.
 `stock-history.service.js` merges `EXCHANGE_SENT` claims as `FAULTY_EXCHANGE`
 entries alongside goods receipts and stock adjustments.
+
+## Faulty product claims
+
+New submissions serialize on the affected order and count existing claims for
+the purchased line inside the transaction. Pending, approved and fulfilled
+claims count against the purchased quantity. A rejected claim releases its
+quantity. Apply the additive claim index on `orderId, productId, status` as part
+of product storage provisioning. Customer and staff claim photos use the
+existing private image admission limit and private storage configuration.

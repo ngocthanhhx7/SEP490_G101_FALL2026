@@ -3,7 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 import { createProductPhotoController } from '../controllers/product-photo.controller.js';
 import { createProductPhotoService } from '../services/product-sales/product-photo.service.js';
 import { PRODUCT_PHOTO_LIMITS, PRODUCT_PHOTO_TYPES } from '../constants/product-photos.js';
-import { createMediaAdmission, createAdmissionMiddleware, parseBody } from './private-image.routes.js';
+import { createMediaAdmission, createAdmissionMiddleware, mediaAdmissionFor, parseBody } from './private-image.routes.js';
 import { createProductCatalogController } from '../controllers/product-catalog.controller.js';
 import { createProductCartController } from '../controllers/product-cart.controller.js';
 import { createProductOrderController, createProductOrderPaymentController } from '../controllers/product-order.controller.js';
@@ -129,9 +129,12 @@ export function productSalesRuntimeModules({ config, connection, ports, env = {}
     readImage: privateImages?.readScoped,
     clock
   }));
+  const readClaimPhoto = createAdmissionMiddleware({
+    admission: mediaAdmissionFor(connection), work: faultyClaims.readPhoto
+  });
   orderRouter.get('/:orderId/faulty-claim-eligibility', faultyClaims.eligibility);
   orderRouter.post('/:orderId/faulty-claims', csrf, faultyClaims.submit);
-  orderRouter.get('/faulty-claims/:claimId/photos/:photoId', faultyClaims.readPhoto);
+  orderRouter.get('/faulty-claims/:claimId/photos/:photoId', readClaimPhoto);
 
   const management = createProductOrderManagementController(createProductOrderManagementService({
     connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours, payments: orderSettler
@@ -233,7 +236,7 @@ export function productSalesRuntimeModules({ config, connection, ports, env = {}
   faultyClaimsRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_FAULTY_CLAIMS));
   faultyClaimsRouter.get('/', faultyClaims.list);
   faultyClaimsRouter.get('/:claimId', faultyClaims.read);
-  faultyClaimsRouter.get('/:claimId/photos/:photoId', faultyClaims.readPhoto);
+  faultyClaimsRouter.get('/:claimId/photos/:photoId', readClaimPhoto);
   faultyClaimsRouter.post('/:claimId/inspect', csrf, faultyClaims.inspect);
   faultyClaimsRouter.post('/:claimId/decide', requireRoles(...PRODUCT_PERMISSIONS.DECIDE_FAULTY_CLAIMS), csrf, faultyClaims.decide);
   faultyClaimsRouter.post('/:claimId/exchange-sent', csrf, faultyClaims.exchangeSent);

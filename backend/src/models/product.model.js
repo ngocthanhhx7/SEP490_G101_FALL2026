@@ -177,6 +177,8 @@ export function productSalesModels(connection) {
         handedToCarrierAt: { type: Date },
         status: { type: String, enum: [...new Set([...PRODUCT_ORDER_STATUSES, ...COUNTER_ORDER_STATUSES])], default: 'PLACED' },
         pickupDeadlineAt: { type: Date },
+        // Serializes faulty-item submissions against the same purchased quantities without changing order state.
+        faultyClaimSubmissionVersion: { ...integer(), select: false },
         deliveredAt: { type: Date },
         deliveredBy: { type: String, enum: PRODUCT_DELIVERED_BY },
         // Entered when the order goes back (the carrier's own words), then the shop's reason when it confirms the return.
@@ -321,6 +323,7 @@ export function productSalesModels(connection) {
         [{ code: 1 }, { unique: true }],
         [{ number: 1 }, { unique: true }],
         [{ customerId: 1, idempotencyKey: 1 }, { unique: true }],
+        [{ orderId: 1, productId: 1, status: 1 }, {}],
         [{ status: 1, createdAt: -1, _id: -1 }, {}],
         [{ productId: 1, status: 1, exchangeSentAt: -1, _id: -1 }, {}]
       ]
