@@ -226,6 +226,35 @@ test('customer and staff claim photo routes share the private image admission ca
   await request(app).get(staffPhoto).set(authHeaders(saleSession)).expect(200);
 });
 
+test('customer submit, replay and eligibility return a customer claim view without staff notes or identities', async () => {
+  const { order, photoId, submit } = await oneItemClaim();
+  const key = 'synthetic-claim-view-scope';
+  const { body: { data: customerClaim } } = await submit(key).expect(201);
+  const customerFields = ['code', 'createdAt', 'description', 'exchangeSentAt', 'id', 'orderCode', 'orderId',
+    'photoIds', 'problemType', 'productId', 'productName', 'quantity', 'refundAmountVnd', 'refundEstimateVnd', 'status'];
+  expect(Object.keys(customerClaim).sort()).toEqual(customerFields);
+  expect(customerClaim.photoIds).toEqual([photoId]);
+
+  const staffPath = `/api/v1/admin/faulty-product-claims/${customerClaim.id}`;
+  await request(app).post(staffPath + '/inspect').set(authHeaders(saleSession))
+    .send({ expectedVersion: 0, inspectionResult: 'Synthetic internal inspection' }).expect(200);
+  await request(app).post(staffPath + '/decide').set(authHeaders(adminSession))
+    .send({ expectedVersion: 1, decision: 'REJECT', note: 'Synthetic internal decision' }).expect(200);
+  const staffRead = await request(app).get(staffPath).set(authHeaders(saleSession)).expect(200);
+  expect(staffRead.body.data).toMatchObject({
+    inspectionResult: 'Synthetic internal inspection', decisionNote: 'Synthetic internal decision',
+    inspectedBy: saleSession.user.id, decidedBy: adminSession.user.id
+  });
+
+  const eligibility = `/api/v1/product-orders/${order._id}/faulty-claim-eligibility`;
+  const customerRead = await request(app).get(eligibility).set(authHeaders(customerSession)).expect(200);
+  const [listed] = customerRead.body.data.claims;
+  expect(Object.keys(listed).sort()).toEqual(customerFields);
+  expect(listed.status).toBe('REJECTED');
+  expect((await submit(key).expect(201)).body.data).toEqual(listed);
+  await request(app).get(eligibility).set(authHeaders(otherCustomerSession)).expect(404);
+});
+
 test('ST-ORD-14 full exchange flow: submit, MSG107/MSG108, Admin approve exchange, exchange-sent deducts stock once & writes FAULTY_EXCHANGE history without StockAdjustment', async () => {
   // Admin can read default 7 days and update setting to 10 days; non-admin gets 403
   await request(app)

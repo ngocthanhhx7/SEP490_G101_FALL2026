@@ -81,3 +81,6 @@ claims count against the purchased quantity. A rejected claim releases its
 quantity. Apply the additive claim index on `orderId, productId, status` as part
 of product storage provisioning. Customer and staff claim photos use the
 existing private image admission limit and private storage configuration.
+Customer claim responses use an allowlisted view of the submitted claim and its
+outcome. Inspection and decision notes, staff identities, and inventory controls
+are available only through the staff endpoints.

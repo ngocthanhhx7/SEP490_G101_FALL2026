@@ -27,32 +27,53 @@ const STATUS_META = {
   REJECTED: { label: 'Đã từ chối', className: 'faulty-claims__badge--danger' }
 };
 
-function ClaimPhoto({ claimId, photoId, api }) {
+function ClaimPhoto({ claimId, photoId, position, api }) {
   const [src, setSrc] = useState(null);
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    let objectUrl = null;
-    setFailed(false);
+    let objectUrl;
+    setSrc(null);
+    setError('');
     api.readAdminPhoto(claimId, photoId, { signal: controller.signal })
       .then(blob => {
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
         setSrc(objectUrl);
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
+      .catch(failure => {
+        if (!controller.signal.aborted) setError(failure?.code === 'MEDIA_BUSY'
+          ? 'Dịch vụ ảnh đang bận.' : 'Không tải được ảnh.');
       });
     return () => {
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [claimId, photoId, api]);
+  }, [claimId, photoId, api, attempt]);
 
-  if (failed) return <span className="faulty-claims__badge">Không tải được ảnh</span>;
-  if (!src) return <span className="faulty-claims__badge">Đang tải ảnh…</span>;
-  return <img src={src} alt={`Ảnh khiếu nại ${photoId.slice(0, 6)}`} />;
+  if (error) return <div>
+    <p role="alert">{error}</p>
+    <Button type="button" variant="secondary" onClick={() => setAttempt(value => value + 1)}>Tải lại ảnh</Button>
+  </div>;
+  if (!src) return <p role="status">Đang tải ảnh…</p>;
+  return <img src={src} alt={`Ảnh khiếu nại ${position}`} />;
+}
+
+function ClaimPhotos({ claimId, photoIds, api }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const index = photoIds.indexOf(selectedId);
+  return <>
+    <strong>Ảnh khách gửi ({photoIds.length})</strong>
+    {photoIds.length > 0 && <div className="faulty-claims__photos" role="group" aria-label="Chọn ảnh khiếu nại">
+      {photoIds.map((photoId, position) => <Button key={photoId} type="button" variant="secondary"
+        aria-pressed={photoId === selectedId} onClick={() => setSelectedId(photoId)}>Ảnh {position + 1}</Button>)}
+    </div>}
+    {index >= 0 && <div className="faulty-claims__photos">
+      <ClaimPhoto key={selectedId} claimId={claimId} photoId={selectedId} position={index + 1} api={api} />
+    </div>}
+  </>;
 }
 
 export function FaultyProductClaimsPage({ api: suppliedApi } = {}) {
@@ -289,12 +310,7 @@ export function FaultyProductClaimsPage({ api: suppliedApi } = {}) {
               </dl>
 
               <div>
-                <strong>Ảnh khách gửi ({selected.photoIds?.length ?? 0})</strong>
-                <div className="faulty-claims__photos">
-                  {(selected.photoIds ?? []).map(photoId => (
-                    <ClaimPhoto key={photoId} claimId={selected.id} photoId={photoId} api={api} />
-                  ))}
-                </div>
+                <ClaimPhotos key={selected.id} claimId={selected.id} photoIds={selected.photoIds ?? []} api={api} />
               </div>
 
               {selected.inspectionResult && (

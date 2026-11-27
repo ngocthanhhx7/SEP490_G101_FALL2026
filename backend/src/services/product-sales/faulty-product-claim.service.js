@@ -99,46 +99,51 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
     return counter.value;
   }
 
-  function toClaimView(doc, { customerPhone = null, product = null } = {}) {
-    const available = product ? sellableQuantity(product) : null;
-    const refundEstimateVnd = doc.unitPriceVnd * doc.quantity;
+  function toCustomerClaimView(doc) {
     return {
       id: String(doc._id),
       code: doc.code,
       orderId: String(doc.orderId),
       orderCode: doc.orderCode,
-      orderDeliveredAt: doc.orderDeliveredAt,
-      customerId: String(doc.customerId),
-      customerName: doc.customerName,
-      customerPhone,
       productId: String(doc.productId),
-      productCode: doc.productCode,
       productName: doc.productName,
-      orderedQuantity: doc.orderedQuantity,
-      unitPriceVnd: doc.unitPriceVnd,
       quantity: doc.quantity,
-      refundEstimateVnd,
+      refundEstimateVnd: doc.unitPriceVnd * doc.quantity,
       problemType: doc.problemType,
       description: doc.description ?? '',
       photoIds: doc.photoIds ?? [],
       status: doc.status,
+      refundAmountVnd: doc.refundAmountVnd ?? null,
+      exchangeSentAt: doc.exchangeSentAt ?? null,
+      createdAt: doc.createdAt
+    };
+  }
+
+  function toClaimView(doc, { customerPhone = null, product = null } = {}) {
+    const available = product ? sellableQuantity(product) : null;
+    return {
+      ...toCustomerClaimView(doc),
+      orderDeliveredAt: doc.orderDeliveredAt,
+      customerId: String(doc.customerId),
+      customerName: doc.customerName,
+      customerPhone,
+      productCode: doc.productCode,
+      orderedQuantity: doc.orderedQuantity,
+      unitPriceVnd: doc.unitPriceVnd,
       inspectionResult: doc.inspectionResult ?? null,
       inspectedBy: doc.inspectedBy ? String(doc.inspectedBy) : null,
       inspectedByName: doc.inspectedByName ?? null,
       inspectedAt: doc.inspectedAt ?? null,
       decision: doc.decision ?? null,
       decisionNote: doc.decisionNote ?? null,
-      refundAmountVnd: doc.refundAmountVnd ?? null,
       decidedBy: doc.decidedBy ? String(doc.decidedBy) : null,
       decidedByName: doc.decidedByName ?? null,
       decidedAt: doc.decidedAt ?? null,
       exchangeSentBy: doc.exchangeSentBy ? String(doc.exchangeSentBy) : null,
       exchangeSentByName: doc.exchangeSentByName ?? null,
-      exchangeSentAt: doc.exchangeSentAt ?? null,
       productAvailable: available,
       canSendExchange: doc.status === 'EXCHANGE_APPROVED' && available !== null && available >= doc.quantity,
-      version: doc.version ?? 0,
-      createdAt: doc.createdAt
+      version: doc.version ?? 0
     };
   }
 
@@ -200,7 +205,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
           deliveredAt: null,
           deadlineAt: null,
           deadlineDate: null,
-          claims: claims.map(doc => toClaimView(doc))
+          claims: claims.map(toCustomerClaimView)
         };
       }
       const deliveredAt = orderCompletionDate(order);
@@ -214,7 +219,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
         deliveredAt,
         deadlineAt,
         deadlineDate,
-        claims: claims.map(doc => toClaimView(doc))
+        claims: claims.map(toCustomerClaimView)
       };
     },
 
@@ -341,11 +346,11 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
             await getNotifications().faultyProductClaim({ event: 'FaultyProductClaimSubmitted', claim: plain }, session);
             return plain;
           });
-          return toClaimView(doc);
+          return toCustomerClaimView(doc);
         } catch (error) {
           if (error?.code !== 11000) throw error;
           const earlier = await replay();
-          if (earlier) return toClaimView(earlier);
+          if (earlier) return toCustomerClaimView(earlier);
           if (attempt === FAULTY_CLAIM_LIMITS.conflictRetries) {
             throw new AppError(409, 'CLAIM_CODE_CONFLICT', 'Claim code conflicted; retry with the same key');
           }

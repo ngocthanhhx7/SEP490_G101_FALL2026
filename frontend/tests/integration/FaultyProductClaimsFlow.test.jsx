@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { ReportFaultyProductDialog } from '../../src/components/product/ReportFaultyProductDialog.jsx';
 import { FaultyProductClaimsPage } from '../../src/pages/admin/FaultyProductClaimsPage.jsx';
+import { createFaultyProductClaimApi } from '../../src/services/faulty-product-claim-api.js';
 import { StockHistoryPanel } from '../../src/components/product/StockHistoryPanel.jsx';
 
 const { HTMLDialogElement } = window;
@@ -154,6 +155,33 @@ test('FaultyProductClaimsPage enforces MSG107 for Sale Staff, MSG108/MSG109, and
   fireEvent.click(screen.getByRole('button', { name: /Chuyển sang duyệt hoàn tiền/i }));
   await waitFor(() => expect(adminApi.decideClaim).toHaveBeenCalledWith(CLAIM_ID, expect.objectContaining({ decision: 'REFUND' })));
   expect(await screen.findByText('Đã lưu quyết định. Khách đã được báo.')).toBeInTheDocument();
+});
+
+test('staff loads only the selected claim photo and can retry when private media is busy', async () => {
+  globalThis.URL.createObjectURL = jest.fn(() => 'blob:claim-photo');
+  globalThis.URL.revokeObjectURL = jest.fn();
+  const claim = { id: CLAIM_ID, code: 'KN-0001', orderCode: 'DH-0001',
+    productName: 'Hạt khô', status: 'WAITING_CHECK', photoIds: [PHOTO_ID, 'b'.repeat(64), 'c'.repeat(64)] };
+  const fetchImpl = jest.fn()
+    .mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({ error: { code: 'MEDIA_BUSY' } }) })
+    .mockResolvedValue({ ok: true, blob: async () => new globalThis.Blob(['synthetic'], { type: 'image/png' }) });
+  const api = {
+    listClaims: jest.fn().mockResolvedValue({ items: [claim], total: 1 }),
+    readAdminPhoto: createFaultyProductClaimApi({ fetchImpl }).readAdminPhoto
+  };
+  const { unmount } = withRole(<FaultyProductClaimsPage api={api} />, ['SALE_STAFF']);
+  await screen.findByRole('heading', { name: /KN-0001/ });
+  expect(fetchImpl).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Ảnh 2' }));
+  expect(await screen.findByText('Dịch vụ ảnh đang bận.')).toBeVisible();
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Tải lại ảnh' }));
+  expect(await screen.findByRole('img', { name: 'Ảnh khiếu nại 2' })).toBeVisible();
+  expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+    expect.stringContaining('b'.repeat(64)), expect.stringContaining('b'.repeat(64))
+  ]);
+  unmount();
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:claim-photo');
 });
 
 test('StockHistoryPanel renders FAULTY_EXCHANGE stock history line with claim code and negative delta', async () => {

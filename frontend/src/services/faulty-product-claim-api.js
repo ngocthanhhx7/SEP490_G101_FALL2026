@@ -20,7 +20,9 @@ function requirePhotoId(value) {
 async function fetchBlob(url, { fetchImpl = globalThis.fetch, signal } = {}) {
   const response = await fetchImpl(url, { credentials: 'same-origin', signal });
   if (!response.ok) {
-    throw new ApiError('IMAGE_UNAVAILABLE', response.status);
+    const payload = response.status === 503 ? await response.json().catch(() => null) : null;
+    const code = payload?.error?.code === 'MEDIA_BUSY' ? 'MEDIA_BUSY' : 'IMAGE_UNAVAILABLE';
+    throw new ApiError(code, response.status);
   }
   return response.blob();
 }
