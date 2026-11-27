@@ -43,4 +43,10 @@ describe('FE-SCHED-CMD-01 useSchedulingCommand', () => {
     await act(async () => result.current.execute(() => Promise.reject({ code: 'CHECKLIST_REQUIRED', status: 422 })));
     await waitFor(() => expect(result.current).toMatchObject({ pending: false, message: 'Cần lưu đủ nội dung chăm sóc trước khi check-out.' }));
   });
+
+  test('ACTION_CHANGED shows reload guidance and clears pending state', async () => {
+    const { result } = renderHook(() => useSchedulingCommand());
+    await act(async () => result.current.execute(() => Promise.reject({ code: 'ACTION_CHANGED', status: 409 })));
+    await waitFor(() => expect(result.current).toMatchObject({ pending: false, message: 'Điều kiện giao ca đã thay đổi. Hãy kiểm tra lại danh sách rồi xác nhận.' }));
+  });
 });

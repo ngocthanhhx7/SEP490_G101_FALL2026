@@ -1403,6 +1403,85 @@ test('manual direct assignment races with accepting an existing invitation: only
     eventType: 'VisitAssignedDirectly' })).toBe(String(saved.sitterId) === fullTime.userId ? 2 : 0);
 });
 
+test('invite rejects with 409 ACTION_CHANGED if availability hours change between preview and submit', async () => {
+  const fullTime = await employee({ configure: false }), secondFullTime = await employee({ configure: false });
+  for (const s of [fullTime, secondFullTime]) {
+    await module.repository.areas.replaceMine({ actor: s, areas: ['DISTRICT_HOAN_KIEM'], expectedVersion: 0, idempotencyKey: `setup-hk-${s.userId}` });
+    await module.repository.availability.updateMine({ actor: s, command: { zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30',
+      workingWindows: windows, expectedVersion: 1, idempotencyKey: `setup-hk-win-${s.userId}` } });
+  }
+  await payroll.EmploymentContract.updateMany(
+    { employeeId: { $in: [fullTime, secondFullTime].map(s => new mongoose.Types.ObjectId(s.userId)) } },
+    { $set: { employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 } }
+  );
+  // Part 1: preview outside hours (19:00–20:00 VN = 12:00–13:00 UTC) -> INVITE, then hours expand to cover 08:00–21:00 VN
+  const outsideRow = await visit({ start: '2026-11-02T12:00:00Z', areaCode: 'DISTRICT_HOAN_KIEM' }), outsideId = String(outsideRow._id);
+  const previewOutside = await module.dispatch.previewCandidates(staff, outsideId, { startAt: outsideRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(previewOutside.items).toContainEqual(expect.objectContaining({ sitterId: fullTime.userId, canAssignDirectly: false }));
+  await module.dispatch.invite(staff, outsideId, { sitterId: fullTime.userId, expectedVersion: 0, expectedAction: 'INVITE' }, `outside-invite-${outsideId}`);
+  const previewAdditional = await module.dispatch.previewCandidates(staff, outsideId, { startAt: outsideRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(previewAdditional.items).toContainEqual(expect.objectContaining({ sitterId: secondFullTime.userId, canAssignDirectly: false }));
+  // Shift registered hours of secondFullTime to cover 19:00–20:00 VN (visit version remains 1!)
+  await module.repository.availability.updateMine({ actor: secondFullTime, command: {
+    zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30', expectedVersion: 2, idempotencyKey: `expand-${secondFullTime.userId}`,
+    workingWindows: Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '08:00', endLocalTime: '21:00' }))
+  } });
+  await expect(module.dispatch.invite(staff, outsideId, { sitterId: secondFullTime.userId, expectedVersion: 1, expectedAction: 'INVITE' }, `stale-invite-${outsideId}`))
+    .rejects.toMatchObject({ code: 'ACTION_CHANGED', status: 409 });
+  // Pending offer must NOT have been revoked by stale INVITE confirmation
+  expect(await connection.collection('employeevisitoffers').findOne({ visitId: outsideRow._id, sitterId: fullTime.userId })).toMatchObject({ state: 'PENDING' });
+  const refreshed = await module.dispatch.previewCandidates(staff, outsideId, { startAt: outsideRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(refreshed.items).toContainEqual(expect.objectContaining({ sitterId: secondFullTime.userId, canAssignDirectly: true }));
+  const direct = await module.dispatch.invite(staff, outsideId, { sitterId: secondFullTime.userId, expectedVersion: 1, expectedAction: 'DIRECT_ASSIGN' }, `confirmed-direct-${outsideId}`);
+  expect(direct).toMatchObject({ state: 'ASSIGNED', sitterId: secondFullTime.userId, version: 2 });
+
+  // Part 2: preview inside hours -> DIRECT_ASSIGN, then hours shrink outside the slot -> 409 ACTION_CHANGED
+  const dayRow = await visit({ start: '2026-11-02T02:00:00Z', areaCode: 'DISTRICT_HOAN_KIEM' }), dayId = String(dayRow._id);
+  const previewDay = await module.dispatch.previewCandidates(staff, dayId, { startAt: dayRow.startAt.toISOString(), mode: 'MANUAL' });
+  expect(previewDay.items).toContainEqual(expect.objectContaining({ sitterId: fullTime.userId, canAssignDirectly: true }));
+  await module.repository.availability.updateMine({ actor: fullTime, command: {
+    zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30', expectedVersion: 2, idempotencyKey: `shrink-${fullTime.userId}`,
+    workingWindows: Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '13:00', endLocalTime: '18:00' }))
+  } });
+  await expect(module.dispatch.invite(staff, dayId, { sitterId: fullTime.userId, expectedVersion: 0, expectedAction: 'DIRECT_ASSIGN' }, `stale-direct-${dayId}`))
+    .rejects.toMatchObject({ code: 'ACTION_CHANGED', status: 409 });
+  expect(await connection.collection('visits').findOne({ _id: dayRow._id })).toMatchObject({ state: 'SCHEDULED', sitterId: null, version: 0 });
+  expect(await connection.collection('employeevisitoffers').countDocuments({ visitId: dayRow._id })).toBe(0);
+});
+
+test('directed REPLACEMENT preview separates designatedSitter canAssignDirectly (in & outside hours) from replacements', async () => {
+  const designated = await employee({ configure: false }), replacement = await employee({ configure: false });
+  for (const s of [designated, replacement]) {
+    await module.repository.areas.replaceMine({ actor: s, areas: ['DISTRICT_CAU_GIAY'], expectedVersion: 0, idempotencyKey: `setup-cg-${s.userId}` });
+    await module.repository.availability.updateMine({ actor: s, command: { zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30',
+      workingWindows: windows, expectedVersion: 1, idempotencyKey: `setup-cg-win-${s.userId}` } });
+  }
+  await payroll.EmploymentContract.updateMany(
+    { employeeId: { $in: [designated, replacement].map(s => new mongoose.Types.ObjectId(s.userId)) } },
+    { $set: { employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 } }
+  );
+  // In-hours designated sitter -> designatedSitter has canAssignDirectly: true; replacements stay in items without designated
+  const inHours = await visit({ start: '2026-11-02T02:00:00Z', areaCode: 'DISTRICT_CAU_GIAY', requestedSitterId: designated.userId });
+  const previewIn = await module.dispatch.previewCandidates(staff, String(inHours._id), { startAt: inHours.startAt.toISOString(), mode: 'REPLACEMENT' });
+  expect(previewIn.designatedSitter).toMatchObject({ sitterId: designated.userId, employmentType: 'FULL_TIME', canAssignDirectly: true });
+  expect(previewIn.items.map(item => item.sitterId)).toEqual([replacement.userId]);
+  expect(previewIn.items.some(item => item.sitterId === designated.userId)).toBe(false);
+  const assigned = await module.dispatch.invite(staff, String(inHours._id),
+    { sitterId: designated.userId, expectedVersion: 0, expectedAction: 'DIRECT_ASSIGN' }, `directed-direct-${inHours._id}`);
+  expect(assigned).toMatchObject({ state: 'ASSIGNED', sitterId: designated.userId });
+
+  // Outside-hours FULL_TIME designated sitter -> designatedSitter eligible with canAssignDirectly: false (NOT blocked!)
+  const outsideHours = await visit({ start: '2026-11-02T12:00:00Z', areaCode: 'DISTRICT_CAU_GIAY', requestedSitterId: designated.userId });
+  const previewOut = await module.dispatch.previewCandidates(staff, String(outsideHours._id), { startAt: outsideHours.startAt.toISOString(), mode: 'REPLACEMENT' });
+  expect(previewOut.designatedSitter).toMatchObject({ sitterId: designated.userId, employmentType: 'FULL_TIME', canAssignDirectly: false });
+  expect(previewOut.blocked?.some(row => row.sitterId === designated.userId)).toBe(false);
+  const invited = await module.dispatch.invite(staff, String(outsideHours._id),
+    { sitterId: designated.userId, expectedVersion: 0, expectedAction: 'INVITE' }, `directed-invite-${outsideHours._id}`);
+  expect(invited.state).toBe('PENDING');
+  expect(await connection.collection('employeevisitoffers').findOne({ visitId: outsideHours._id, sitterId: designated.userId }))
+    .toMatchObject({ state: 'PENDING', manualOutsideHoursAllowed: true });
+});
+
 test('GBR-12 preserves the sitter accepted by the customer on a reschedule', async () => {
   const { row, workers, offers, first, rerun } = await sequentialFixture({ preferred: true, consent: true });
   await first(`gbr12-consent-${row._id}`);

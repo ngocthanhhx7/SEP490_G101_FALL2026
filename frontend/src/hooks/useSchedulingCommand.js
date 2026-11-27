@@ -51,7 +51,8 @@ const errors = {
   WITHDRAWAL_ALREADY_REQUESTED: 'Buổi này đã có yêu cầu rút đang chờ nhân viên.',
   SITTER_WITHDREW: 'Người chăm sóc này vừa rút khỏi buổi.',
   OFFER_EXPIRED: 'Lời mời đã hết hạn.', VERSION_CONFLICT: 'Dữ liệu đã thay đổi. Hãy tải lại.',
-  SCHEDULING_STORAGE_NOT_READY: 'Chức năng lịch làm việc chưa được kích hoạt đầy đủ.'
+  SCHEDULING_STORAGE_NOT_READY: 'Chức năng lịch làm việc chưa được kích hoạt đầy đủ.',
+  ACTION_CHANGED: 'Điều kiện giao ca đã thay đổi. Hãy kiểm tra lại danh sách rồi xác nhận.'
 };
 export function useSchedulingCommand(onSuccess) {
   const operation = useRef(null), locked = useRef(false);

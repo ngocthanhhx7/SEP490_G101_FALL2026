@@ -411,7 +411,7 @@ describe('the dispatch page', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Gửi thêm lời mời' }));
     fireEvent.click(await dialog.findByRole('radio', { name: /Người bổ sung/ }));
     fireEvent.click(dialog.getByRole('button', { name: 'Gửi lời mời bổ sung', exact: true }));
-    await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, 3, expect.any(String), 's-6'));
+    await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, 3, expect.any(String), 's-6', 'INVITE'));
     await waitFor(() => expect(api.dispatchDetails).toHaveBeenCalledTimes(2));
   });
 

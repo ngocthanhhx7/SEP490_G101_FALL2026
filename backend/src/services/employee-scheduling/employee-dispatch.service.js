@@ -160,10 +160,12 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       });
     })
   } });
-  async function candidates(visit, { manual = false, explain = false, alternatives = false, allowStarted = false } = {}) {
+  async function candidates(visit, { manual = false, explain = false, alternatives = false, allowStarted = false, excludeDirected = false } = {}) {
     const directed = directedSitter(visit);
     const withdrawn = visit.withdrawalDispatch?.sitterId;
-    const sitterFilter = directed && !alternatives ? { _id: directed } : withdrawn ? { _id: { $ne: String(withdrawn) } } : {};
+    const excluded = [...new Set([alternatives && excludeDirected ? directed : null, withdrawn ? String(withdrawn) : null].filter(Boolean))];
+    const sitterFilter = directed && !alternatives ? { _id: directed }
+      : excluded.length ? { _id: { $nin: excluded } } : {};
     const rows = await models.EmployeeAvailability.find({ areas: { $in: await repository.areaKeys(visit.areaCode) }, ...sitterFilter })
       .sort({ _id: 1 }).limit(101).lean();
     if (rows.length > 100) fail('DISPATCH_SEARCH_LIMIT', 'Employee population requires a wider reviewed dispatch search', 409);
@@ -291,17 +293,40 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const manual = input.mode === 'MANUAL' || replacement && startAt.getTime() === visit.startAt.getTime() && areaCode === visit.areaCode;
       if (manual && (startAt.getTime() !== visit.startAt.getTime() || areaCode !== visit.areaCode)) fail('VALIDATION_FAILED', 'Manual preview must retain booked time and area');
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
+      const preferred = directedSitter(visit);
+      const splitDesignated = replacement && manual && Boolean(preferred);
       try {
-        const { sitterIds: ids, blocked = [], diagnostics, assignmentInfo = {} } = await candidates(revised, { manual, explain: manual, alternatives: replacement });
-        const pending = input.mode === 'MANUAL' && !directedSitter(visit) && await models.EmployeeVisitOffer.exists({
+        const replacementResult = await candidates(revised, { manual, explain: manual, alternatives: replacement, excludeDirected: splitDesignated });
+        let { sitterIds: ids, blocked = [], diagnostics, assignmentInfo = {} } = replacementResult;
+        let designatedSitter = null;
+        if (splitDesignated && String(visit.withdrawalDispatch?.sitterId) !== preferred) {
+          const designated = await candidates(revised, { manual: true, explain: true, alternatives: false });
+          const info = designated.assignmentInfo?.[preferred];
+          if (info) designatedSitter = { sitterId: preferred, ...info };
+          if (designated.blocked?.length) blocked = [...designated.blocked, ...blocked];
+          const mergedRejected = { ...diagnostics?.rejected };
+          for (const [code, count] of Object.entries(designated.diagnostics?.rejected ?? {})) {
+            mergedRejected[code] = (mergedRejected[code] ?? 0) + count;
+          }
+          diagnostics = {
+            registered: (diagnostics?.registered ?? 0) + (designated.diagnostics?.registered ?? 0),
+            eligible: (diagnostics?.eligible ?? 0) + (designated.diagnostics?.eligible ?? 0),
+            rejected: mergedRejected
+          };
+        }
+        const pending = input.mode === 'MANUAL' && !preferred && await models.EmployeeVisitOffer.exists({
           visitId: visit._id, state: 'PENDING', deadline: { $gt: new Date(clock()) }
         });
         const invited = pending ? new Set(await models.EmployeeVisitOffer.distinct('sitterId', { visitId: visit._id, sitterId: { $in: ids } })) : new Set();
-        const users = await col('users').find({ _id: { $in: [...ids, ...blocked.map(row => row.sitterId)].map(oid) } }, { projection: { displayName: 1 } }).limit(101).toArray();
-        return { items: ids.filter(sitterId => !invited.has(sitterId)).map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName,
+        const allUserIds = [...new Set([...(designatedSitter ? [designatedSitter.sitterId] : []), ...ids, ...blocked.map(row => row.sitterId)])].map(oid);
+        const users = allUserIds.length ? await col('users').find({ _id: { $in: allUserIds } }, { projection: { displayName: 1 } }).limit(101).toArray() : [];
+        const nameOf = sitterId => users.find(row => String(row._id) === sitterId)?.displayName;
+        if (designatedSitter) designatedSitter = { ...designatedSitter, displayName: nameOf(designatedSitter.sitterId) };
+        return { items: ids.filter(sitterId => !invited.has(sitterId)).map(sitterId => ({ sitterId, displayName: nameOf(sitterId),
           ...(assignmentInfo[sitterId] ?? {}) })),
+          ...(designatedSitter ? { designatedSitter } : {}),
           ...(pending ? { alreadyInvitedCount: invited.size } : {}),
-          ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: users.find(user => String(user._id) === row.sitterId)?.displayName })) } : {}),
+          ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: nameOf(row.sitterId) })) } : {}),
           areaCode, startAt, endAt: revised.endAt };
       } catch (error) {
         if (!error.details?.diagnostics) throw error;
@@ -382,8 +407,11 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           await employeeGuard(input.sitterId, session);
           const eligibility = await eligible(input.sitterId, visit, session, { allowOutsideWorkingHours: true });
           const contract = await repository.contractAt(input.sitterId, visit.startAt, visit.endAt, session);
+          const directAssign = contract.employmentType === 'FULL_TIME' && eligibility.workingHoursCovered === true;
+          if (input.expectedAction && input.expectedAction !== (directAssign ? 'DIRECT_ASSIGN' : 'INVITE'))
+            fail('ACTION_CHANGED', 'Assignment conditions changed; reload candidates before confirming', 409);
           manualOutsideHoursInvitation = contract.employmentType === 'FULL_TIME' && !eligibility.workingHoursCovered;
-          if (contract.employmentType === 'FULL_TIME' && eligibility.workingHoursCovered === true) {
+          if (directAssign) {
             const assignedAt = new Date(clock());
             const needsHandover = handoverPending(visit);
             const changed = await col('visits').updateOne({ _id: visit._id, state: 'SCHEDULED', sitterId: null, version: input.expectedVersion },
