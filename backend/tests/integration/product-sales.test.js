@@ -356,9 +356,9 @@ describe('reading orders', () => {
   });
 });
 
-test.todo('IT-FE23-UC62-04 creates a payOS payment link for a prepaid product order (product-order payOS checkout is not composed)');
-test.todo('IT-FE23-UC62-05 verifies and records a payOS product-order webhook exactly once (product-order payment repository is not composed)');
-test.todo('IT-FE23-UC62-06 cancels an overdue unpaid prepaid order and releases its hold (JOB-04 currently handles pickup expiry only)');
+test.todo('IT-FE23-UC62-04 creates a payOS payment link for a prepaid product order (covered separately from the FE23 cart fixtures)');
+test.todo('IT-FE23-UC62-05 verifies and records a payOS product-order webhook exactly once (covered separately from the FE23 cart fixtures)');
+test.todo('IT-FE23-UC62-06 cancels an overdue unpaid prepaid order and releases its hold (expiry job not run by this suite)');
 
 describe('feature flag', () => {
   test('mounts nothing unless explicitly enabled and rejects invalid values', () => {

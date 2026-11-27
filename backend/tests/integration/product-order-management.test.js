@@ -182,7 +182,7 @@ describe('UC-94 Sale Staff dashboard', () => {
     expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1, LOW_STOCK, CLAIMS_TO_CHECK: 0 });
   });
 
-  test('IT-FE25-UC71-18 keeps the UC-94 Low Stock count consistent with UC-71', async () => {
+  test('IT-FE23-UC94-04 / IT-FE25-UC71-18 keeps the UC-94 Low Stock count consistent with UC-71', async () => {
     await models.Product.updateMany({}, { $set: { stockOnHand: 100, quantityHeld: 0 } });
     await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 0 } });
     const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
@@ -206,8 +206,6 @@ describe('UC-94 Sale Staff dashboard', () => {
     });
   });
 
-  test.todo('IT-FE23-UC94-03 returns the pending faulty product claim count (faulty product claims are not implemented)');
-  test.todo('IT-FE23-UC94-04 returns the low-stock product count (the Sale Staff dashboard does not compose Stock List counts)');
 
   test.each([[null, 401], ['a', 403], ['sitter', 403], ['staff', 403], ['admin', 403]])(
     'restricts dashboard access for %s to HTTP %s', async (actor, status) => {
@@ -404,7 +402,7 @@ describe('handing a delivery order to the carrier', () => {
     expect(mine.body.data).toMatchObject({ status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342' });
   });
 
-  test.todo('IT-FE23-UC64-02 requires a prepaid order to be paid before carrier handover and still permits COD (prepaid product checkout is not implemented)');
+  test.todo('IT-FE23-UC64-02 requires a prepaid order to be paid before carrier handover and still permits COD (mixed-payment handover case not verified here)');
 
   test('cannot be repeated and never takes stock twice', async () => {
     const order = await placeDelivery('a', 'SP-0012', 2);
@@ -655,7 +653,7 @@ describe('pickup orders', () => {
     })).not.toBeNull();
   });
 
-  test('IT-FE23-UC67-02 hands over a fully paid pickup order and deducts its held stock', async () => {
+  test('IT-FE23-UC67-02 / IT-FE25-UC71-14 hands over a fully paid pickup order and deducts its held stock', async () => {
     const order = await placePickup('a', 'SP-0020', 2);
     const ready = await act(order, 'mark-ready');
     expect(ready.body.data.status).toBe('READY');
@@ -892,13 +890,10 @@ describe('cancelling', () => {
   });
 });
 
-test.todo('IT-FE23-UC63-02 lets a Customer cancel an owned Placed order and releases its hold (only Admin cancellation is currently exposed)');
+test.todo('IT-FE23-UC93-03 records an approved faulty-product refund for processing');
+test.todo('IT-FE23-UC93-04 keeps a returned defective item out of sellable stock');
+test.todo('IT-FE23-UC63-02 lets a Customer cancel an owned Placed order and releases its hold (customer cancellation and hold release not verified here)');
 
-test.todo('IT-FE23-UC92-01 creates an owned faulty product claim and notifies Sale Staff (faulty product claims are not implemented)');
-test.todo('IT-FE23-UC93-01 records the Admin claim decision and notifies the Customer (faulty product claims are not implemented)');
-test.todo('IT-FE23-UC93-02 sends an approved replacement and deducts replacement stock (faulty product exchange is not implemented)');
-test.todo('IT-FE23-UC93-03 marks an approved faulty-product refund as requiring refund processing (claim refunds are not implemented)');
-test.todo('IT-FE23-UC93-04 never returns a reported faulty product to sellable stock (faulty product returns are not implemented)');
 
 describe('stock safety', () => {
   test('refuses to change an order whose held stock no longer matches, and changes nothing', async () => {
