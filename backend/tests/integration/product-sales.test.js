@@ -192,12 +192,57 @@ describe('catalog', () => {
 });
 
 describe('cart', () => {
-  test('rejects accumulated quantities above 99 and leaves a purchasable cart', async () => {
-    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 1000 } });
-    await addToCart('a', 'SP-0012', 99);
-    expect((await addToCart('a', 'SP-0012', 99)).status).toBe(422);
-    expect((await api('a').get('/api/v1/product-cart')).body.data.lines[0].quantity).toBe(99);
-    expect((await placePickup('a')).status).toBe(201);
+  test('CART-IN-01-UTCID07 adds exactly 100 from an empty cart and rejects 101 without saving', async () => {
+    const code = 'SP-0012';
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: 102, quantityHeld: 2 } });
+    const rejected = await addToCart('a', code, 101);
+    expect(rejected.status).toBe(409);
+    expect(rejected.body.error).toMatchObject({ code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', available: 100 });
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines).toEqual([]);
+    expect((await addToCart('a', code, 100)).status).toBe(201);
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0])
+      .toMatchObject({ quantity: 100, available: 100, exceedsAvailable: false });
+    expect(await product(code)).toMatchObject({ stockOnHand: 102, quantityHeld: 2 });
+  });
+
+  test('CART-IN-01-UTCID07 adds 1 to 99 and rejects an increment of 2', async () => {
+    const code = 'SP-0012';
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: 102, quantityHeld: 2 } });
+    expect((await addToCart('a', code, 99)).status).toBe(201);
+    const rejected = await addToCart('a', code, 2);
+    expect(rejected.status).toBe(409);
+    expect(rejected.body.error).toMatchObject({ code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', available: 100 });
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0].quantity).toBe(99);
+    expect((await addToCart('a', code, 1)).status).toBe(201);
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0].quantity).toBe(100);
+    expect(await product(code)).toMatchObject({ stockOnHand: 102, quantityHeld: 2 });
+  });
+
+  test('CART-IN-02-UTCID07 sets the quantity to 100 and rejects 101 without changing the cart', async () => {
+    const code = 'SP-0012';
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: 102, quantityHeld: 2 } });
+    expect((await addToCart('a', code, 99)).status).toBe(201);
+    const path = '/api/v1/product-cart/lines/' + await idOf(code);
+    const rejected = await api('a').patch(path).send({ quantity: 101 }).expect(409);
+    expect(rejected.body.error).toMatchObject({ code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', available: 100 });
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0].quantity).toBe(99);
+    await api('a').patch(path).send({ quantity: 100 }).expect(200);
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0])
+      .toMatchObject({ quantity: 100, available: 100, exceedsAvailable: false });
+    expect(await product(code)).toMatchObject({ stockOnHand: 102, quantityHeld: 2 });
+  });
+
+  test('rejects invalid quantities through both cart endpoints without editing the cart', async () => {
+    const code = 'SP-0012';
+    expect((await addToCart('a', code, 1)).status).toBe(201);
+    const productId = await idOf(code);
+    for (const quantity of [0, -1, 1.5, '100', null, Number.MAX_SAFE_INTEGER + 1]) {
+      const added = await api('a').post('/api/v1/product-cart/lines').send({ productId, quantity }).expect(422);
+      const changed = await api('a').patch('/api/v1/product-cart/lines/' + productId).send({ quantity }).expect(422);
+      expect(added.body.error.code).toBe('VALIDATION_FAILED');
+      expect(changed.body.error.code).toBe('VALIDATION_FAILED');
+    }
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0].quantity).toBe(1);
   });
 
   test('two concurrent additions preserve both increments', async () => {
@@ -238,6 +283,19 @@ describe('cart', () => {
 });
 
 describe('placing an order', () => {
+  test('checks out all 150 sellable units and only reserves stock when the order is placed', async () => {
+    const code = 'SP-0012';
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: 152, quantityHeld: 2 } });
+    expect((await addToCart('a', code, 150)).status).toBe(201);
+    expect(await product(code)).toMatchObject({ stockOnHand: 152, quantityHeld: 2 });
+    const placed = (await placePickup('a').expect(201)).body.data;
+    expect(placed.lines[0]).toMatchObject({ quantity: 150 });
+    expect(await models.ProductOrder.findById(placed.id).lean())
+      .toMatchObject({ lines: [expect.objectContaining({ quantity: 150 })] });
+    expect(await product(code)).toMatchObject({ stockOnHand: 152, quantityHeld: 152 });
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines).toEqual([]);
+  });
+
   test('concurrent identical retries return the same order even after the winner empties the cart', async () => {
     await addToCart('a', 'SP-0012', 2);
     const key = idem();

@@ -24,16 +24,16 @@ describe('parseProductQuery', () => {
 });
 
 describe('cart line validators', () => {
-  test('accept a product id and a bounded integer quantity', () => {
+  test('accept a product id and a positive safe integer quantity', () => {
     expect(parseAddCartLine({ productId: id, quantity: 2 })).toEqual({ productId: id, quantity: 2 });
-    expect(parseSetCartLine(id, { quantity: 99 })).toEqual({ productId: id, quantity: 99 });
+    expect(parseSetCartLine(id, { quantity: 150 })).toEqual({ productId: id, quantity: 150 });
   });
 
   test('reject extra fields, zero, fractions, strings and bad ids', () => {
     expect(code(() => parseAddCartLine({ productId: id, quantity: 0 }))).toBe('VALIDATION_FAILED');
     expect(code(() => parseAddCartLine({ productId: id, quantity: 1.5 }))).toBe('VALIDATION_FAILED');
     expect(code(() => parseAddCartLine({ productId: id, quantity: '2' }))).toBe('VALIDATION_FAILED');
-    expect(code(() => parseAddCartLine({ productId: id, quantity: 100 }))).toBe('VALIDATION_FAILED');
+    expect(code(() => parseAddCartLine({ productId: id, quantity: Number.MAX_SAFE_INTEGER + 1 }))).toBe('VALIDATION_FAILED');
     expect(code(() => parseAddCartLine({ productId: 'nope', quantity: 1 }))).toBe('VALIDATION_FAILED');
     expect(code(() => parseAddCartLine({ productId: id, quantity: 1, price: 1 }))).toBe('VALIDATION_FAILED');
     expect(code(() => parseSetCartLine('nope', { quantity: 1 }))).toBe('VALIDATION_FAILED');
