@@ -28,7 +28,12 @@ export function VisitExecution({ api, visitId, onChanged }) {
     return () => globalThis.clearInterval(timer);
   }, [resource.data]);
   function clearFile() { setFile(null); setFileError(''); upload.current = null; if (input.current) input.current.value = ''; }
-  const command = useSchedulingCommand(() => { clearFile(); setItems({}); setCustomerNote(null); resource.retry(); onChanged?.(); });
+  const command = useSchedulingCommand(result => {
+    if (!result?.noteOnly) { clearFile(); setItems({}); }
+    if (result?.noteOnly || resource.data?.workflow?.mode !== 'VERSIONED') setCustomerNote(null);
+    resource.retry();
+    onChanged?.();
+  });
   const row = resource.data, locked = command.busy || command.pending;
   const serverTime = Date.parse(row?.serverNow);
   const time = clockReading && clockReading.row === row ? clockReading.time
@@ -55,15 +60,21 @@ export function VisitExecution({ api, visitId, onChanged }) {
   if (resource.status === 'loading') return <p role="status">Đang tải tiến độ ca…</p>;
   if (resource.status !== 'success') return <p role="alert">Chưa tải được tiến độ ca. <button onClick={resource.retry}>Tải lại tiến độ</button></p>;
   const required = row.checklistItemIds;
-  const label = id => row.checklistItems?.find(item => item.itemId === id)?.label || labels[id] || id;
+  const allChecklistItems = row.checklistItems?.length
+    ? row.checklistItems
+    : (Array.isArray(required) ? required.map(id => ({ itemId: id, label: labels[id] || id, required: true })) : []);
+  const label = id => allChecklistItems.find(item => item.itemId === id)?.label || labels[id] || id;
   const current = id => items[id] ?? row.checklist?.find(item => item.itemId === id) ?? { itemId: id, status: '', reason: '' };
   const complete = Array.isArray(required) && required.every(id => {
     const item = current(id); return item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim();
   });
+  const chosenChecklist = allChecklistItems.map(entry => current(entry.itemId))
+    .filter(item => item.status === 'DONE' || (item.status === 'SKIPPED' && item.reason?.trim()));
+  const checkInBlockedByInstructions = row.state === 'ASSIGNED' && row.careInstructionsPendingAck === true;
   const versioned = row.workflow?.mode === 'VERSIONED';
   const phaseComplete = phase => row.workflow?.tasks.filter(task => task.step.phase === phase).every(task => !['BLOCKED','NEEDS_REVIEW'].includes(task.status) && (!task.step.required || task.status === 'COMPLETED' || task.status === 'SKIPPED' && task.step.canSkip) && task.step.photoSlots.every(slot => task.evidence.filter(photo => photo.photoSlotId === slot.photoSlotId).length >= slot.minPhotos));
   const workflowReady = !versioned || (row.state === 'ASSIGNED' ? phaseComplete('CHECK_IN') : ['CHECK_IN','EXECUTION','CHECK_OUT'].every(phaseComplete));
-  const savedChecklist = versioned || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
+  const savedChecklist = versioned && !allChecklistItems.length || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
   const noteField = <label>Ghi chú cho khách
     <textarea rows={3} maxLength={2000} disabled={expired} value={customerNote ?? row.customerNote ?? ''}
@@ -71,7 +82,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
   </label>;
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
-    {row.workflow?.mode === 'LEGACY' && <p>Ca legacy chưa có workflow snapshot; sử dụng checklist đã lưu của ca.</p>}
+    {row.workflow?.mode === 'LEGACY' && <p>Buổi này dùng danh sách việc đã lưu.</p>}
     <h4>{states[row.state] ?? 'Cần kiểm tra trạng thái ca'}</h4>
     {row.completionAttention === 'COMPLETION_REVIEW_REQUIRED' && <p role="alert">Cần xác minh kết thúc. Buổi đã quá hạn check-out; điều phối và quản trị đã được thông báo để hỗ trợ.</p>}
     {row.completionAttention === 'COMPLETION_VERIFICATION_PENDING' && <p role="status">Đang chờ quản trị đối chiếu bằng chứng và giờ kết thúc thực tế.</p>}
@@ -91,27 +102,35 @@ export function VisitExecution({ api, visitId, onChanged }) {
       <legend>Báo cáo chăm sóc</legend>
       {noteField}
       <Button disabled={customerNote === null || customerNote === (row.customerNote ?? '')} onClick={() => {
-        command.execute(key => api.executeVisit(visitId, 'checklists', { expectedVersion: row.version, customerNote }, key));
+        command.execute(async key => ({
+          ...await api.executeVisit(visitId, 'checklists', { expectedVersion: row.version, customerNote }, key),
+          noteOnly: true
+        }));
       }}>Lưu ghi chú</Button>
     </fieldset>}
-    {!versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked}><legend>Nội dung chăm sóc</legend>
-      {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : required.map(id => {
+    {row.state === 'IN_PROGRESS' && (!versioned || allChecklistItems.length > 0) && <fieldset disabled={locked}><legend>{versioned ? 'Việc bổ sung' : 'Nội dung chăm sóc'}</legend>
+      {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : allChecklistItems.map(entry => {
+        const id = entry.itemId;
         const item = current(id);
-        return <div key={id}><label>{label(id)}<select aria-label={label(id)} value={item.status}
+        return <div key={id}><label>{label(id)}{entry.required === false ? ' (Tuỳ chọn)' : ''}<select aria-label={label(id)} value={item.status}
           onChange={event => setItems(value => ({ ...value, [id]: { ...item, status: event.target.value } }))}>
           <option value="">Chưa ghi nhận</option><option value="DONE">Đã thực hiện</option><option value="SKIPPED">Không thực hiện</option>
         </select></label>{item.status === 'SKIPPED' && <label>Lý do không thực hiện: {label(id)}
           <textarea maxLength={1000} value={item.reason ?? ''} onChange={event => setItems(value => ({ ...value, [id]: { ...item, reason: event.target.value } }))} />
         </label>}</div>;
       })}
-      {noteField}
-      <Button disabled={!complete || locked || (expired && customerNote !== null)} onClick={() => {
-        const payload = { expectedVersion: row.version, items: required.map(id => { const item = current(id); return { itemId: id, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }; }),
-          ...(customerNote !== null ? { customerNote } : {}) };
+      {!versioned && noteField}
+      <Button disabled={!complete || !chosenChecklist.length || locked || (!versioned && expired && customerNote !== null)} onClick={() => {
+        const payload = { expectedVersion: row.version, items: chosenChecklist.map(item => ({
+          itemId: item.itemId, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {})
+        })), ...(!versioned && customerNote !== null ? { customerNote } : {}) };
         command.execute(key => api.executeVisit(visitId, 'checklists', payload, key));
       }}><Check size={18} />Lưu nội dung chăm sóc</Button>
     </fieldset>}
     {['ASSIGNED', 'IN_PROGRESS'].includes(row.state) && <fieldset disabled={locked}><legend>Ảnh bằng chứng {row.state === 'ASSIGNED' ? 'check-in' : 'check-out'}</legend>
+      {checkInBlockedByInstructions && (
+        <p role="alert">Khách đã đổi hướng dẫn chăm sóc. Vui lòng đọc và xác nhận trước khi check-in.</p>
+      )}
       <label><Camera size={18} />Ảnh tại ca chăm sóc<input ref={input} type="file" accept="image/jpeg,image/png" capture="environment" onChange={event => {
         const selected = event.target.files?.[0] ?? null;
         upload.current = null;
@@ -122,7 +141,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
       {fileError && <p role="alert">{fileError}</p>}
       {file && <VisitEvidencePreview file={file} label="Ảnh bằng chứng đã chọn" onRemove={clearFile} disabled={locked} onInvalid={setFileError} />}
       {!api.uploadEvidence && <p role="alert">Chưa có kết nối tải ảnh bằng chứng.</p>}
-      <Button disabled={locked || !workflowReady || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !savedChecklist}
+      <Button disabled={locked || checkInBlockedByInstructions || !workflowReady || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !savedChecklist}
         onClick={() => evidence(row.state === 'ASSIGNED' ? 'check-ins' : 'check-outs')}>
         {row.state === 'ASSIGNED' ? <LogIn size={18} /> : <LogOut size={18} />}{row.state === 'ASSIGNED' ? 'Check-in bắt đầu ca' : 'Check-out hoàn tất ca'}
       </Button>
