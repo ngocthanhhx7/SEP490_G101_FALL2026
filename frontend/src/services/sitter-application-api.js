@@ -47,7 +47,9 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
       try { envelope = await response.json(); }
       catch { throw new ApiError(response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR', response.status); }
       if (!response.ok) throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
-        fieldErrors: envelope?.error?.fieldErrors
+        fieldErrors: envelope?.error?.fieldErrors,
+        conflictField: envelope?.error?.conflictField,
+        reapplyAt: envelope?.error?.reapplyAt
       });
       if (envelope?.meta?.schemaVersion !== 1 || !envelope?.data || typeof envelope.data.id !== 'string'
         || !/^[A-Za-z0-9_-]{22,128}$/.test(envelope.data.applicationCode ?? '')

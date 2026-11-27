@@ -5,6 +5,7 @@ import { CARE_PROFILE_KEYS } from '../../validators/customer-care.validator.js';
 import { handoverConfirmationInput } from '../../validators/visit-handover.validator.js';
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 import { HANDOVER_WINDOW_MS, handoverPending, lateCheckInExempt } from './visit-handover-policy.service.js';
+import { additionalCareChecklist } from './visit-care-instructions.service.js';
 import { workflowMissing, workflowTasks } from './workflow-snapshot.service.js';
 
 const CHECK_IN_WINDOW_MS = 30 * 60000;
@@ -95,8 +96,12 @@ export function createVisitHandoverService({ repository, clock = Date.now }) {
         .select('code name -_id').session(session).maxTimeMS(2000).lean() : [];
       const breedNames = new Map(breeds.map(breed => [breed.code, breed.name]));
       const breedByPet = new Map(pets.map(pet => [String(pet._id), breedNames.get(pet.breedCode)]));
-      const confirmedAt = care.capturedAt instanceof Date && +care.capturedAt === +booking.checkoutSnapshot?.consentAt
-        ? care.capturedAt : null;
+      const confirmedAt = visit.careInstructions?.confirmedAt
+        ?? (care.capturedAt instanceof Date && +care.capturedAt === +booking.checkoutSnapshot?.consentAt
+          ? care.capturedAt : null);
+      const revision = Number.isInteger(visit.currentInstructionVersion)
+        ? visit.currentInstructionVersion
+        : (confirmedAt ? 1 : null);
       return {
         visitId, state: 'PENDING', version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
         bookingCode: booking.bookingCode ?? booking.code ?? null, serviceName: visit.snapshots.serviceName ?? null,
@@ -105,9 +110,11 @@ export function createVisitHandoverService({ repository, clock = Date.now }) {
         note: { reasonCode: note?.reasonCode ?? null, reasonText: note?.reasonText ?? null,
           flaggedAt: note?.flaggedAt ?? null, previousSitterName: nameFor(names, previousSitterId),
           previousVisitCount: previousSitterId ? earlier.filter(row => String(row.sitterId) === String(previousSitterId)).length : null },
-        care: { version: digest(care), revision: confirmedAt ? 1 : null, confirmedAt,
+        care: { version: digest(care), revision, confirmedAt,
           pets: care.pets.map(pet => ({ name: pet.name, profile: careProfile(pet) })),
-          tasks: requiredTaskLabels(visit) },
+          tasks: requiredTaskLabels(visit),
+          ...(visit.snapshots.workflow ? { additionalTasks: additionalCareChecklist(visit).map(({ itemId, label, required }) =>
+            ({ itemId, label, required })) } : {}) },
         reports: earlier.map(row => summarizeReport(row, actor.userId, names)),
         pets: care.pets.map(pet => ({ name: pet.name, breed: breedByPet.get(String(pet.id)) ?? null }))
       };
@@ -138,7 +145,14 @@ export function createVisitHandoverService({ repository, clock = Date.now }) {
           const saved = await visits.updateOne({ _id: visit._id, sitterId: visit.sitterId, version: input.expectedVersion,
             state: 'ASSIGNED', checkInAt: null, handoverRequired: true, handoverAccepted: { $ne: true } }, {
             $set: { handoverAccepted: true, handoverAcceptedAt: at, handoverAcceptedBy: visit.sitterId,
-              careAcknowledgement: { sitterId: actor.userId, version: input.careVersion, acknowledgedAt: at } },
+              careAcknowledgement: { sitterId: actor.userId, version: input.careVersion, acknowledgedAt: at },
+              ...(Number.isInteger(visit.currentInstructionVersion) ? {
+                acknowledgedInstructionVersion: visit.currentInstructionVersion,
+                ...(visit.careInstructions ? {
+                  'careInstructions.acknowledgedBySitterId': actor.userId,
+                  'careInstructions.acknowledgedAt': at
+                } : {})
+              } : {}) },
             $inc: { version: 1 }
           }, { session });
           if (!saved.matchedCount) fail('VERSION_CONFLICT', 'Visit changed', 409);

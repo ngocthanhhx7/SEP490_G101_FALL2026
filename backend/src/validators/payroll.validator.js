@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error.js';
 import { exact, id, number, instant, fail } from './pet-care.validator.js';
 const text = (value, max = 1000) => { if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f\x7f]/.test(value)) fail('VALIDATION_FAILED', 'Text required'); return value.trim(); };
 export function payrollPageInput(value = {}, own = false) {
@@ -40,7 +41,12 @@ export function contractInput(value) {
   number(value.monthlyBaseVnd, 1, Number.MAX_SAFE_INTEGER, true); number(value.weeklyMinutes, 1, 2880, true); number(value.workplaceRegion, 1, 4, true);
   const signedAt = new Date(instant(value.signedAt)), effectiveAt = new Date(instant(value.effectiveAt));
   const endsAt = value.endsAt ? new Date(instant(value.endsAt)) : undefined;
-  if (signedAt > effectiveAt || (endsAt && endsAt <= effectiveAt)) fail('VALIDATION_FAILED', 'Invalid contract dates');
+  if (endsAt && endsAt <= effectiveAt) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'Contract end date must be after start date', {
+      fieldErrors: { endsAt: 'Ngày kết thúc phải sau ngày bắt đầu.' }
+    });
+  }
+  if (signedAt > effectiveAt) fail('VALIDATION_FAILED', 'Invalid contract dates');
   if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.payCycle !== 'MONTHLY' || value.weeklyMinutes < 2400)) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
   if (value.employmentType === 'PART_TIME' && value.monthlyBaseVnd !== 3000000) fail('VALIDATION_FAILED', 'Part-time agreement mismatch');
   return { ...value, signedAt, effectiveAt, ...(endsAt ? { endsAt } : {}), contractReference: text(value.contractReference, 160), workplaceReference: text(value.workplaceReference, 160) };

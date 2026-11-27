@@ -207,7 +207,7 @@ test("APPLICATION-01-UTCID10 [A] Thiếu mặt sau CCCD bị chặn", async () =
 test("APPLICATION-01-UTCID11 [A] Đã có application Pending cùng email không nộp thêm", async () => {
   const f = fixture({ pending: true, applicationState: 'PENDING' });
   const body = input();
-  await expect(f.submit({ body, idempotencyKey: KEY })).rejects.toMatchObject({ code: 'APPLICATION_ALREADY_PENDING' });
+  await expect(f.submit({ body, idempotencyKey: KEY })).rejects.toMatchObject({ code: 'APPLICATION_SUBMISSION_UNAVAILABLE' });
   expect(f.Applicant.create).not.toHaveBeenCalled();
 });
 
@@ -215,7 +215,7 @@ test("APPLICATION-01-UTCID11 [A] Đã có application Pending cùng email không
 test("APPLICATION-01-UTCID12 [A] Đã có application Pending cùng giấy tờ không nộp thêm", async () => {
   const f = fixture({ duplicateIdentity: true, applicationState: 'PENDING' });
   const body = input();
-  await expect(f.submit({ body, idempotencyKey: KEY })).rejects.toMatchObject({ code: 'APPLICATION_ALREADY_PENDING' });
+  await expect(f.submit({ body, idempotencyKey: KEY })).rejects.toMatchObject({ code: 'APPLICATION_SUBMISSION_UNAVAILABLE' });
   expect(f.Applicant.create).not.toHaveBeenCalled();
 });
 
@@ -223,7 +223,7 @@ test("APPLICATION-01-UTCID12 [A] Đã có application Pending cùng giấy tờ 
 test("APPLICATION-01-UTCID13 [A] Bị từ chối chưa qua 30 ngày không nộp lại", async () => {
   const f = fixture({ cooldown: true });
   const body = input();
-  await expect(f.submit({ body, idempotencyKey: KEY })).rejects.toMatchObject({ code: 'REAPPLY_NOT_AVAILABLE' });
+  await expect(f.submit({ body, idempotencyKey: KEY })).rejects.toMatchObject({ code: 'APPLICATION_SUBMISSION_UNAVAILABLE' });
   expect(f.Applicant.create).not.toHaveBeenCalled();
 });
 
