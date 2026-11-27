@@ -86,7 +86,7 @@ export async function provisionHanoiDemo({ connection, auth, referenceCatalog })
         dayOffDates: [], starts, version: 0, changedBy: operator._id });
       // Sample contracts have explicit demo references and a fixed expiry, never real employment evidence.
       await put('EmploymentContract', 'contract-'+key, { employeeId: sitter._id, version: 1, employmentType: 'PART_TIME', salaryBasis: 'GROSS',
-        monthlyBaseVnd: 3000000, payCycle: i%2 ? 'MONTHLY' : 'WEEKLY', weeklyMinutes: 1200, signedAt: origin, effectiveAt: origin,
+        monthlyBaseVnd: 3000000, payCycle: 'MONTHLY', weeklyMinutes: 1200, signedAt: origin, effectiveAt: origin,
         endsAt: new Date('2026-12-29T00:00:00+07:00'), contractReference: 'DEMO-NOT-LEGAL:'+HANOI_DEMO_KEY+':'+key,
         workplaceRegion: 1, workplaceReference: 'DEMO: '+zone.neighbourhood+', Hà Nội', verifiedBy: operator._id, recordedAt: origin });
       // Employee availability uses a string user ID, unlike the other ObjectId models.

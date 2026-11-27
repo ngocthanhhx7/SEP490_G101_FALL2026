@@ -30,8 +30,9 @@ Reusable pieces of the Customer product shop: `ProductCard`, `ProductPhoto` (pho
 `ProductSearch` is the search box and results of `ProductPicker`, exported for the Goods Receipt page, which adds a product as a row instead of a chip. It takes any product API with `listProducts({ search, limit })`.
 
 `HomeProductPreview` loads published products only when Home's product mode is
-selected. `QuantityStepper` enforces the API's 99-per-line ceiling in addition to
-available stock. `ProductPhoto` falls back to the brand mark for broken images.
+selected. `QuantityStepper` uses the maximum supplied by its caller. The online
+cart uses sellable stock and the counter panel applies its own sales limit.
+`ProductPhoto` falls back to the brand mark for broken images.
 
 `ProductCard` adapts Figma 2:3052: database image/name/description/price, dashed footer and explicit cart button. Guest clicks preserve the product on login; confirmed writes update the shared cart, unknown replies require checking/reloading. Styling stays in product-shop.css without competing legacy card overrides.
 

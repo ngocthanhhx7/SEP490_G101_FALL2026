@@ -469,6 +469,15 @@ describe('delivery result (UC-65, AC-04)', () => {
     expect((await act(shipped, 'mark-returning', { carrierReason: 'Late change' })).body.error.code).toBe('ORDER_STATE_CONFLICT');
   });
 
+  test('returns all 150 resellable units of an online order', async () => {
+    const code = 'SP-0012';
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: 152, quantityHeld: 2 } });
+    const order = await returning(await placeShipped('a', [[code, 150]]));
+    const returned = await act(order, 'confirm-returned', await confirmBody([[code, 150]])).expect(200);
+    expect(returned.body.data.lines[0]).toMatchObject({ quantity: 150, resellableQuantity: 150 });
+    expect(await product(code)).toMatchObject({ stockOnHand: 152, quantityHeld: 2 });
+  });
+
   test('AC-04 being returned: asks for the carrier reason and changes nothing without it', async () => {
     const order = await placeShipped('a', [['SP-0012', 2]]);
     for (const body of [{}, { carrierReason: '' }, { carrierReason: '   ' }, { carrierReason: 5 }, { carrierReason: 'x'.repeat(301) },

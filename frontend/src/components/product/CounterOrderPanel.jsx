@@ -30,7 +30,7 @@ export function CounterOrderPanel({ sale }) {
       const quoted = previewState === 'success' ? preview?.lines.find(item => item.productId === line.productId) : null;
       return <div className="counter-line" key={line.productId}>
         <div className="counter-line-name"><strong>{line.productName}</strong><small>{line.productCode}</small></div>
-        <QuantityStepper value={line.quantity} max={line.available ?? COUNTER_LIMITS.quantity} label={`Số lượng ${line.productName}`}
+        <QuantityStepper value={line.quantity} max={Math.min(line.available ?? COUNTER_LIMITS.quantity, COUNTER_LIMITS.quantity)} label={`Số lượng ${line.productName}`}
           disabled={locked} onChange={value => sale.change(line, value)} onLimit={() => sale.limit(line)} />
         <strong className="counter-line-total">{formatVnd(order ? line.lineTotal : quoted?.lineTotal) || '—'}</strong>
         {!order && <button type="button" className="pwc-shop-link-button" aria-label={`Bỏ ${line.productName}`} disabled={locked} onClick={() => sale.remove(line.productId)}>Bỏ</button>}

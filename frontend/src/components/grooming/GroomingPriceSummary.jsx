@@ -4,7 +4,7 @@ import { appointmentLabel } from '../../utils/grooming-booking.js';
 import { formatVnd } from '../../utils/product-format.js';
 
 // "Giá cuối": the price of each service by pet size, of each pet, the tier discount and the total, the chosen time and the shop.
-export function GroomingPriceSummary({ quote, priceReady, date, slot, address, notice, canConfirm, busy, onConfirm, onRetry }) {
+export function GroomingPriceSummary({ quote, priceReady, date, slot, address, notice, canConfirm, busy, onConfirm, onRetry, pickupFeeVnd = null }) {
   const data = priceReady ? quote.data : null;
   const tierName = data ? GROOMING_TIERS[data.tier.code] ?? '' : '';
   const held = data && data.tier.discountVnd === 0 && data.tier.code && ['OVERDUE', 'PREPAID_ONLY'].includes(data.tier.blockedReason);
@@ -21,7 +21,8 @@ export function GroomingPriceSummary({ quote, priceReady, date, slot, address, n
       <dl className="grooming-totals">
         {data.tier.discountVnd > 0 && <div><dt>Ưu đãi hạng {tierName}</dt><dd>− {formatVnd(data.tier.discountVnd)}</dd></div>}
         {held && <div><dt>Ưu đãi hạng {tierName}</dt><dd>chưa áp dụng</dd></div>}
-        <div className="grooming-grand"><dt>Tổng</dt><dd>{formatVnd(data.totalVnd)}</dd></div>
+        {pickupFeeVnd !== null && <div><dt>Phí đón (cả hai chiều)</dt><dd>{formatVnd(pickupFeeVnd)}</dd></div>}
+        <div className="grooming-grand"><dt>Tổng</dt><dd>{formatVnd(data.totalVnd + (pickupFeeVnd ?? 0))}</dd></div>
       </dl>
     </>}
     {slot && <div className="grooming-when"><strong>{appointmentLabel(date, slot.time)}</strong>{address && <span>{address}</span>}</div>}

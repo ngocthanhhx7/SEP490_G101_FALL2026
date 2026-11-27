@@ -8,13 +8,38 @@ import { createEmployeePayrollApi } from '../../src/services/employee-payroll-ap
 afterEach(cleanup);
 const employeeId = 'a'.repeat(24);
 const contract = { id: 'contract', employmentType: 'PART_TIME', monthlyBaseVnd: 3000000, weeklyMinutes: 1200,
-  payCycle: 'WEEKLY', salaryBasis: 'GROSS', effectiveAt: '2020-01-01', version: 1 };
+  payCycle: 'MONTHLY', salaryBasis: 'GROSS', effectiveAt: '2020-01-01', version: 1 };
 const apiFixture = () => ({ own: jest.fn().mockResolvedValue({ contracts: [contract], advances: [], statements: [] }),
   submit: jest.fn().mockResolvedValue({}), advanceDecision: jest.fn().mockResolvedValue({}),
   advances: jest.fn().mockResolvedValue({ items: [] }), statements: jest.fn().mockResolvedValue({ items: [] }),
   adjustments: jest.fn().mockResolvedValue({ items: [] }), submitAdjustment: jest.fn().mockResolvedValue({}), adjustmentDecision: jest.fn().mockResolvedValue({}),
   contract: jest.fn().mockResolvedValue({}), prepare: jest.fn().mockResolvedValue({}) });
 const fill = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+
+test.each([
+  ['APPROVE', 'Lý do duyệt'],
+  ['REJECT', 'Lý do từ chối']
+])('SAL-IN-03-UTCID01 Admin must give a reason to %s a salary advance', async (action, label) => {
+  const api = apiFixture();
+  api.advances.mockResolvedValue({ items: [{ id: 'pending-advance', employeeId, amountVnd: 100000,
+    status: 'SUBMITTED', version: 2, reason: 'Synthetic advance request' }] });
+  render(<EmployeePayrollAdminPage api={api} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Xem / xử lý' }));
+  fireEvent.change(screen.getByLabelText('Quyết định'), { target: { value: action } });
+  const reason = screen.getByLabelText(label);
+  const save = screen.getByRole('button', { name: 'Lưu quyết định' });
+  expect(reason).toBeRequired();
+  fireEvent.click(save);
+  fill(label, '   ');
+  expect(reason).toBeInvalid();
+  fireEvent.click(save);
+  expect(api.advanceDecision).not.toHaveBeenCalled();
+  fill(label, 'Synthetic decision reason');
+  fireEvent.click(save);
+  await waitFor(() => expect(api.advanceDecision).toHaveBeenCalledWith('pending-advance', {
+    action, expectedVersion: 2, reason: 'Synthetic decision reason'
+  }, expect.any(String)));
+});
 
 test('Admin can void an approved unpaid salary only with reason and explicit no-payment attestation', async () => {
   const api = apiFixture(); api.statementDecision = jest.fn().mockResolvedValue({});
@@ -56,10 +81,10 @@ test('a commission hold explains how to prepare salary again without claiming pa
   expect(screen.queryByText('Đã lưu.')).toBeNull();
 });
 
-test('employee sees monthly gross and weekly cycle, and retries unknown advance acknowledgement with same key', async () => {
+test('employee sees monthly gross and the monthly cycle, and retries unknown advance acknowledgement with the same key', async () => {
   const api = apiFixture(); api.submit.mockRejectedValueOnce({ code: 'TIMEOUT' });
   render(<EmployeePayrollPage api={api} />);
-  await screen.findByText('Bán thời gian'); expect(screen.getByText('Gross/tháng')).toBeTruthy(); expect(screen.getByText('Hàng tuần')).toBeTruthy();
+  await screen.findByText('Bán thời gian'); expect(screen.getByText('Gross/tháng')).toBeTruthy(); expect(screen.getByText('Hàng tháng')).toBeTruthy();
   fill('Số tiền (VND)', '1000000'); fill('Tháng đối trừ thỏa thuận', '2026-11'); fill('Mã thỏa thuận đối trừ', 'agreed-installment'); fill('Lý do đề nghị', 'Synthetic reason');
   fireEvent.click(screen.getByText('Gửi đề nghị'));
   await screen.findByText(/TIMEOUT/);
@@ -99,7 +124,10 @@ test('Admin verifies contract with explicit workplace and approved monthly gross
   expect(api.contract.mock.calls[0][0]).toMatchObject({ monthlyBaseVnd: 10000000, salaryBasis: 'GROSS', payCycle: 'MONTHLY', workplaceRegion: 1 });
 });
 
-test('Admin contract form resolves the selected employee and version instead of accepting a guessed version', async () => {
+test.each([
+  ['FULL_TIME', 10_000_000, 2400],
+  ['PART_TIME', 3_000_000, 1200]
+])('Admin contract form sends MONTHLY for %s with separate weekly hours and the authoritative version', async (employmentType, monthlyBaseVnd, weeklyMinutes) => {
   const api = apiFixture(), employeeApi = { get: jest.fn().mockResolvedValue({ data: {
     id: employeeId, displayName: 'Synthetic employee', contractVersion: 0, permissions: { manageContract: true },
     application: { employmentType: 'PART_TIME' }
@@ -111,14 +139,16 @@ test('Admin contract form resolves the selected employee and version instead of 
   fireEvent.change(form.elements.employeeId, { target: { value: employeeId } });
   await screen.findByText('Nhân viên: Synthetic employee');
   expect(screen.getByLabelText('Hình thức làm việc')).toHaveValue('PART_TIME');
-  fill('Hình thức làm việc', 'FULL_TIME');
+  fill('Hình thức làm việc', employmentType);
+  expect(screen.getByLabelText('Kỳ trả theo hợp đồng')).toHaveValue('Hàng tháng');
+  expect(screen.getByLabelText('Kỳ trả theo hợp đồng')).toHaveAttribute('readonly');
   expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveValue(0);
   expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveAttribute('readonly');
-  fill('Phút làm việc mỗi tuần', '2400'); fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-30');
+  fill('Phút làm việc mỗi tuần', String(weeklyMinutes)); fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-30');
   fill('Mã hồ sơ hợp đồng đã ký', 'synthetic-signed'); fill('Vùng lương nơi làm việc', '1'); fill('Phường/xã và căn cứ xác định vùng', 'Synthetic workplace');
   fireEvent.submit(form);
   await waitFor(() => expect(api.contract).toHaveBeenCalledWith(expect.objectContaining({ employeeId, expectedVersion: 0,
-    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000 }), expect.any(String)));
+    employmentType, monthlyBaseVnd, weeklyMinutes, payCycle: 'MONTHLY' }), expect.any(String)));
 });
 
 test.each([{ pending: true }, { data: { id: employeeId, version: 4 } }, { data: null }])('contract transport rejects unconfirmed acknowledgement %j', async result => {
@@ -145,7 +175,7 @@ test('Admin payroll freezes an uncertain contract and retries the same payload a
 
 test('API uses payroll endpoints and preserves CSRF/idempotency transport contract', async () => {
   const request = jest.fn().mockResolvedValue({ data: { id: employeeId,version:3,status:'APPROVED' } }); const api = createEmployeePayrollApi(request);
-  const body = { action: 'APPROVE', expectedVersion: 2 };
+  const body = { action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic approval reason' };
   expect(await api.advanceDecision(employeeId, body, 'stable-operation')).toEqual({ id: employeeId,version:3,status:'APPROVED' });
   expect(request).toHaveBeenCalledWith(`/payroll/advances/${employeeId}/decisions`, { method: 'POST', body, idempotencyKey: 'stable-operation' });
 });

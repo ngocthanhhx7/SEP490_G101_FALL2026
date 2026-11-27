@@ -163,25 +163,25 @@ describe('Product Details', () => {
     expect(screen.getByRole('link', { name: 'Xem giỏ hàng' })).toHaveAttribute('href', '/customer/cart');
   });
 
-  test('AC-13 pressing + at the sellable quantity shows MSG58 and the number does not go up (D-219)', async () => {
-    const api = fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ available: 2 }) }) });
+  test.each([2, 100])('AC-13 pressing + at %i sellable units shows MSG58 (D-219)', async (available) => {
+    const api = fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ available }) }) });
     show(api, '/products/p1');
     await screen.findByRole('heading', { name: /^Thức ăn hạt cho chó/ });
     const quantity = () => screen.getByRole('status', { name: 'Số lượng' });
     const increase = screen.getByRole('button', { name: 'Tăng số lượng' });
-    fireEvent.click(increase);
-    expect(quantity()).toHaveTextContent('2');
+    for (let value = 1; value < available; value++) fireEvent.click(increase);
+    expect(quantity()).toHaveTextContent(String(available));
     expect(screen.queryByText(/Chỉ còn/)).not.toBeInTheDocument();
     fireEvent.click(increase);
-    expect(screen.getByText('Chỉ còn 2 sản phẩm. Vui lòng giảm số lượng.')).toBeVisible();
-    expect(quantity()).toHaveTextContent('2');
+    expect(screen.getByText('Chỉ còn ' + available + ' sản phẩm. Vui lòng giảm số lượng.')).toBeVisible();
+    expect(quantity()).toHaveTextContent(String(available));
     expect(increase).toBeEnabled();
     expect(increase).not.toHaveAttribute('aria-disabled');
     expect(api.addToCart).not.toHaveBeenCalled();
     // The warning is about the old number, so it goes once the customer lowers it.
     fireEvent.click(screen.getByRole('button', { name: 'Giảm số lượng' }));
     expect(screen.queryByText(/Chỉ còn/)).not.toBeInTheDocument();
-    expect(quantity()).toHaveTextContent('1');
+    expect(quantity()).toHaveTextContent(String(available - 1));
   });
 
   test('ST-CTR-06 shows MSG58 when the cart already holds remaining stock and the customer presses +', async () => {
@@ -253,6 +253,19 @@ describe('Shopping Cart', () => {
     await waitFor(() => expect(api.setCartLine).toHaveBeenCalledWith('p1', 3));    fireEvent.click(await screen.findByRole('button', { name: /Xoá .* khỏi giỏ hàng/ }));
     await waitFor(() => expect(api.removeCartLine).toHaveBeenCalledWith('p1'));
     expect(await screen.findByText('Giỏ hàng của bạn đang trống. Vui lòng chọn sản phẩm trước.')).toBeVisible();
+  });
+
+  test('increments a cart line from 99 to its 100 sellable units', async () => {
+    const api = fakeApi({
+      getCart: jest.fn().mockResolvedValue({ data: cartOf([line({ quantity: 99, available: 100 })]) }),
+      setCartLine: jest.fn().mockResolvedValue(cartOf([line({ quantity: 100, available: 100 })]))
+    });
+    show(api, '/customer/cart');
+    const increase = await screen.findByRole('button', { name: 'Tăng số lượng' });
+    fireEvent.click(increase);
+    await waitFor(() => expect(api.setCartLine).toHaveBeenCalledWith('p1', 100));
+    expect(await screen.findByText('100')).toBeVisible();
+    expect(increase).toBeDisabled();
   });
 
   test('AC-14 keeps + locked at the sellable quantity in the cart, unlike Product Details', async () => {

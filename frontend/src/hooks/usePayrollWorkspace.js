@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const PAYROLL_ERROR_MESSAGES = {
   PAYROLL_COMMISSION_HELD: 'Hoa hồng của booking đang được tạm giữ. Nếu chưa chi trả, hãy hủy bảng chưa chi và lập lại bảng lương; lương cơ bản và phụ cấp không bị khấu trừ. Hoặc chờ Admin kết luận khiếu nại/hoàn tiền.',
+  PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED: 'Cần xác minh hợp đồng trả lương hằng tháng trước khi lập bảng lương.',
   ADVANCE_MONTH_ALREADY_USED: 'Tháng này bạn đã có một đề nghị tạm ứng. Mỗi tháng chỉ gửi được một đề nghị.',
   ADVANCE_LIMIT_EXCEEDED: 'Số tiền tạm ứng vượt quá hạn mức cho phép của hợp đồng.',
   CONTRACT_REQUIRED: 'Bạn cần có hợp đồng đang hiệu lực để gửi đề nghị tạm ứng.',

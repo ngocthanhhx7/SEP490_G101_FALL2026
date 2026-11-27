@@ -58,7 +58,7 @@ function makeReceipt({ data, eventId, orderCode, receivedAt }) {
 // A prepaid product order is paid through the same webhook as a booking. Its intent says `kind: 'PRODUCT_ORDER'` and
 // reports `orderState` instead of `bookingState`; a booking intent has no kind and is handled exactly as before.
 const isOrderIntent = intent => intent?.kind === 'PRODUCT_ORDER';
-const kindOf = intent => (isOrderIntent(intent) ? { kind: 'PRODUCT_ORDER' } : {});
+const kindOf = intent => (isOrderIntent(intent) || intent?.kind === 'COUNTER_BOOKING' ? { kind: intent.kind } : {});
 
 function reconcile(reason, intent) {
   return {

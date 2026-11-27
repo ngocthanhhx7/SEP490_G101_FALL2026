@@ -100,7 +100,7 @@ export function BookingDetailsContent({ booking, visitActions }) {
           <Row label="Giá một buổi">{summary(price.visitPricesVnd.map(amount))}</Row>
           <Row label="Giảm nhiều buổi">{price.discountVnd > 0 ? `− ${amount(price.discountVnd)}` : amount(price.discountVnd)}</Row>
           {price.tierDiscountVnd !== null && price.tierDiscountVnd !== undefined &&
-            <Row label={`Giảm giá hạng ${({ MEMBER: 'Member', SILVER: 'Silver', GOLD: 'Gold' })[price.tierCode] ?? ''}`}>
+            <Row label={`Giảm giá hạng ${({ MEMBER: 'Thành viên', SILVER: 'Bạc', GOLD: 'Vàng', DIAMOND: 'Kim cương' })[price.tierCode] ?? ''}`}>
               {price.tierDiscountVnd > 0 ? `− ${amount(price.tierDiscountVnd)}` : amount(price.tierDiscountVnd)}
             </Row>}
           <Row label="Tổng"><strong className="booking-details__total">{amount(price.totalVnd)}</strong></Row>
@@ -135,7 +135,13 @@ export function BookingDetailsContent({ booking, visitActions }) {
               </time></td>
               <td>{time(visit.startAt)} – {time(visit.endAt)}{visit.endAt && date(visit.startAt) !== date(visit.endAt) && ` (${date(visit.endAt)})`}</td>
               <td>{visit.sitterName ?? '—'}</td>
-              <td><span className="booking-details__status" data-state={visit.state}>{visitStatus[visit.state] ?? 'Đang cập nhật'}</span></td>
+              <td><span className="booking-details__status" data-state={visit.state}>{visitStatus[visit.state] ?? 'Đang cập nhật'}</span>
+                {visit.pickup && <div>
+                  <p>Đón và trả tận nhà · {visit.pickup.addressText} · {(visit.pickup.distanceMeters / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km · {amount(visit.pickup.feeVnd)}</p>
+                  {visit.pickup.pickedUpAt && <p>Đã đón</p>}
+                  {visit.pickup.returnedAt && <p>Đã trả về nhà</p>}
+                </div>}
+              </td>
               <td>{visitActions?.reportForVisit?.(visit) ?? '—'}</td>
               {visitActions?.forVisit && visitActions.showColumn !== false && <td>{visitActions.forVisit(visit)}</td>}
             </tr>)}</tbody>

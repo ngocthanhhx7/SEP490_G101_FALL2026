@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarCheck } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
@@ -13,6 +13,8 @@ import { GROOMING_TIERS, msg65 } from '../../constants/grooming-messages.js';
 import { appointmentLabel } from '../../utils/grooming-booking.js';
 import { formatVnd } from '../../utils/product-format.js';
 import { hasRole } from '../../utils/role-access.js';
+import { useApiResource } from '../../hooks/useApiResource.js';
+import { PickupSelectionField, pickupReady, pickupInput, pickupPrice } from '../../components/common/PickupSelectionField.jsx';
 import '../../components/grooming/grooming-booking.css';
 
 function Booked({ appointment, onAnother }) {
@@ -25,6 +27,7 @@ function Booked({ appointment, onAnother }) {
       {shop.address && <div><dt>Cửa hàng</dt><dd>{shop.address}</dd></div>}
       {appointment.pets.map(pet => <div key={pet.petId}><dt>{pet.name}</dt><dd>{pet.services.map(service => service.name).join(', ')} · {formatVnd(pet.finalPriceVnd)}</dd></div>)}
       {pricing.tierDiscountVnd > 0 && <div><dt>Ưu đãi hạng {GROOMING_TIERS[appointment.tier?.code] ?? ''}</dt><dd>− {formatVnd(pricing.tierDiscountVnd)}</dd></div>}
+      {appointment.pickup && <div><dt>Đón và trả tận nhà</dt><dd>{(appointment.pickup.distanceMeters / 1000).toFixed(1)} km · {formatVnd(appointment.pickup.feeVnd)}</dd></div>}
       <div className="grooming-grand"><dt>Tổng</dt><dd>{formatVnd(pricing.totalVnd)}</dd></div>
     </dl>
     <div className="grooming-actions">
@@ -35,6 +38,9 @@ function Booked({ appointment, onAnother }) {
 
 function GroomingBooking({ api, serviceId, onAnother }) {
   const flow = useGroomingBooking({ api, serviceId });
+  const [pickup, setPickup] = useState(null);
+  const loadAddresses = useCallback(options => api.addresses ? api.addresses(options) : Promise.resolve({ data: [] }), [api]);
+  const addresses = useApiResource(loadAddresses);
   const { setup, options } = flow;
   if (setup.status === 'loading') return <p role="status">Đang tải thông tin đặt lịch…</p>;
   if (setup.status !== 'success') {
@@ -53,9 +59,11 @@ function GroomingBooking({ api, serviceId, onAnother }) {
       <GroomingQuestionsSection pets={flow.pets} options={options} picked={flow.picked} hotline={options.shop.hotline} onAnswer={flow.answer} />
       <GroomingSlotsSection options={options} date={flow.date} time={flow.time} slots={flow.slots} hasPets={hasPets}
         onDate={flow.chooseDate} onTime={flow.chooseTime} onRetry={flow.reloadSlots} />
+      {api.pickupQuote && <PickupSelectionField addresses={addresses.data ?? []} api={api} value={pickup} onChange={setPickup} />}
     </fieldset>
     <GroomingPriceSummary quote={flow.quote} priceReady={flow.priceReady} date={flow.date} slot={flow.selectedSlot} address={options.shop.address}
-      notice={flow.notice} canConfirm={flow.canConfirm && !options.groomingPaymentOutstanding} busy={flow.busy} onConfirm={flow.confirm} onRetry={flow.reloadQuote} />
+      notice={flow.notice} canConfirm={flow.canConfirm && (flow.pending || pickupReady(pickup)) && !options.groomingPaymentOutstanding}
+      pickupFeeVnd={pickup ? pickupPrice(pickup) : null} busy={flow.busy} onConfirm={() => flow.confirm(pickupInput(pickup))} onRetry={flow.reloadQuote} />
   </div></>;
 }
 

@@ -15,7 +15,9 @@ function fixture() {
     EmployeeAvailability: { find: () => query(data.available) },
     EmployeeVisitOffer: { db: { models: { PayrollMonthGuard: {} }, model: () => ({}) }, exists: async () => false, distinct: async () => [] },
     EmployeeScheduleEvent: { distinct: async () => [] }
-  }, uow: {}, employeeGuard: jest.fn(), eligible: jest.fn(async () => ({ weeklyWorkMinutes: 60 })), areaKeys: async () => ['AREA_1'], coverageAreas: [{ code: 'AREA_1' }] };
+  }, uow: {}, employeeGuard: jest.fn(), eligible: jest.fn(async () => ({ weeklyWorkMinutes: 60, workingHoursCovered: true })),
+  contractAt: jest.fn(async () => ({ employmentType: 'PART_TIME' })),
+  areaKeys: async () => ['AREA_1'], coverageAreas: [{ code: 'AREA_1' }] };
   const service = createEmployeeDispatchService({ repository, clock: () => Date.parse('2026-11-18T03:00:00Z') });
   return { actor, visit, data, repository, service, input: { startAt: visit.startAt.toISOString(), mode: 'MANUAL' } };
 }

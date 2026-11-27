@@ -12,6 +12,11 @@ export function createServiceBasketApi(options) {
       return response;
     },
     async checkoutOptions({ signal } = {}) { return request('/checkout/options', { signal }); },
+    async pickupQuote(body, { signal } = {}) {
+      const result = await request('/checkout/pickup-quotes', { method: 'POST', body, signal });
+      if (result.pending || typeof result.data?.allowed !== 'boolean') throw new ApiError('INVALID_RESPONSE');
+      return result.data;
+    },
     async availability(body, { signal } = {}) {
       const response = await request('/checkout/availability', { method: 'POST', body, signal });
       if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
