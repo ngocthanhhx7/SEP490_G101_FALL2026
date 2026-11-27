@@ -647,6 +647,225 @@ describe('discount hold rule', () => {
   });
 });
 
+describe('VietQR link recovery and expiry regression', () => {
+  const makeCounter = (tick, prov) => createCounterCheckout({
+    connection, clock: () => tick(),
+    pricing: createPricingService({ repository, clock: () => tick() }),
+    checkout: createBookingCheckoutService({ connection, clock: () => tick(), facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider: prov, webOrigin: 'http://localhost:5173'
+  });
+  // Minimal stub that lets checkout succeed but whose qrView call will not cache a URL,
+  // so we can inject crash state before calling status() with the real recovery provider.
+  const checkoutStub = {
+    createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
+      checkoutUrl: 'https://pay.payos.vn/web/stub-initial', paymentLinkId: 'stub-initial' })
+  };
+
+  test('JOB-CT-01: process crashes before payOS responds — qrView retries creation after recovery delay', async () => {
+    // Checkout succeeds normally (stub provider), then we simulate a crash by wiping
+    // checkoutUrl/paymentLinkId and setting linkState: CREATING with an old enough timestamp.
+    await sitter();
+    let tick = NOW;
+    const stubCounter = makeCounter(() => tick, checkoutStub);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await stubCounter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await stubCounter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'crash-recovery-test');
+    expect(pending.status).toBe('PENDING');
+
+    // Simulate crash: wipe saved link, set CREATING with old timestamp (> RECOVERY_DELAY_MS=60s)
+    const crashedAt = new Date(tick - 70000);
+    await db.collection('paymentintents').updateOne(
+      { _id: new mongoose.Types.ObjectId(pending.intentId) },
+      { $set: { linkState: 'CREATING', linkRequestedAt: crashedAt },
+        $unset: { checkoutUrl: '', paymentLinkId: '' } }
+    );
+
+    // Recovery provider: getPaymentLink → PAYOS_LINK_NOT_FOUND, then createPaymentLink succeeds
+    let createCalls = 0;
+    const recoveryProvider = {
+      createPaymentLink: async input => {
+        createCalls++;
+        return { orderCode: input.orderCode, amount: input.amount,
+          checkoutUrl: 'https://pay.payos.vn/web/recovered-link', paymentLinkId: 'recovered' };
+      },
+      getPaymentLink: async () => { throw Object.assign(new Error('not found'), { code: 'PAYOS_LINK_NOT_FOUND' }); }
+    };
+    const counter = makeCounter(() => tick, recoveryProvider);
+    const status = await counter.status(actors.ADMIN, pending.receiptId);
+    expect(status.checkoutUrl).toBe('https://pay.payos.vn/web/recovered-link');
+    expect(createCalls).toBe(1);
+    const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(intent.linkState).toBe('READY');
+  });
+
+  test('JOB-CT-02: link created but response lost — qrView recovers via PAYOS_LINK_NOT_FOUND then creates new', async () => {
+    // Checkout with stub, then wipe checkoutUrl to simulate the process dying before saving the URL.
+    await sitter();
+    let tick = NOW;
+    const stubCounter = makeCounter(() => tick, checkoutStub);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await stubCounter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await stubCounter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'response-lost-test');
+
+    // Inject crash state: CREATING with no checkoutUrl, old enough for recovery
+    await db.collection('paymentintents').updateOne(
+      { _id: new mongoose.Types.ObjectId(pending.intentId) },
+      { $set: { linkState: 'CREATING', linkRequestedAt: new Date(tick - 70000) },
+        $unset: { checkoutUrl: '', paymentLinkId: '' } }
+    );
+
+    const counter = makeCounter(() => tick, {
+      createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
+        checkoutUrl: 'https://pay.payos.vn/web/reissued', paymentLinkId: 'reissued' }),
+      getPaymentLink: async () => { throw Object.assign(new Error('not found'), { code: 'PAYOS_LINK_NOT_FOUND' }); }
+    });
+    const status = await counter.status(actors.ADMIN, pending.receiptId);
+    expect(status.checkoutUrl).toBe('https://pay.payos.vn/web/reissued');
+    const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(intent.linkState).toBe('READY');
+  });
+
+  test('JOB-CT-03: expiry with no link ever requested — expireBatch releases booking and spa without calling payOS', async () => {
+    // Checkout with stub, wipe link state so intent looks like "never submitted", then expire.
+    await db.collection('paymentintents').deleteMany({}); // isolate from earlier tests' intents
+    await sitter();
+    let tick = NOW;
+    let getPaymentLinkCalls = 0;
+    const stubCounter = makeCounter(() => tick, checkoutStub);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await stubCounter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await stubCounter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'no-link-expiry-test');
+    // Wipe link fields to simulate "never submitted"
+    await db.collection('paymentintents').updateOne(
+      { _id: new mongoose.Types.ObjectId(pending.intentId) },
+      { $unset: { linkState: '', linkRequestedAt: '', checkoutUrl: '', paymentLinkId: '' } }
+    );
+    // Advance clock past the 15-min expiry
+    tick += 16 * 60000;
+    const counter = makeCounter(() => tick, {
+      getPaymentLink: async () => { getPaymentLinkCalls++; return null; }
+    });
+    // expireBatch must expire without asking payOS (no linkRequestedAt)
+    const result = await counter.expireBatch();
+    expect(result).toMatchObject({ expired: 1 });
+    expect(getPaymentLinkCalls).toBe(0);
+    expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+      .toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED' });
+  });
+
+  test('JOB-CT-04: expireBatch paginates past 50 unreconciled intents — deferred ones do not block later intents', async () => {
+    await sitter();
+    let tick = NOW;
+    const expiredAt = new Date(tick - 60000); // already overdue
+
+    // Insert 51 synthetic counter intents: first 50 have linkState CREATING (unverifiable),
+    // last 1 has no linkState (never submitted — safe to expire directly).
+    const intentsCol = db.collection('paymentintents');
+    const deferredIds = [];
+    for (let i = 0; i < 50; i++) {
+      const _id = new mongoose.Types.ObjectId();
+      deferredIds.push(_id);
+      const receiptId = 'synthetic-deferred-receipt-' + i;
+      await db.collection('financesourcecommands').insertOne({
+        _id: receiptId, fingerprint: 'x', result: { status: 'PENDING', totalVnd: 100000, receivedBy: actors.ADMIN.userId },
+        createdAt: new Date(tick - 120000)
+      });
+      await intentsCol.insertOne({ _id, kind: 'COUNTER_BOOKING', provider: 'PAYOS',
+        providerReference: String(1000000000 + i), state: 'PENDING', version: 0,
+        amountVnd: 100000, currency: 'VND', expiresAt: expiredAt,
+        customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId),
+        counterReceiptId: receiptId, counterStaffId: actors.ADMIN.userId,
+        // linkState CREATING with very recent timestamp — canRecoverUnpublishedAttempt returns false
+        linkState: 'CREATING', linkRequestedAt: new Date(tick - 5000),
+        counterPreview: { input: {}, totals: { totalVnd: 100000 } },
+        createdAt: new Date(tick - 120000) });
+    }
+
+    // Last intent: never submitted (no linkState, no linkRequestedAt)
+    const lastId = new mongoose.Types.ObjectId();
+    const lastReceiptId = 'synthetic-last-receipt';
+    await db.collection('financesourcecommands').insertOne({
+      _id: lastReceiptId, fingerprint: 'y', result: { status: 'PENDING', totalVnd: 50000, receivedBy: actors.ADMIN.userId },
+      createdAt: new Date(tick - 120000)
+    });
+    await intentsCol.insertOne({ _id: lastId, kind: 'COUNTER_BOOKING', provider: 'PAYOS',
+      providerReference: String(2000000000), state: 'PENDING', version: 0,
+      amountVnd: 50000, currency: 'VND', expiresAt: expiredAt,
+      customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId),
+      counterReceiptId: lastReceiptId, counterStaffId: actors.ADMIN.userId,
+      counterPreview: { input: {}, totals: { totalVnd: 50000 } },
+      createdAt: new Date(tick - 110000) });
+
+    // Provider cannot verify any of the deferred ones (throws network error)
+    const unverifiableProvider = {
+      getPaymentLink: async () => { throw new Error('network error'); }
+    };
+    const counter = makeCounter(() => tick, unverifiableProvider);
+
+    // First expireBatch: fetches first 50 (by _id), all deferred — cursor advances
+    const r1 = await counter.expireBatch();
+    expect(r1.expired).toBe(0);
+    expect(r1.deferred).toBe(50);
+
+    // Second expireBatch: cursor points after the 50th, so fetches the last one (no linkState → safe to expire)
+    const r2 = await counter.expireBatch();
+    expect(r2.expired).toBe(1);
+
+    expect(await intentsCol.findOne({ _id: lastId })).toMatchObject({ state: 'EXPIRED' });
+    // The 50 deferred ones are still PENDING
+    expect(await intentsCol.countDocuments({ _id: { $in: deferredIds }, state: 'PENDING' })).toBe(50);
+  });
+
+  test('JOB-CT-05: spa notification timing — only "awaiting payment" before webhook, "paid" after', async () => {
+    await db.collection('notifications').deleteMany({});
+    await sitter();
+    let tick = NOW;
+    const provider = {
+      createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
+        checkoutUrl: 'https://pay.payos.vn/web/spa-notif', paymentLinkId: 'spa-notif' }),
+      verifyWebhook: async body => body
+    };
+    const counter = makeCounter(() => tick, provider);
+    const { Notification } = notificationModels(connection);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await counter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'spa-notif-test');
+    expect(pending.status).toBe('PENDING');
+
+    // Before webhook: notification must say "chờ thanh toán", NOT the paid confirmation
+    const notifBefore = await Notification.findOne({ recipientId: actors.CUSTOMER.userId, eventType: 'BOOKING_CREATED' }).lean();
+    expect(notifBefore).not.toBeNull();
+    expect(notifBefore.message).toMatch(/chờ thanh toán/);
+    expect(notifBefore.message).not.toMatch(/và thanh toán\./);
+
+    // Send payment webhook
+    const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    const webhook = createPayosPaymentWebhookService({ provider, clock: () => new Date(tick),
+      repository: createMongoPaymentWebhookRepository({ connection, getCounterCheckout: () => counter }) });
+    const payload = { orderCode: Number(intent.providerReference), reference: 'spa-notif-bank-ref',
+      amount: pending.totalVnd, currency: 'VND', code: '00', paymentLinkId: 'spa-notif',
+      transactionDateTime: new Date(tick).toISOString() };
+    expect(await webhook.handleWebhook(payload)).toEqual({ status: 'PAYMENT_VERIFIED' });
+
+    // After webhook: notification message must be updated to "đã...thanh toán" (not "chờ thanh toán")
+    const notifAfter = await Notification.findOne({ recipientId: actors.CUSTOMER.userId, eventType: 'BOOKING_CREATED' }).lean();
+    expect(notifAfter.message).not.toMatch(/chờ thanh toán/);
+    expect(notifAfter.message).toMatch(/và thanh toán\./);
+  });
+});
+
 describe('storage', () => {
   test('populated legacy command storage stops provisioning for review and is preserved', async () => {
     const legacy = db.collection('groomingcommands');
