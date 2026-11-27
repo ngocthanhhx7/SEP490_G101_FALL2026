@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { createBookingCheckoutController } from '../controllers/booking-checkout.controller.js';
 import { createBookingCheckoutService } from '../services/booking-proposals/booking-checkout.service.js';
 import { createBookingCancellationService } from '../services/booking-proposals/booking-cancellation.service.js';
+import { createVisitCareInstructionsService } from '../services/care/visit-care-instructions.service.js';
+import { createVisitCareInstructionsController } from '../controllers/visit-care-instructions.controller.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { loadPayosConfig, createPayosProvider } from '../services/providers/payos/payos.provider.js';
@@ -39,6 +41,7 @@ export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clo
     pickup: createCounterPickupService({ connection, settings: createPickupFeeSettings({ connection, clock }), facilityCoordinates,
       routeDistance: createPickupDrivingRoute({ baseUrl: config.ai?.routingUrl }) }) });
   const cancellation = createBookingCancellationService({ connection, clock, provider: paymentProvider });
+  const careInstructions = createVisitCareInstructionsController(createVisitCareInstructionsService({ connection, clock }));
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const router = Router(), c = createBookingCheckoutController(service), cancel = createBookingCheckoutController(cancellation), csrf = requireCsrf(session);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, requireSession(session, { clock }), requireRoles('CUSTOMER'));
@@ -49,6 +52,8 @@ export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clo
   router.post('/pickup-quotes', csrf, rateLimit({ windowMs: 300000, limit: 60, keyGenerator: req => req.auth.userId,
     standardHeaders: 'draft-8', legacyHeaders: false }), c.pickupQuote);
   router.get('/bookings/:id', c.read);
+  router.get('/bookings/:id/care-instructions', careInstructions.read);
+  router.put('/bookings/:id/visits/:visitId/care-instructions', csrf, careInstructions.confirm);
   router.post('/bookings/:id/payment-link', csrf, c.paymentLink);
   router.post('/bookings/:id/cancellation-preview', csrf, cancel.cancellationPreview);
   router.post('/bookings/:id/cancellations', csrf, cancel.cancelBooking);

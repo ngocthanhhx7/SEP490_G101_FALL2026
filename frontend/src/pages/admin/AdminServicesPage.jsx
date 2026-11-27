@@ -99,7 +99,7 @@ export function AdminServicesPage({ apiRequest: suppliedRequest }) {
       else {
         if (response.data?.id) setSelectedId(response.data.id);
         setEditing(false);
-        setFeedback({ state: 'success', text: 'Máy chủ đã ghi nhận phiên bản dịch vụ mới.' });
+        setFeedback({ state: 'success', text: 'Đã lưu phiên bản dịch vụ mới.' });
         resource.retry();
       }
     } catch (error) {
@@ -121,7 +121,7 @@ export function AdminServicesPage({ apiRequest: suppliedRequest }) {
       if (response.pending) setFeedback({ state: 'pending', text: 'Yêu cầu đang xử lý. Tải lại để xác nhận.' });
       else {
         setPolicyForm(blankPolicy());
-        setFeedback({ state: 'success', text: 'Máy chủ đã ghi nhận phiên bản chính sách mới.' });
+        setFeedback({ state: 'success', text: 'Đã lưu phiên bản chính sách mới.' });
         resource.retry();
       }
     } catch (error) {
@@ -143,10 +143,9 @@ export function AdminServicesPage({ apiRequest: suppliedRequest }) {
     <header className="admin-services-header">
       <div><BrandLogo className="admin-services-logo" /><p className="admin-services-eyebrow">QUẢN TRỊ DỊCH VỤ</p>
         <h1>Quản lý dịch vụ</h1><p>Mô tả dịch vụ, phạm vi chăm sóc và chính sách đang áp dụng.</p></div>
-      <span className="admin-services-provisional">Đề xuất · Figma chưa đối chiếu</span>
     </header>
     <div className="admin-services-toolbar">
-      <p>Thay đổi tạo phiên bản theo thời điểm hiệu lực. Booking đã tạo giữ snapshot cũ.</p>
+      <p>Thay đổi áp dụng theo thời điểm hiệu lực. Lịch đặt đã tạo giữ nguyên thông tin cũ.</p>
       <Button variant="secondary" onClick={resource.retry} disabled={pending}>Tải lại</Button>
     </div>
     {feedback && <Notice state={feedback.state} title={feedback.state === 'success' ? 'Đã lưu' : 'Chưa hoàn tất'}>{feedback.text}</Notice>}
@@ -156,7 +155,7 @@ export function AdminServicesPage({ apiRequest: suppliedRequest }) {
           {isAdmin && <Button onClick={() => { setSelectedId(''); setForm(blankService()); setEditing(false); setFeedback(null); }}>Thêm dịch vụ</Button>}
         </div>
         {resource.status === 'loading' && <Notice state="loading" title="Đang tải dịch vụ">Đang lấy dữ liệu mới nhất.</Notice>}
-        {resource.status === 'pending' && <Notice state="pending" title="Danh mục đang chờ">Máy chủ chưa xác nhận dữ liệu cuối cùng.</Notice>}
+        {resource.status === 'pending' && <Notice state="pending" title="Danh mục đang chờ">Chưa xác nhận được dữ liệu cuối cùng.</Notice>}
         {resource.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem">Yêu cầu này không được phép.</Notice>}
         {resource.status === 'error' && <Notice state="error" title="Không tải được dịch vụ"
           action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>}>Tải lại sau khi kết nối được khôi phục.</Notice>}
@@ -233,7 +232,7 @@ export function AdminServicesPage({ apiRequest: suppliedRequest }) {
             onChange={event => setPolicyForm({ ...policyForm, effectiveAt: event.target.value })} />
           <Input label="Lý do thay đổi" required minLength={3} maxLength={500} value={policyForm.reason}
             onChange={event => setPolicyForm({ ...policyForm, reason: event.target.value })} />
-          <p className="admin-service-policy-note">Chỉ nhập nội dung đã được duyệt. Booking cũ giữ snapshot chính sách đã chấp thuận.</p>
+          <p className="admin-service-policy-note">Chỉ nhập nội dung đã được duyệt. Lịch đặt cũ giữ nguyên chính sách đã chấp thuận.</p>
           <Button type="submit" loading={pending} loadingLabel="Đang xuất bản…">Xuất bản chính sách</Button>
         </form>}
       </section>

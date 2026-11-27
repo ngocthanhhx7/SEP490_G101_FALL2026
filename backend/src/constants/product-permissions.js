@@ -12,5 +12,8 @@ export const PRODUCT_PERMISSIONS = Object.freeze({
   SELL_AT_COUNTER: Object.freeze(['ADMIN', 'SALE_STAFF']),
   RECORD_GOODS_RECEIPTS: Object.freeze(['ADMIN', 'SALE_STAFF']),
   VIEW_STOCK: Object.freeze(['ADMIN', 'SALE_STAFF']),
-  ADJUST_STOCK: Object.freeze(['ADMIN'])
+  ADJUST_STOCK: Object.freeze(['ADMIN']),
+  HANDLE_FAULTY_CLAIMS: Object.freeze(['ADMIN', 'SALE_STAFF']),
+  PROCESS_FAULTY_CLAIMS: Object.freeze(['SALE_STAFF']),
+  DECIDE_FAULTY_CLAIMS: Object.freeze(['ADMIN'])
 });

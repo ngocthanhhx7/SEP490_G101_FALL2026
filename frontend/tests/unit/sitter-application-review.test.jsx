@@ -7,6 +7,9 @@ import { jest } from '@jest/globals';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SitterApplicationReviewPage } from '../../src/pages/admin/SitterApplicationReviewPage.jsx';
 
+const checked = { validIdentity: true, adult: true, portrait: true, petExperience: true };
+const checkLabels = ['CCCD hợp lệ', 'Đủ 18 tuổi', 'Có ảnh chân dung', 'Có kinh nghiệm với thú cưng'];
+
 describe('Admin sitter application review', () => {
   test('requires a rejection reason and sends a versioned Admin decision', async () => {
     const application = { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Nguyễn Văn A',
@@ -66,7 +69,8 @@ test('approval requires a decision reason and describes upgrading the verified a
   const application = { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Ứng viên thử nghiệm',
     contact: { channel: 'EMAIL', value: 'applicant@example.test' }, ageEligible: true,
     experience: 'Có kinh nghiệm chăm sóc.', requestedServices: ['Chăm sóc'], workAreas: ['Hà Nội'],
-    documents: [], state: 'INTERVIEW', version: 3 };
+    documents: [], state: 'INTERVIEW', version: 3,
+    assessment: { checklist: checked, callAt: '2026-11-27T02:00:00.000Z', outcome: 'PASSED', version: 2 } };
   const api = { get: jest.fn(async () => ({ data: application })),
     decide: jest.fn(async () => ({ data: { state: 'APPROVED' } })) };
   render(<MemoryRouter initialEntries={[`/admin/applications/${application.id}`]}>
@@ -89,15 +93,53 @@ test('only the current workflow step is actionable before an interview decision'
     timeline: [{ state: 'PENDING', occurredAt: '2026-10-30T08:00:00Z' }] };
   const api = { get: jest.fn(async () => ({ data: { ...application } })),
     startReview: jest.fn(async () => { application.state = 'UNDER_REVIEW'; application.version = 1; }),
+    saveAssessment: jest.fn(async ({ checklist, callAt, outcome }) => {
+      application.assessment = { checklist, callAt, outcome, version: 1 };
+    }),
     startInterview: jest.fn(async () => { application.state = 'INTERVIEW'; application.version = 2; }), decide: jest.fn() };
   render(<MemoryRouter initialEntries={[`/admin/applications/${application.id}`]}><Routes>
     <Route path="/admin/applications/:applicationId" element={<SitterApplicationReviewPage api={api} />} />
   </Routes></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu thẩm định' }));
   expect(screen.queryByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' })).not.toBeInTheDocument();
-  fireEvent.click(await screen.findByRole('button', { name: 'Chuyển sang phỏng vấn' }));
+  const move = await screen.findByRole('button', { name: 'Chuyển sang phỏng vấn' });
+  expect(move).toBeDisabled();
+  for (const label of checkLabels) fireEvent.click(screen.getByRole('checkbox', { name: label }));
+  expect(move).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu thẩm định' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Chuyển sang phỏng vấn' })).toBeEnabled());
+  for (const label of checkLabels) expect(screen.getByRole('checkbox', { name: label })).toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Chuyển sang phỏng vấn' }));
   expect(await screen.findByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' })).toBeVisible();
   expect(api.startReview).toHaveBeenCalledWith({ applicationId: application.id, expectedVersion: 0 });
+  expect(api.saveAssessment).toHaveBeenCalledWith(expect.objectContaining({ applicationId: application.id, expectedVersion: 1,
+    expectedAssessmentVersion: 0, checklist: checked, callAt: null, outcome: null }));
   expect(api.startInterview).toHaveBeenCalledWith({ applicationId: application.id, expectedVersion: 1 });
   expect(api.decide).not.toHaveBeenCalled();
+});
+
+test('an older interview opens for editing and requires a saved call time and passing result to approve', async () => {
+  const application = { id: 'a'.repeat(24), displayName: 'Ứng viên cũ', contact: { channel: 'EMAIL', value: 'old@example.test' },
+    requestedServices: [], workAreas: [], documents: [], state: 'INTERVIEW', version: 2 };
+  const api = { get: jest.fn(async () => ({ data: { ...application } })),
+    saveAssessment: jest.fn(async ({ checklist, callAt, outcome }) => {
+      application.assessment = { checklist, callAt, outcome, version: (application.assessment?.version ?? 0) + 1 };
+    }) };
+  render(<MemoryRouter><SitterApplicationReviewPage api={api} applicationId={application.id} /></MemoryRouter>);
+  const approval = () => screen.getByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' });
+  expect(await screen.findByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' })).toBeDisabled();
+  for (const label of checkLabels) fireEvent.click(screen.getByRole('checkbox', { name: label }));
+  fireEvent.change(screen.getByLabelText('Thời gian gọi (giờ Việt Nam)'), { target: { value: '2026-11-27T09:00' } });
+  fireEvent.change(screen.getByLabelText('Kết quả phỏng vấn'), { target: { value: 'UNREACHABLE' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu thẩm định' }));
+  await screen.findByText('Đã lưu thẩm định hồ sơ.');
+  expect(await screen.findByLabelText('Kết quả phỏng vấn')).toHaveValue('UNREACHABLE');
+  expect(approval()).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Từ chối hồ sơ' })).toBeEnabled();
+  fireEvent.change(screen.getByLabelText('Kết quả phỏng vấn'), { target: { value: 'PASSED' } });
+  expect(approval()).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu thẩm định' }));
+  await waitFor(() => expect(approval()).toBeEnabled());
+  expect(api.saveAssessment).toHaveBeenLastCalledWith(expect.objectContaining({ expectedVersion: 2, expectedAssessmentVersion: 1,
+    checklist: checked, callAt: '2026-11-27T09:00:00+07:00', outcome: 'PASSED' }));
 });

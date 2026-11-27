@@ -16,7 +16,7 @@ function requestMessage(error) {
   if (error?.code === 'ADDRESS_VERSION_CONFLICT') return 'Địa chỉ đã được cập nhật ở nơi khác. Tải lại trước khi tiếp tục.';
   if (error?.code === 'CSRF_NOT_READY') return 'Phiên bảo mật chưa sẵn sàng. Vui lòng đăng nhập lại.';
   if (error?.code === 'TIMEOUT' || error?.code === 'NETWORK_ERROR') {
-    return 'Chưa nhận được xác nhận từ máy chủ. Tải lại danh sách để kiểm tra trước khi gửi lại.';
+    return 'Chưa nhận được xác nhận. Tải lại danh sách để kiểm tra trước khi gửi lại.';
   }
   return 'Không thể lưu địa chỉ lúc này. Kiểm tra thông tin rồi thử lại.';
 }
@@ -71,7 +71,7 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
     setFormError('');
     setActionError('');
     setActionFeedback(result?.pending
-      ? 'Máy chủ đang xử lý thay đổi. Tải lại danh sách để đối chiếu kết quả.'
+      ? 'Đang xử lý thay đổi. Tải lại danh sách để kiểm tra kết quả.'
       : successMessage);
     setPageCursors([]);
     resource.retry();
@@ -151,7 +151,7 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
     setActionFeedback('');
     try {
       const result = await adapter.update(address.id, { isDefault: true, expectedVersion: address.version });
-      setActionFeedback(result?.pending ? 'Đang chờ xác nhận máy chủ cho địa chỉ mặc định.' : 'Đã gửi cập nhật địa chỉ mặc định.');
+      setActionFeedback(result?.pending ? 'Đang chờ xác nhận địa chỉ mặc định.' : 'Đã gửi cập nhật địa chỉ mặc định.');
       resource.retry();
     } catch (error) {
       setActionError(requestMessage(error));
@@ -169,7 +169,7 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
   return <section className="customer-addresses" aria-labelledby="customer-addresses-title">
     <header className="customer-addresses-heading">
       <div>
-        <span className="customer-addresses-eyebrow">HỒ SƠ CUSTOMER</span>
+        <span className="customer-addresses-eyebrow">HỒ SƠ KHÁCH HÀNG</span>
         <h1 id="customer-addresses-title">Địa chỉ phục vụ</h1>
         <p>Quản lý địa chỉ đến chăm sóc và hướng dẫn riêng cho từng nơi.</p>
       </div>
@@ -181,12 +181,12 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
     {resource.status === 'loading' && <div className="customer-addresses-loading" role="status" aria-label="Đang tải địa chỉ">
       <span /><span /><span />
     </div>}
-    {resource.status === 'pending' && <Notice state="pending" title="Đang chờ máy chủ xác nhận danh sách">
+    {resource.status === 'pending' && <Notice state="pending" title="Đang chờ xác nhận danh sách">
       Có thể tải lại để kiểm tra trạng thái đã lưu.
       <Button variant="secondary" onClick={resource.retry}>Tải lại</Button>
     </Notice>}
     {resource.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem địa chỉ">
-      Chỉ Customer đang đăng nhập mới được xem địa chỉ trong hồ sơ của mình.
+      Vui lòng đăng nhập tài khoản khách hàng để xem địa chỉ của bạn.
     </Notice>}
     {resource.status === 'error' && <Notice state="error" title="Không tải được địa chỉ"
       action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>}>
@@ -198,7 +198,7 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
     </Notice>}
 
     {resource.status === 'success' && addresses.length > 0 && <>
-      <p className="customer-addresses-privacy">Ghi chú ra vào chỉ hiển thị trong hồ sơ của bạn. Sitter được giao chỉ nhận bản snapshot trong cửa sổ truy cập của buổi chăm sóc.</p>
+      <p className="customer-addresses-privacy">Ghi chú ra vào chỉ hiển thị trong hồ sơ của bạn. Pet sitter của buổi chỉ xem được thông tin đã lưu khi xác nhận trong khung giờ cho phép.</p>
       <div className="customer-addresses-list" aria-label="Danh sách địa chỉ">
         {addresses.map(address => <article className="customer-address-card" key={address.id}>
           <div className="customer-address-card-heading">
@@ -236,7 +236,7 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
 
     <Dialog open={['create', 'edit'].includes(dialog?.type)} onClose={() => setDialog(null)}
       title={dialog?.type === 'edit' ? 'Sửa địa chỉ' : 'Thêm địa chỉ'} className="mobile-flow-dialog"
-      description="Địa chỉ và ghi chú được kiểm tra lại ở máy chủ." dismissible={!actionPending}>
+      description="Nhập địa chỉ và ghi chú ra vào cho buổi chăm sóc tại nhà." dismissible={!actionPending}>
       <form className="customer-address-form" onSubmit={saveAddress}>
         <Input label="Tên gợi nhớ" value={draft.label} autoComplete="off" maxLength={60} required
           onChange={event => setDraft(value => ({ ...value, label: event.target.value }))}
@@ -251,7 +251,7 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
           <label className="pwc-label" htmlFor={accessNotesId}>Ghi chú ra vào riêng</label>
           <textarea id={accessNotesId} className="pwc-control" rows="4" maxLength={1000} value={draft.privateAccessNotes}
             onChange={event => setDraft(value => ({ ...value, privateAccessNotes: event.target.value }))} />
-          <small className="pwc-hint">Không ghi thông tin thanh toán. Ghi chú chỉ được chia sẻ với sitter được giao theo thời hạn truy cập.</small>
+          <small className="pwc-hint">Không ghi thông tin thanh toán. Chỉ pet sitter được phân công mới xem được trong thời gian quy định.</small>
         </div>
         {formError && <Notice state="error" title="Chưa lưu được địa chỉ">{formError}</Notice>}
         <div className="customer-address-dialog-actions">
@@ -262,9 +262,9 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
     </Dialog>
 
     <Dialog open={dialog?.type === 'archive'} onClose={() => setDialog(null)} intent="destructive"
-      title="Ẩn địa chỉ này?" description="Địa chỉ sẽ không còn xuất hiện khi tạo lịch mới. Booking đã xác nhận giữ snapshot hiện tại."
+      title="Ẩn địa chỉ này?" description="Địa chỉ sẽ không còn xuất hiện khi tạo lịch đặt mới. Lịch đặt đã xác nhận giữ nguyên thông tin đã lưu."
       dismissible={!actionPending}>
-      <p>Địa chỉ được lưu trữ mềm để giữ nguyên lịch sử booking.</p>
+      <p>Địa chỉ được ẩn để giữ nguyên lịch sử các lịch đặt trước đó.</p>
       {actionError && <Notice state="error" title="Chưa ẩn được địa chỉ">{actionError}</Notice>}
       <div className="customer-address-dialog-actions">
         <Button variant="secondary" disabled={actionPending} onClick={() => setDialog(null)}>Giữ địa chỉ</Button>
@@ -273,8 +273,8 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
     </Dialog>
 
     <Dialog open={dialog?.type === 'edit-impact' || dialog?.type === 'archive-impact'} onClose={() => setDialog(null)}
-      intent="destructive" title="Xác nhận ảnh hưởng booking đang mở"
-      description="Booking hiện có tiếp tục dùng snapshot địa chỉ và hướng dẫn đã lưu khi xác nhận. Thay đổi chỉ áp dụng cho các lựa chọn mới."
+      intent="destructive" title="Xác nhận ảnh hưởng lịch đặt đang mở"
+      description="Lịch đặt hiện có vẫn dùng địa chỉ và hướng dẫn đã lưu khi xác nhận. Thay đổi chỉ áp dụng cho lịch đặt mới."
       dismissible={!actionPending}>
       <p>Hãy xác nhận để tiếp tục {dialog?.type === 'archive-impact' ? 'ẩn địa chỉ' : 'sửa địa chỉ'}.</p>
       <div className="customer-address-dialog-actions">

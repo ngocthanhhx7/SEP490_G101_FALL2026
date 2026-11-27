@@ -16,7 +16,9 @@ function checkQuote(data) {
   return data;
 }
 function checkSlots(data) {
-  if (!data || !Array.isArray(data.slots) || data.slots.some(row => !text(row?.startAt) || !text(row.time) || !['AVAILABLE', 'FULL'].includes(row.state))) invalid();
+  if (!data || !Array.isArray(data.slots) || data.slots.some(row => !text(row?.startAt) || !text(row.time)
+    || !['AVAILABLE', 'FULL', 'PET_ALREADY_BOOKED'].includes(row.state)
+    || (row.state === 'PET_ALREADY_BOOKED' && row.conflictPetName !== undefined && !text(row.conflictPetName)))) invalid();
   return data;
 }
 function checkAppointment(data) {

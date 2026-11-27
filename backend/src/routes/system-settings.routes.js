@@ -62,6 +62,17 @@ export function systemSettingsModule({
     router.get('/pickup', ...admin, pickupController.current);
     router.get('/pickup/history', ...admin, pickupController.history);
     router.post('/pickup', ...admin, csrf, pickupController.update);
+    router.get(
+      '/faulty-product-report-days',
+      ...staff,
+      createSystemSettingsController({ service }).getFaultyProductReportDays
+    );
+    router.put(
+      '/faulty-product-report-days',
+      ...admin,
+      csrf,
+      createSystemSettingsController({ service }).updateFaultyProductReportDays
+    );
   }
 
   return {

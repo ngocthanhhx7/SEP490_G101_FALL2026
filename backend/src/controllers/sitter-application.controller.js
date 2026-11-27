@@ -70,6 +70,10 @@ export function createSitterApplicationController({ service, intake } = {}) {
         })
       );
     },
+    updateByApplicationIdAssessment: async (req, res) => respond(res, req, 200, await service.saveAssessment({
+      applicationId: req.params.applicationId, body: req.body, idempotencyKey: req.get('idempotency-key'),
+      actor: req.auth, correlationId: req.requestId
+    })),
     createByApplicationIdDecisions: async (req, res) => {
       const result = await service.decide({
         applicationId: req.params.applicationId,

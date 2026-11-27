@@ -86,10 +86,52 @@ test('return URL reads actual unpaid state; a disabled provider never creates a 
   expect(screen.queryByText('Thanh toán qua payOS')).toBeNull(); expect(api.booking).toHaveBeenCalledWith('booking', expect.any(Object));
 });
 
-test('expired booking has no payment command', async () => {
+test('expired booking has no payment command and displays MSG67', async () => {
   const api = apiFixture(); api.booking.mockResolvedValue({ id: 'booking', totalVnd: 120000, state: 'PAYMENT_EXPIRED', paymentState: 'UNPAID', paymentDeadlineAt: '2020-01-01', visits: [] });
   render(<MemoryRouter initialEntries={['/services?booking=booking']}><BookingConfirmation api={api} /></MemoryRouter>);
-  await screen.findByText('Hết hạn thanh toán'); expect(screen.queryByText('Tạo link thanh toán')).toBeNull();
+  await screen.findByText('Hết hạn thanh toán');
+  expect(screen.getByText('Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.')).toBeVisible();
+  expect(screen.queryByText('Tạo link thanh toán')).toBeNull();
+});
+
+test('ST-BKG-02 shows MSG31 toast once on paid return and does not replay on reload', async () => {
+  window.sessionStorage.clear();
+  const api = apiFixture();
+  api.booking.mockResolvedValue({ id: 'booking-paid', totalVnd: 120000, state: 'DISPATCH_PENDING', paymentState: 'PAID', visits: [] });
+  const { unmount } = render(<MemoryRouter initialEntries={['/account/bookings/booking-paid?payment=returned']}>
+    <BookingConfirmation api={api} bookingId="booking-paid" />
+  </MemoryRouter>);
+  expect(await screen.findByText('Đã nhận thanh toán. Cảm ơn bạn!')).toBeVisible();
+  expect(screen.queryByText(/MSG31|MSG32|MSG33/)).toBeNull();
+  unmount();
+  render(<MemoryRouter initialEntries={['/account/bookings/booking-paid?payment=returned']}>
+    <BookingConfirmation api={api} bookingId="booking-paid" />
+  </MemoryRouter>);
+  await screen.findByText('Đã thanh toán');
+  expect(screen.queryByText('Đã nhận thanh toán. Cảm ơn bạn!')).toBeNull();
+});
+
+test('ST-BKG-02 shows pending confirmation notice when returned from payOS before webhook completes', async () => {
+  window.sessionStorage.clear();
+  const api = apiFixture();
+  api.booking.mockResolvedValue({ id: 'booking-pending', totalVnd: 120000, state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] });
+  render(<MemoryRouter initialEntries={['/account/bookings/booking-pending?payment=returned']}>
+    <BookingConfirmation api={api} bookingId="booking-pending" />
+  </MemoryRouter>);
+  expect(await screen.findByText('Đang chờ xác nhận thanh toán từ payOS. Nếu bạn vừa thanh toán, hãy bấm cập nhật trạng thái đơn sau ít giây.')).toBeVisible();
+  expect(screen.queryByText('Đã nhận thanh toán. Cảm ơn bạn!')).toBeNull();
+});
+
+test('ST-BKG-16 shows inline MSG32 without code suffix on cancelled return and keeps payment button usable', async () => {
+  window.sessionStorage.clear();
+  const api = apiFixture();
+  api.booking.mockResolvedValue({ id: 'booking-cancel', totalVnd: 120000, state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] });
+  render(<MemoryRouter initialEntries={['/account/bookings/booking-cancel?payment=cancelled']}>
+    <BookingConfirmation api={api} bookingId="booking-cancel" />
+  </MemoryRouter>);
+  expect(await screen.findByText('Thanh toán chưa thành công. Vui lòng thử lại.')).toBeVisible();
+  expect(screen.queryByText(/\(MSG32\)|\(MSG33\)/)).toBeNull();
+  expect(screen.getByRole('button', { name: 'Tạo link thanh toán' })).toBeEnabled();
 });
 
 test('recommended checkout freezes the selected service schedule and carries only the match reference', async () => {

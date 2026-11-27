@@ -127,6 +127,7 @@ export function createApp({
   app.locals.bookingChange = bookingChange?.service ?? null;
   app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
   app.locals.visitReminders = employeeScheduling?.visitReminders ?? null;
+  app.locals.lateCheckInAlerts = employeeScheduling?.lateCheckInAlerts ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });

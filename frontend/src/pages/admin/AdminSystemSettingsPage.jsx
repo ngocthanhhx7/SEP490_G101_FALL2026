@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { BrandLogo, Button, Input, Notice, Select } from '../../components/ui/index.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BrandLogo, Button, Input, Notice, Select, Toast } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
@@ -95,6 +95,10 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
   const [reason, setReason] = useState('');
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [faultyDays, setFaultyDays] = useState('7');
+  const [faultyDaysError, setFaultyDaysError] = useState('');
+  const [savingFaultyDays, setSavingFaultyDays] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const apiRequest = useMemo(() => suppliedRequest ?? createApiClient({
     getCsrfToken: session.getCsrfToken, onUnauthorized: session.invalidate
   }), [suppliedRequest, session.getCsrfToken, session.invalidate]);
@@ -102,6 +106,39 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
   const resource = useApiResource(load);
   const overview = resource.data;
   const current = overview?.catalogVisibility;
+  const currentFaultyDays = overview?.faultyProductReportDays;
+
+  useEffect(() => {
+    if (currentFaultyDays?.days !== undefined) {
+      setFaultyDays(String(currentFaultyDays.days));
+    }
+  }, [currentFaultyDays?.days, currentFaultyDays?.version]);
+
+  const saveFaultyDays = async event => {
+    event.preventDefault();
+    if (!isAdmin || savingFaultyDays) return;
+    const trimmed = String(faultyDays).trim();
+    const parsed = Number(trimmed);
+    if (!/^[1-9]\d*$/.test(trimmed) || !Number.isSafeInteger(parsed) || parsed < 1 || parsed > 365) {
+      setFaultyDaysError('Vui lòng nhập số nguyên lớn hơn 0.');
+      return;
+    }
+    setSavingFaultyDays(true);
+    setFaultyDaysError('');
+    setFeedback(null);
+    try {
+      await apiRequest('/system-settings/faulty-product-report-days', {
+        method: 'PUT',
+        body: { expectedVersion: currentFaultyDays?.version ?? 0, days: parsed }
+      });
+      setToastMessage('Đã lưu thay đổi.');
+      resource.retry();
+    } catch (error) {
+      setFaultyDaysError(error?.status === 422 ? 'Vui lòng nhập số nguyên lớn hơn 0.' : errorMessage(error));
+    } finally {
+      setSavingFaultyDays(false);
+    }
+  };
 
   const save = async event => {
     event.preventDefault();
@@ -146,6 +183,7 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
       <p>Cấu hình công khai danh mục và xem quy ước tiền tệ đang áp dụng.</p>
       <span className="admin-settings-provisional">Đề xuất · Figma chưa đối chiếu</span>
     </header>
+    <Toast message={toastMessage} onClose={() => setToastMessage('')} />
     {feedback && <Notice state={feedback.state} title={feedback.state === 'success' ? 'Đã lưu' : 'Chưa hoàn tất'}>{feedback.text}</Notice>}
     <section id="settings-content" className="admin-settings-grid">
       <section className="admin-settings-card" aria-labelledby="currency-heading">
@@ -188,6 +226,37 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
           <Button type="submit" loading={pending} loadingLabel="Đang lưu…">Lưu phiên bản cài đặt</Button>
         </form>}
         {!isAdmin && <p className="admin-settings-help">Nhân viên có thể xem cấu hình. Thay đổi chỉ dành cho quản trị viên.</p>}
+      </section>
+      <section className="admin-settings-card" aria-labelledby="faulty-days-heading">
+        <p className="admin-settings-eyebrow">CỬA HÀNG</p>
+        <h2 id="faulty-days-heading">Báo sản phẩm lỗi</h2>
+        <p className="admin-settings-help">
+          Thời hạn khách được báo sản phẩm lỗi hoặc giao sai tính từ ngày giao hàng hoặc ngày nhận tại cửa hàng (mặc định 7 ngày).
+        </p>
+        <p className="admin-settings-effective">
+          Đang áp dụng: <strong>{currentFaultyDays?.days ?? 7} ngày</strong>.
+        </p>
+        {isAdmin && resource.status === 'success' && (
+          <form className="admin-settings-form" onSubmit={saveFaultyDays} noValidate>
+            <Input
+              label="Thời hạn báo sản phẩm lỗi (ngày)"
+              type="number"
+              min={1}
+              max={365}
+              step={1}
+              required
+              value={faultyDays}
+              onChange={event => {
+                setFaultyDays(event.target.value);
+                if (faultyDaysError) setFaultyDaysError('');
+              }}
+            />
+            {faultyDaysError && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{faultyDaysError}</p>}
+            <Button type="submit" loading={savingFaultyDays} loadingLabel="Đang lưu…">
+              Lưu thời hạn báo lỗi
+            </Button>
+          </form>
+        )}
       </section>
       <section className="admin-settings-card admin-settings-history" aria-labelledby="settings-history-heading">
         <div className="admin-settings-card-heading"><div><p className="admin-settings-eyebrow">KIỂM TOÁN</p>

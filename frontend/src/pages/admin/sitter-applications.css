@@ -483,6 +483,30 @@
   gap: var(--pwc-space-3);
 }
 
+.sitter-app-assessment {
+  min-width: 0;
+  padding: var(--pwc-space-4);
+  border: 1px solid var(--sa-app-divider);
+  border-radius: var(--pwc-radius-md);
+}
+
+.sitter-app-assessment__checks,
+.sitter-app-assessment__interview {
+  display: grid;
+  gap: var(--pwc-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.sitter-app-assessment__checks label {
+  display: flex;
+  align-items: center;
+  gap: var(--pwc-space-2);
+}
+
+.sitter-app-assessment__interview {
+  margin-top: var(--pwc-space-4);
+}
+
 .sitter-app-admin :focus-visible {
   outline: var(--pwc-focus-width) solid var(--pwc-focus);
   outline-offset: var(--pwc-focus-offset);

@@ -1,13 +1,45 @@
 import { APPLICATION_DOCUMENT_LABELS } from '../../constants/application-documents.js';
 import { EmploymentContractEditor } from '../../components/payroll/EmploymentContractEditor.jsx';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterApplicationAdminApi } from '../../services/sitter-application-api.js';
 import { StateLabel } from './SitterApplicationsPage.jsx';
 import { ApplicationDocumentDialog } from './ApplicationDocumentDialog.jsx';
+import { vietnamDateTime } from '../../utils/calendar-date.js';
 import './sitter-applications.css';
+
+const reviewChecks = [
+  ['validIdentity', 'CCCD hợp lệ'], ['adult', 'Đủ 18 tuổi'],
+  ['portrait', 'Có ảnh chân dung'], ['petExperience', 'Có kinh nghiệm với thú cưng']
+];
+const checklistRequired = 'Xác nhận đủ bốn mục kiểm tra hồ sơ.';
+const interviewRequired = 'Ghi thời gian gọi và chọn kết quả Đạt để duyệt hồ sơ.';
+
+function AssessmentFields({ values, showInterview, disabled, onChange }) {
+  return <fieldset className="sitter-app-assessment" disabled={disabled}>
+    <legend>Kiểm tra hồ sơ</legend>
+    <div className="sitter-app-assessment__checks">{reviewChecks.map(([key, label]) => <label key={key}>
+      <input type="checkbox" checked={values.checklist[key]}
+        onChange={event => onChange({ checklist: { ...values.checklist, [key]: event.target.checked } })} />
+      {label}
+    </label>)}</div>
+    {showInterview && <div className="sitter-app-assessment__interview">
+      <label className="sitter-app-admin__search">Thời gian gọi (giờ Việt Nam)
+        <input type="datetime-local" value={values.callAt} onChange={event => onChange({ callAt: event.target.value })} />
+      </label>
+      <label className="sitter-app-admin__search">Kết quả phỏng vấn
+        <select value={values.outcome} onChange={event => onChange({ outcome: event.target.value })}>
+          <option value="">Chọn kết quả</option>
+          <option value="PASSED">Đạt</option>
+          <option value="NOT_PASSED">Không đạt</option>
+          <option value="UNREACHABLE">Không liên lạc được</option>
+        </select>
+      </label>
+    </div>}
+  </fieldset>;
+}
 
 function dateText(value) {
   if (!value) return '—';
@@ -19,13 +51,63 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
   const applicationId = suppliedId ?? params.applicationId;
   const load = useCallback(({ signal }) => api.get({ applicationId, signal }), [api, applicationId]);
   const resource = useApiResource(load);
-  const [contractVerified, setContractVerified] = useState(false);
+  const [verifiedContract, setVerifiedContract] = useState(null);
+  const [assessmentDraft, setAssessmentDraft] = useState(null);
+  const assessmentAttempt = useRef(null);
   const [reason, setReason] = useState('');
   const [interviewNote, setInterviewNote] = useState('');
   const [sitterStatusReason, setSitterStatusReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
   const [document, setDocument] = useState(null);
+
+  const application = resource.data;
+  const savedAssessment = application?.assessment;
+  const version = application?.version;
+  const contractScope = `${applicationId}:${version}`;
+  const onContractVerified = useCallback(verified => setVerifiedContract(verified ? contractScope : null), [contractScope]);
+  const contractVerified = verifiedContract === contractScope;
+  const assessmentVersion = savedAssessment?.version ?? 0;
+  const assessmentScope = `${contractScope}:${assessmentVersion}`;
+  const savedFields = {
+    checklist: Object.fromEntries(reviewChecks.map(([key]) => [key, savedAssessment?.checklist?.[key] === true])),
+    callAt: savedAssessment?.callAt ? vietnamDateTime(new Date(savedAssessment.callAt)) : '',
+    outcome: savedAssessment?.outcome ?? ''
+  };
+  const assessment = assessmentDraft?.scope === assessmentScope ? assessmentDraft.values : savedFields;
+  const updatedChecks = reviewChecks.some(([key]) => assessment.checklist[key] !== savedFields.checklist[key]);
+  const assessmentDirty = updatedChecks || assessment.callAt !== savedFields.callAt || assessment.outcome !== savedFields.outcome;
+  const checksComplete = Object.values(savedFields.checklist).every(Boolean);
+  const interviewPassed = Boolean(savedFields.callAt) && savedFields.outcome === 'PASSED';
+  const assessmentEditable = ['UNDER_REVIEW', 'INTERVIEW'].includes(application?.state);
+
+  function updateAssessment(changes) {
+    setAssessmentDraft({ scope: assessmentScope, values: { ...assessment, ...changes } });
+  }
+
+  async function saveAssessment() {
+    if (busy || !assessmentDirty) return;
+    const payload = { applicationId, expectedVersion: version, expectedAssessmentVersion: assessmentVersion,
+      checklist: assessment.checklist, callAt: assessment.callAt ? `${assessment.callAt}:00+07:00` : null,
+      outcome: assessment.outcome || null };
+    const fingerprint = JSON.stringify(payload);
+    if (assessmentAttempt.current?.fingerprint !== fingerprint) {
+      assessmentAttempt.current = { fingerprint, key: globalThis.crypto.randomUUID() };
+    }
+    setBusy(true); setNotice(null);
+    try {
+      await api.saveAssessment({ ...payload, idempotencyKey: assessmentAttempt.current.key });
+      assessmentAttempt.current = null;
+      setAssessmentDraft(null);
+      setNotice({ state: 'success', message: 'Đã lưu thẩm định hồ sơ.' });
+      resource.retry();
+    } catch (error) {
+      setNotice({ state: error?.status === 403 ? 'forbidden' : 'error', message: error?.code === 'VERSION_CONFLICT'
+        ? 'Thẩm định đã thay đổi. Tải lại hồ sơ trước khi lưu.'
+        : error?.status === 422 ? 'Kiểm tra lại thời gian gọi và kết quả phỏng vấn.'
+          : 'Chưa xác nhận được kết quả lưu thẩm định. Vui lòng thử lại.' });
+    } finally { setBusy(false); }
+  }
 
   async function startReview(interview = false) {
     setBusy(true); setNotice(null);
@@ -37,7 +119,8 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
       resource.retry();
     } catch (error) {
       setNotice({ state: error?.status === 403 ? 'forbidden' : 'error', message: error?.code === 'CSRF_NOT_READY'
-        ? 'Bảo vệ phiên thao tác Admin chưa được kết nối.' : 'Không thể bắt đầu thẩm định. Tải lại hồ sơ để kiểm tra phiên bản.' });
+        ? 'Bảo vệ phiên thao tác Admin chưa được kết nối.' : error?.code === 'APPLICATION_CHECKLIST_REQUIRED'
+          ? checklistRequired : 'Không thể bắt đầu thẩm định. Tải lại hồ sơ để kiểm tra phiên bản.' });
     } finally { setBusy(false); }
   }
 
@@ -58,6 +141,8 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
     } catch (error) {
       const message = error?.code === 'CSRF_NOT_READY' ? 'Bảo vệ phiên thao tác Admin chưa được kết nối.'
         : error?.code === 'SIGNED_CONTRACT_REQUIRED' ? 'Cần soạn, chốt bản in và xác minh hợp đồng đã được hai bên ký trước khi duyệt.'
+        : error?.code === 'APPLICATION_CHECKLIST_REQUIRED' ? checklistRequired
+        : error?.code === 'APPLICATION_INTERVIEW_REQUIRED' ? interviewRequired
         : error?.code === 'APPLICATION_STAGE_REQUIRED' ? 'Cần hoàn tất bước thẩm định và chuyển sang phỏng vấn trước khi quyết định.'
         : error?.code === 'VERSION_CONFLICT' ? 'Hồ sơ đã được cập nhật. Hãy tải lại trước khi quyết định.'
           : 'Không thể lưu quyết định. Hãy kiểm tra hồ sơ và thử lại.';
@@ -129,11 +214,19 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
             <Button variant="secondary" onClick={() => setDocument(document)}>Xem {APPLICATION_DOCUMENT_LABELS[document.documentType] ?? 'tài liệu bổ sung'}</Button>
           </li>)}</ul> : <p>Chưa có tài liệu.</p>}
         </section>
-        {['INTERVIEW','APPROVED'].includes(resource.data.state) && <EmploymentContractEditor application={resource.data} onVerified={setContractVerified} />}
+        {['INTERVIEW','APPROVED'].includes(resource.data.state) && <EmploymentContractEditor application={resource.data} onVerified={onContractVerified} />}
+        {!assessmentEditable && savedAssessment && <AssessmentFields values={savedFields} showInterview disabled />}
         {['PENDING', 'UNDER_REVIEW', 'INTERVIEW'].includes(resource.data.state) && <section className="sitter-app-review-form" aria-label="Ghi nhận thẩm định">
           <p>Chỉ duyệt khi đã hoàn tất thẩm định và có hợp đồng đã ký. Hình thức làm việc trong hồ sơ là nguyện vọng; hợp đồng, ca làm và quyền nhận việc được quản lý riêng.</p>
           {resource.data.state === 'PENDING' && <Button variant="secondary" disabled={busy} onClick={startReview}>Bắt đầu thẩm định</Button>}
-          {resource.data.state === 'UNDER_REVIEW' && <Button variant="secondary" disabled={busy} onClick={() => startReview(true)}>Chuyển sang phỏng vấn</Button>}
+          {assessmentEditable && <>
+            <AssessmentFields values={assessment} showInterview={resource.data.state === 'INTERVIEW'} disabled={busy} onChange={updateAssessment} />
+            <Button variant="secondary" disabled={busy || !assessmentDirty} onClick={saveAssessment}>Lưu thẩm định</Button>
+            {assessmentDirty && <p>Lưu thẩm định để các thay đổi có hiệu lực.</p>}
+            {!checksComplete && <p>{checklistRequired}</p>}
+          </>}
+          {resource.data.state === 'UNDER_REVIEW' && <Button variant="secondary" disabled={busy || !checksComplete || assessmentDirty}
+            onClick={() => startReview(true)}>Chuyển sang phỏng vấn</Button>}
           {resource.data.state !== 'INTERVIEW' && <Notice state="pending" title="Hoàn tất từng bước xét duyệt">Bắt đầu thẩm định, kiểm tra giấy tờ rồi chuyển hồ sơ sang phỏng vấn. Chỉ quyết định sau khi đã đến bước phỏng vấn. Mỗi lần chuyển trạng thái đều tạo email thông báo cho ứng viên.</Notice>}
           {resource.data.state === 'INTERVIEW' && <>
           <label className="sitter-app-admin__search" htmlFor="sitter-interview-note">
@@ -147,8 +240,10 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
               onChange={event => setReason(event.target.value)} />
           </label>
           {!contractVerified && <p>Hoàn tất xác minh hợp đồng đã ký ở phần trên để bật quyết định duyệt.</p>}
+          {!interviewPassed && <p>{interviewRequired}</p>}
           <div className="sitter-app-review-form__actions">
-            <Button loading={busy} disabled={!contractVerified} onClick={() => decide('APPROVE')}>Duyệt và cấp quyền Pet Sitter</Button>
+            <Button loading={busy} disabled={!contractVerified || !checksComplete || !interviewPassed || assessmentDirty}
+              onClick={() => decide('APPROVE')}>Duyệt và cấp quyền Pet Sitter</Button>
             <Button variant="danger" loading={busy} onClick={() => decide('REJECT')}>Từ chối hồ sơ</Button>
           </div>
           </>}

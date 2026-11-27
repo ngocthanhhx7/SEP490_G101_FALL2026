@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiResource } from './useApiResource.js';
 import { apiErrorFeedback } from '../utils/api-error-feedback.js';
 import { isUncertainOutcome } from '../utils/product-format.js';
+import { GROOMING_DEBT_BLOCKS_BOOKING } from '../constants/booking-messages.js';
 import { MSG64 } from '../constants/grooming-messages.js';
 import { orderReady, quotePets, slotPets } from '../utils/grooming-booking.js';
 
@@ -90,7 +91,7 @@ export function useGroomingBooking({ api, serviceId }) {
       } else if (error.code === 'GROOMING_PET_REFERRAL_REQUIRED' && error.details?.petId && picked[error.details.petId]) {
         command.current = null; answer(error.details.petId, 'biteOrScratch', 'YES');
       } else if (error.code === 'GROOMING_PAYMENT_OUTSTANDING') {
-        command.current = null; setNotice('Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.');
+        command.current = null; setNotice(GROOMING_DEBT_BLOCKS_BOOKING);
       } else if (['PICKUP_QUOTE_CHANGED', 'PICKUP_DISTANCE_EXCEEDED', 'PICKUP_DISTANCE_UNAVAILABLE'].includes(error.code)) {
         command.current = null;
         setNotice(error.code === 'PICKUP_DISTANCE_UNAVAILABLE' ? 'Hiện chưa tính được khoảng cách nên chưa đón được. Vui lòng mang thú cưng đến cửa hàng hoặc thử lại sau.'

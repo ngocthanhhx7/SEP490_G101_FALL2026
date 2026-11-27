@@ -31,8 +31,11 @@ import { privateImageModule } from '../../src/routes/private-image.routes.js';
 import { privateImageModels } from '../../src/models/private-image.model.js';
 import { createPrivateImageService } from '../../src/services/private-image.service.js';
 import { requireSession, requireCsrf } from '../../src/middlewares/session.js';
+import { createBookingDetailsService } from '../../src/services/booking-proposals/booking-details.service.js';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 import { reasonsOfVisit } from '../../src/services/employee-scheduling/needs-action.service.js';
+import { finalizeExceptionalBooking } from '../../src/services/employee-scheduling/booking-terminal.service.js';
+import { readDirectedSitterPage } from '../../src/services/booking-proposals/directed-sitter-directory.service.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
@@ -149,13 +152,20 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'IN_PROGRESS', checkInAt: new Date(clock()), checkOutAt: null });
   const mediaOut = await upload('synthetic-private-care-out');
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-out-before-checklist')).send({ expectedVersion: checkedIn.body.data.version, mediaId: mediaOut }).expect(409);
+  const checklist = { expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] };
+  await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-note-invalid'))
+    .send({ ...checklist, customerNote: 'x'.repeat(2001) }).expect(422);
+  const customerNote = 'Milo đã ăn hết phần ăn và uống đủ nước.';
   const saved = await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-care'))
-    .send({ expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] }).expect(200);
+    .send({ ...checklist, customerNote: ` ${customerNote} ` }).expect(200);
   current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
+  expect(current.customerNote).toBe(customerNote);
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'COMPLETED', checkOutAt: new Date(clock()) });
-  expect((await checkout.read(customer, String(row.bookingId))).state).toBe('COMPLETED');
+  const report = await checkout.read(customer, String(row.bookingId));
+  expect(report.state).toBe('COMPLETED');
+  expect(report.details.visits[0].customerNote).toBe(customerNote);
   await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
   expect(stored.size).toBe(2);
   const finalRead = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-final')).expect(200)).body.data;
@@ -165,6 +175,49 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(customer,'synthetic-customer-image')).expect(200).expect('Cache-Control','private, no-store');
   await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(staff,'synthetic-no-staff-image')).expect(404);
   expect(await connection.collection('caremediabindings').countDocuments({ visitId: String(row._id) })).toBe(2);
+});
+
+test('versioned visit notes are saved by the assigned sitter and visible only in the owning customer report', async () => {
+  const sitter = await employee(), otherSitter = await employee();
+  const row = await visit({ start: '2026-10-30T02:50:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    state: 'IN_PROGRESS', sitterId: new mongoose.Types.ObjectId(sitter.userId), checkInAt: new Date(clock()),
+    'snapshots.workflow': { definition: { title: 'Synthetic workflow', steps: [] }, revision: 1, hash: 'synthetic' }
+  } });
+  const finance = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } },
+    env: { FINANCE_SOURCES_ENABLED: 'true' }, sessionService, clock });
+  const server = express(); server.use(express.json(), requestId);
+  server.use('/api/v1', finance.router); server.use(errorHandler(() => {}));
+  const url = `/api/v1/visits/${row._id}`;
+  const save = (who, key, payload) => request(server).patch(url + '/checklists')
+    .set({ 'x-test-actor': who.userId, 'x-csrf-token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' })
+    .send(payload);
+  const customerNote = 'Đã thay nước sạch cho Milo.';
+  const payload = { expectedVersion: 0, customerNote: ` ${customerNote} ` };
+  await save(otherSitter, 'synthetic-versioned-note-denied', payload).expect(404);
+  await save(sitter, 'synthetic-versioned-note-invalid', { ...payload, customerNote: 'x'.repeat(2001) }).expect(422);
+  await save(sitter, 'synthetic-versioned-note-checklist', { ...payload, items: [{ itemId: 'service-scope', status: 'DONE' }] }).expect(409);
+  const saved = await save(sitter, 'synthetic-versioned-note-save', payload).expect(200);
+  const repeated = await save(sitter, 'synthetic-versioned-note-save', payload).expect(200);
+  expect(repeated.body.data).toEqual(saved.body.data);
+  const execution = await request(server).get(url + '/execution').set('x-test-actor', sitter.userId).expect(200);
+  expect(execution.body.data).toMatchObject({ customerNote, checklist: [], workflow: { mode: 'VERSIONED' } });
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(row.bookingId))).details.visits[0]).toMatchObject({ customerNote, workflow: { mode: 'VERSIONED' } });
+  await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
+  const staffDetails = await createBookingDetailsService({ connection, clock }).readStaff(staff, String(row.bookingId));
+  expect(staffDetails.details.visits[0]).not.toHaveProperty('customerNote');
+  await save(sitter, 'synthetic-versioned-note-clear', { expectedVersion: saved.body.data.version, customerNote: '' }).expect(200);
+  expect((await checkout.read(customer, String(row.bookingId))).details.visits[0]).not.toHaveProperty('customerNote');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    startAt: new Date(clock() - 4 * 3600000), endAt: new Date(clock() - 2 * 3600000 - 1),
+    checkInAt: new Date(clock() - 4 * 3600000)
+  } });
+  const expired = await save(sitter, 'synthetic-versioned-note-expired', {
+    expectedVersion: saved.body.data.version + 1, customerNote: 'Synthetic late note'
+  }).expect(409);
+  expect(expired.body.error.code).toBe('WORKFLOW_WINDOW_CLOSED');
+  expect((await connection.collection('visits').findOne({ _id: row._id })).customerNote).toBe('');
 });
 
 test('execution read exposes timing and bound evidence while excluding private notes and money', async () => {
@@ -585,7 +638,7 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   const body = { rating: 4, expectedVersion: credits[0].sourceVersion };
   const [a, b] = await Promise.all([rate(customer).send(body), rate(customer).send(body)]);
   expect(a.status).toBe(201); expect(b.status).toBe(201); expect(a.body.data).toEqual(b.body.data);
-  expect(a.body.data.review.state).toBe('SUBMITTED');
+  expect(a.body.data.review.state).toBe('PUBLISHED');
   const outcome = await connection.models.SitterVisitOutcome.findOne({ visitId: plan.visits[0].id }).select('+provenance').lean();
   expect(outcome).toMatchObject({ rating: 4, resolution: 'COMPLETED', sourceRef: `customer-review:${a.body.data.review.id}:0`,
     provenance: { bookingId: String(row.bookingId), creditId: String(credits[0]._id), trainingEligible: false } });
@@ -1029,6 +1082,82 @@ test('UC-82 sends a requeued visit with no candidates to Staff', async () => {
   const stored = await connection.collection('visits').findOne({ _id: row._id });
   expect(stored.dispatchReview.code).toBe('NO_ELIGIBLE_SITTER');
   expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id, state: 'PENDING' })).toBe(0);
+});
+
+function withdrawalAppWithoutAgent() {
+  const runtime = employeeSchedulingRuntimeModule({ connection, config: { auth: { enabled: true } }, clock, sessionService,
+    env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', EMPLOYEE_DISPATCH_AGENT_ENABLED: 'false' } });
+  const server = express(); server.use(express.json(), requestId); server.use(runtime.mount, runtime.router); server.use(errorHandler(() => {}));
+  const post = (row, path, user, body, key) => request(server).post(`${withdrawalPath(row)}/${path}`)
+    .set({ 'x-test-actor': user.userId, 'X-CSRF-Token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' }).send(body);
+  return { post };
+}
+async function expectInNeedsAction(row, code) {
+  const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored).toMatchObject({ state: 'SCHEDULED', sitterId: null, handoverRequired: true, dispatchReview: { code } });
+  expect(reasonsOfVisit(stored, clock()).map(reason => reason.code)).toContain('NO_SITTER_TO_OFFER');
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'DispatchReviewRequired',
+    recipientId: staff.userId, 'metadata.visitId': String(row._id) })).toBe(1);
+}
+// The file shares one database and automatic dispatch refuses an area with more than 100 registered employees.
+const retire = (...workers) => module.repository.models.EmployeeAvailability.deleteMany({ _id: { $in: workers.map(value => value.userId) } });
+
+test('GBR-21 an early withdrawal without the dispatch agent goes straight to Staff Needs action', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-11-23T05:00:00Z');
+  const { post } = withdrawalAppWithoutAgent();
+  await post(row, 'withdrawals', sitter, { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'ILLNESS' }, 'withdraw-agent-off').expect(200);
+  await expectInNeedsAction(row, 'STAFF_REVIEW_REQUIRED');
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(0);
+  await retire(sitter);
+});
+
+test('GBR-21 a withdrawal released by Staff without the dispatch agent goes to Needs action', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-10-30T11:00:00Z');
+  const { post } = withdrawalAppWithoutAgent();
+  await post(row, 'withdrawals', sitter, { expectedVersion: 0, expectedMode: 'LATE', reasonCode: 'ILLNESS' }, 'withdraw-late-agent-off').expect(200);
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview.code).toBe('NO_ELIGIBLE_SITTER');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await post(row, 'withdrawal-decisions', staff, { expectedVersion: 1, decision: 'RELEASE', reason: 'Synthetic release' }, 'release-agent-off').expect(200);
+  await expectInNeedsAction(row, 'STAFF_REVIEW_REQUIRED');
+  await retire(sitter);
+});
+
+test('GBR-21 offers an early withdrawal again to the five best other pet sitters with a handover', async () => {
+  const sitters = [];
+  for (let index = 0; index < 6; index++) sitters.push(await employee());
+  const dedicatedService = oid(), row = await assignedForWithdrawal(sitters[0], '2026-11-24T04:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { serviceId: dedicatedService }, $unset: { dispatchReview: 1 } });
+  await connection.collection('aisitterprofiles').updateMany(
+    { userId: { $in: sitters.map(value => new mongoose.Types.ObjectId(value.userId)) } }, { $set: { serviceIds: [dedicatedService] } });
+  await sendWithdrawal(row, sitters[0], { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'ILLNESS' }, 'withdraw-reoffer').expect(200);
+  const offers = await module.repository.models.EmployeeVisitOffer.find({ visitId: row._id, state: 'PENDING' }).lean();
+  expect(offers.map(offer => offer.sitterId).sort()).toEqual(sitters.slice(1).map(value => value.userId).sort());
+  const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored).toMatchObject({ state: 'SCHEDULED', handoverRequired: true, handoverNote: { reasonCode: 'ILLNESS' } });
+  expect(stored.dispatchReview).toBeUndefined();
+  await retire(...sitters);
+});
+
+test('GBR-21 a released visit whose offer is refused for another reason reaches Needs action once, with that reason', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-11-23T06:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { paymentMode: 'PREPAY', paymentState: 'PAID' } });
+  await sendWithdrawal(row, sitter, { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'OTHER' }, 'withdraw-refused').expect(200);
+  await expectInNeedsAction(row, 'PAYMENT_REQUIRED');
+  // The worker keeps retrying; Staff are not told twice.
+  await module.dispatch.requeueWithdrawal(String(row._id), 1);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { 'dispatchReview.retryAt': new Date(clock() - 1) } });
+  await module.dispatch.requeueWithdrawal(String(row._id), 1);
+  await expectInNeedsAction(row, 'PAYMENT_REQUIRED');
+  await retire(sitter);
+});
+
+test('a first dispatch that is not a release keeps ignoring an unrelated refusal', async () => {
+  const row = await visit({ start: '2026-11-23T07:00:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { paymentMode: 'PREPAY', paymentState: 'PAID' } });
+  await module.dispatch.requeueWithdrawal(String(row._id), 0);
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview).toBeUndefined();
 });
 
 async function sequentialFixture({ scores = [4, 3], preferred = false, consent = false, start = '2026-10-31T03:00:00Z', rankerFails = false } = {}) {
@@ -1583,4 +1712,62 @@ describe('ST-BKG-05 offer decline reason', () => {
     expect(nextBatch).toHaveLength(5);
     expect(nextBatch.map(item => item.sitterId)).not.toContain(target.sitterId);
   });
+});
+
+async function endBooking(bookingId, at) {
+  const session = await connection.startSession();
+  try {
+    await session.withTransaction(() => finalizeExceptionalBooking({
+      connection, col: name => connection.db.collection(name), bookingId, session, at
+    }));
+  } finally { await session.endSession(); }
+}
+const rateVisit = (visitId, key) => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
+  .set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+  .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', key).send({ rating: 4 });
+
+test('a booking closed after a cancelled visit is rated for seven days from its closure and counted at once (GBR-48)', async () => {
+  const sitter = await employee(), unfinished = await employee();
+  const first = await visit({ start: '2026-11-02T02:00:00Z' });
+  const second = { ...first, _id: oid(), sequence: 1, startAt: new Date('2026-11-13T02:00:00Z'), endAt: new Date('2026-11-13T03:00:00Z') };
+  await connection.collection('visits').insertOne(second);
+  await connection.collection('bookings').updateOne({ _id: first.bookingId },
+    { $set: { visitIds: [first._id, second._id], originalVisitCount: 2, careVisitCount: 2 } });
+  await connection.collection('visits').updateOne({ _id: first._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId),
+    state: 'COMPLETED', version: 3, checkInAt: first.startAt, checkOutAt: first.endAt, completedAt: first.endAt } });
+  const closedAt = new Date('2026-11-12T02:00:00Z'), deadline = closedAt.getTime() + 7 * 86400000;
+  await connection.collection('visits').updateOne({ _id: second._id },
+    { $set: { sitterId: new mongoose.Types.ObjectId(unfinished.userId), state: 'CANCELLED', cancelledAt: closedAt } });
+  await endBooking(first.bookingId, closedAt);
+  const booking = await connection.collection('bookings').findOne({ _id: first.bookingId });
+  expect(booking).toMatchObject({ state: 'CLOSED', closedAt });
+  expect(booking.completedAt).toBeUndefined();
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(first.bookingId))).ratingDeadlineAt).toEqual(new Date(deadline));
+
+  reviewNow = deadline + 1;
+  const late = await rateVisit(String(first._id), 'closed-booking-too-late').expect(409);
+  expect(late.body.error.code).toBe('REVIEW_WINDOW_EXPIRED');
+  reviewNow = deadline;
+  const cancelled = await rateVisit(String(second._id), 'closed-booking-no-visit').expect(409);
+  expect(cancelled.body.error.code).toBe('VISIT_NOT_ELIGIBLE');
+  const saved = await rateVisit(String(first._id), 'closed-booking-in-time').expect(201);
+  expect(saved.body.data.review.state).toBe('PUBLISHED');
+  await connection.collection('sitterpublicprofiles').insertOne({ userId: new mongoose.Types.ObjectId(sitter.userId), state: 'APPROVED' });
+  const directory = await readDirectedSitterPage(connection.db, serviceId);
+  expect(directory.sitters.find(row => row.id === sitter.userId)).toMatchObject({ rating: 4, reviewCount: 1 });
+});
+
+test('nobody can be rated when every visit of the booking was cancelled', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-11-04T02:00:00Z' });
+  const closedAt = new Date('2026-11-03T02:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id },
+    { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId), state: 'CANCELLED', cancelledAt: closedAt } });
+  await endBooking(row.bookingId, closedAt);
+  expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('CANCELLED');
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(row.bookingId))).ratingDeadlineAt).toBeNull();
+  reviewNow = closedAt.getTime() + 60000;
+  const refused = await rateVisit(String(row._id), 'all-cancelled-rating').expect(409);
+  expect(refused.body.error.code).toBe('VISIT_NOT_ELIGIBLE');
 });

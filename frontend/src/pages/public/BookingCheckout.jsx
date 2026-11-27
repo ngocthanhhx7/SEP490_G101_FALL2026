@@ -1,5 +1,5 @@
 import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { bookingStatus, bookingDate } from '../../utils/booking-presentation.js';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, CreditCard, RefreshCw } from 'lucide-react';
@@ -9,7 +9,9 @@ import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import { BookingDateTime } from '../../components/calendar/BookingDateTime.jsx';
 import { vietnamDate, vietnamDateTime } from '../../utils/calendar-date.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
-import { VerifiedVisitRating } from '../customer/VerifiedVisitRating.jsx';
+import { BookingSitterRatings } from '../customer/BookingSitterRatings.jsx';
+import { QuotePriceSummary } from '../../components/common/QuotePriceSummary.jsx';
+import { ADDRESS_NOT_SERVED, GROOMING_DEBT_BLOCKS_BOOKING } from '../../constants/booking-messages.js';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { PickupSelectionField, pickupReady, pickupInput, pickupPrice, PICKUP_UNAVAILABLE } from '../../components/common/PickupSelectionField.jsx';
 import './booking-checkout.css';
@@ -21,17 +23,17 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   MATCH_ALREADY_USED: 'Gợi ý này đã tạo đơn. Kiểm tra đơn của bạn trước khi tìm lại.',
   RESOURCE_NOT_FOUND: 'Báo giá, địa chỉ hoặc đơn không còn khả dụng.', QUOTE_ALREADY_USED: 'Báo giá này đã được dùng để đặt dịch vụ.',
   VISIT_SCHEDULE_OVERLAP: 'Lịch của cùng thú cưng đang bị trùng giờ.', BOARDING_CARE_PLAN_REQUIRED: 'Lịch lưu trú cần được nhân viên xác nhận kế hoạch ca chăm sóc.',
-  PAYMENT_PROVIDER_UNAVAILABLE: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút. (MSG33)',
-  PAYOS_TIMEOUT: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút. (MSG33)',
-  PAYOS_REQUEST_FAILED: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút. (MSG33)',
-  PAYOS_REQUEST_REJECTED: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút. (MSG33)',
-  PROVIDER_UNAVAILABLE: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút. (MSG33)',
+  PAYMENT_PROVIDER_UNAVAILABLE: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút.',
+  PAYOS_TIMEOUT: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút.',
+  PAYOS_REQUEST_FAILED: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút.',
+  PAYOS_REQUEST_REJECTED: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút.',
+  PROVIDER_UNAVAILABLE: 'Không thể mở trang thanh toán ngay lúc này. Vui lòng thử lại sau ít phút.',
   PAYMENT_LINK_RECONCILIATION_REQUIRED: 'Yêu cầu thanh toán đang cần đối soát. Vui lòng liên hệ Paw World Care.',
   PREFERRED_SITTER_HISTORY_REQUIRED: 'Bạn chỉ có thể chọn người chăm sóc đã từng chăm thú cưng này trước đó.',
   SITTER_AVAILABILITY_CONSENT_REQUIRED: 'Lịch của người chăm sóc đã thay đổi. Vui lòng kiểm tra lại từng buổi.',
   MSG20: 'Một lịch đặt kéo dài tối đa 30 ngày.',
-  ADDRESS_OUT_OF_SERVICE_AREA: 'Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.',
-  GROOMING_PAYMENT_OUTSTANDING: 'Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.',
+  ADDRESS_OUT_OF_SERVICE_AREA: ADDRESS_NOT_SERVED,
+  GROOMING_PAYMENT_OUTSTANDING: GROOMING_DEBT_BLOCKS_BOOKING,
   HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
   PICKUP_DISTANCE_UNAVAILABLE: PICKUP_UNAVAILABLE,
   PICKUP_QUOTE_CHANGED: 'Phí đón vừa thay đổi. Vui lòng xem lại trước khi xác nhận.',
@@ -133,7 +135,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     finally { locked.current = false; setBusy(false); }
   };
   return <form className="pwc-booking-checkout" onSubmit={submit}><h3>Lịch chăm sóc</h3>
-    {options.data?.groomingPaymentOutstanding && <p role="alert">Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.</p>}
+    {options.data?.groomingPaymentOutstanding && <p role="alert">{GROOMING_DEBT_BLOCKS_BOOKING}</p>}
     <fieldset disabled={busy || uncertain}>
       {visits.map((row, index) => <div className="pwc-checkout-visit" key={index}>
         <h4>{row.service?.name} · Buổi {row.index + 1}</h4>
@@ -162,19 +164,10 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
       {quote.items.map((item, index) => item.servicePolicy && <details key={index}><summary>{item.servicePolicy.title}</summary><p className="pwc-checkout-policy">{item.servicePolicy.body}</p></details>)}
       <section aria-label="Tóm tắt và giá" className="pwc-basket-total">
         <h4>Tóm tắt và giá</h4>
-        <dl>
-          {quote.items.map((item, index) => <div key={index}>
-            <dt>{services.find(service => service.id === item.serviceId)?.name ?? `Dịch vụ ${index + 1}`} · {item.visitCount} buổi · Giá một buổi</dt>
-            <dd>{item.subtotalVnd % item.visitCount === 0 ? money(item.subtotalVnd / item.visitCount)
-              : `${money(Math.floor(item.subtotalVnd / item.visitCount))} – ${money(Math.ceil(item.subtotalVnd / item.visitCount))}`}</dd>
-          </div>)}
-          <div><dt>Tạm tính</dt><dd>{money(quote.baseVnd + quote.surchargeVnd)}</dd></div>
-          <div><dt>Giảm nhiều buổi</dt><dd>− {money(quote.discountVnd)}</dd></div>
-          <div><dt>Giảm giá hạng {({ MEMBER: 'Member', SILVER: 'Silver', GOLD: 'Gold' })[quote.tier?.code] ?? ''}</dt>
-            <dd>− {money(quote.tierDiscountVnd ?? 0)}</dd></div>
-          {pickups.some((value, index) => value && selectedLocations[index] === 'FACILITY') && <div><dt>Phí đón (cả hai chiều)</dt><dd>{money(pickupFee)}</dd></div>}
-          <div><dt>Tổng thanh toán</dt><dd><strong>{money(quote.totalVnd + pickupFee)}</strong></dd></div>
-        </dl>
+        {pickups.some((value, index) => value && selectedLocations[index] === 'FACILITY') && <dl>
+          <div><dt>Phí đón (cả hai chiều)</dt><dd>{money(pickupFee)}</dd></div>
+        </dl>}
+        <QuotePriceSummary quote={{ ...quote, totalVnd: quote.totalVnd + pickupFee }} services={services} />
       </section>
       <label className="pwc-checkout-consent"><input type="checkbox" name="consent" required />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.</label>
     </fieldset>
@@ -196,10 +189,55 @@ export function BookingConfirmation({ api, bookingId: suppliedBookingId, Details
   const load = useCallback(({ signal }) => api.booking(bookingId, { signal }).then(data => ({ data })), [api, bookingId]);
   return bookingId ? <BookingConfirmationDetail key={bookingId} bookingId={bookingId} api={api} load={load} Details={Details} visitActions={visitActions} /> : null;
 }
+const MSG31_PAID_TOAST = 'Đã nhận thanh toán. Cảm ơn bạn!';
+const MSG32_PAYMENT_CANCELLED = 'Thanh toán chưa thành công. Vui lòng thử lại.';
+const MSG67_PAYMENT_EXPIRED = 'Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.';
+
+function readPaidToastShown(bookingId) {
+  try { return window.sessionStorage.getItem(`pwc:booking-paid-toast:${bookingId}`) === '1'; }
+  catch { return false; }
+}
+function markPaidToastShown(bookingId) {
+  try { window.sessionStorage.setItem(`pwc:booking-paid-toast:${bookingId}`, '1'); }
+  catch { /* ignore storage restrictions */ }
+}
+
 function BookingConfirmationDetail({ bookingId, api, load, Details, visitActions }) {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const paymentQuery = params.get('payment');
+  const [paymentReturn, setPaymentReturn] = useState(() => (
+    paymentQuery === 'returned' || paymentQuery === 'cancelled' ? paymentQuery : null
+  ));
+  const [paidToast, setPaidToast] = useState('');
   const resource = useApiResource(load), [link, setLink] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const key = useRef(`payment-link:${globalThis.crypto.randomUUID()}`), locked = useRef(false);
+  const clearPaymentParam = useCallback(() => {
+    setParams(current => {
+      if (!current.has('payment')) return current;
+      const next = new globalThis.URLSearchParams(current);
+      next.delete('payment');
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+  useEffect(() => {
+    if (paymentQuery === 'returned' || paymentQuery === 'cancelled') {
+      setPaymentReturn(paymentQuery);
+    }
+  }, [paymentQuery]);
+  const bookingData = resource.status === 'success' ? resource.data : null;
+  useEffect(() => {
+    if (!bookingData || !paymentReturn) return;
+    if (paymentReturn === 'returned' && bookingData.paymentState === 'PAID') {
+      if (!readPaidToastShown(bookingId)) {
+        markPaidToastShown(bookingId);
+        setPaidToast(MSG31_PAID_TOAST);
+      }
+      setPaymentReturn(null);
+      clearPaymentParam();
+    } else if (paymentReturn === 'cancelled') {
+      clearPaymentParam();
+    }
+  }, [bookingData, bookingId, paymentReturn, clearPaymentParam]);
   const pay = async () => {
     if (locked.current) return; locked.current = true; setBusy(true); setError(null);
     try {
@@ -213,19 +251,20 @@ function BookingConfirmationDetail({ bookingId, api, load, Details, visitActions
     ? apiErrorFeedback({ status: resource.httpStatus, code: resource.code }, 'Chưa tải được đơn.')
     : 'Chưa tải được đơn.'}</p><button type="button" onClick={resource.retry}>Tải lại đơn</button></div>;
   const booking = resource.data, awaiting = booking.state === 'AWAITING_PAYMENT' && new Date(booking.paymentDeadlineAt) > new Date();
-  const cancelledAtProvider = params.get('payment') === 'cancelled' && booking.paymentState !== 'PAID';
-  const ratingDeadline = booking.completedAt ? new Date(new Date(booking.completedAt).getTime() + 7 * 86400000) : null;
-  const canRate = booking.state === 'COMPLETED' && ratingDeadline && new Date() <= ratingDeadline;
-  const completedSitterIds = new Set();
-  const rateableShifts = (booking.careShifts || []).filter(row => {
-    if (!row.sitterId || row.state !== 'COMPLETED' || completedSitterIds.has(row.sitterId)) return false;
-    completedSitterIds.add(row.sitterId);
-    return true;
-  });
+  const cancelledAtProvider = paymentReturn === 'cancelled' && booking.paymentState !== 'PAID';
+  const waitingWebhook = paymentReturn === 'returned' && booking.paymentState !== 'PAID' && booking.state !== 'PAYMENT_EXPIRED';
+  const paymentExpired = booking.state === 'PAYMENT_EXPIRED';
   const showDetails = Details && booking.details;
   const paymentDeadline = booking.paymentDeadlineAt && ['AWAITING_PAYMENT', 'PAYMENT_EXPIRED'].includes(booking.state)
     ? new Date(booking.paymentDeadlineAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : null;
   return <section className="pwc-booking-confirmation">
+    {paidToast && <div className="pwc-booking-toast" role="status" aria-live="polite">
+      <span>{paidToast}</span>
+      <button type="button" aria-label="Đóng thông báo" onClick={() => setPaidToast('')}>×</button>
+    </div>}
+    {waitingWebhook && <p className="pwc-booking-pending-payment" role="status">Đang chờ xác nhận thanh toán từ payOS. Nếu bạn vừa thanh toán, hãy bấm cập nhật trạng thái đơn sau ít giây.</p>}
+    {paymentExpired && <p className="pwc-booking-alert" role="alert">{MSG67_PAYMENT_EXPIRED}</p>}
+    {cancelledAtProvider && <p className="pwc-booking-alert" role="alert">{MSG32_PAYMENT_CANCELLED}</p>}
     {showDetails ? <>
       <Details booking={booking} visitActions={visitActions} />
       {booking.createdAt && <p>Ngày đặt: {bookingDate(booking.createdAt)}</p>}
@@ -237,18 +276,17 @@ function BookingConfirmationDetail({ bookingId, api, load, Details, visitActions
     <h3>Lịch chăm sóc đã đặt</h3>{visitActions?.beforeList}<ul>{booking.visits.map((row, index) => <li key={row.id}><p>Buổi {index + 1}{row.petNames?.length ? ` · ${row.petNames.join(', ')}` : ''}</p><strong>{row.serviceName}</strong> · {new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<br />{locations[row.location]}: {row.serviceAddress}
       {googleMapsDirections(row.serviceAddress) && <p><a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a></p>}
       {visitActions?.forVisit?.(row)}</li>)}</ul></>}
+    <BookingSitterRatings api={api} booking={booking} />
     {showDetails && [...new Set(booking.visits.map(row => row.serviceAddress).filter(Boolean))].map(address =>
       googleMapsDirections(address) && <p key={address}><a href={googleMapsDirections(address)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a></p>)}
     {(booking.careShifts || []).map(row => <div key={row.id}><h4>{row.serviceName}</h4>{row.sitterName && <p>Người chăm sóc: <strong>{row.sitterName}</strong></p>}<p>{({ ASSIGNED: 'Người chăm sóc đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn tất ca' })[row.state] ?? row.state}</p>
       {row.checkInAt && <p>Bắt đầu: {new Date(row.checkInAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
       {row.checkOutAt && <p>Hoàn tất: {new Date(row.checkOutAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
       {row.state === 'ASSIGNED' && <VisitTravel api={api} visitId={row.id} startAt={row.startAt} endAt={row.endAt} />}</div>)}
-    {canRate && rateableShifts.filter(row => !booking.ratedSitterIds?.includes(row.sitterId))
-      .map(row => <VerifiedVisitRating key={row.sitterId} api={api} visit={row} deadline={ratingDeadline} />)}
+
     {(booking.scheduleProposals || []).filter(row => row.state === 'PENDING_CUSTOMER_CONFIRMATION' && new Date(row.expiresAt) > new Date()).map(row =>
       <p key={row.id}><Link to={`/account/schedule-proposals/${row.id}`}>Xem đề xuất lịch chăm sóc</Link></p>)}
     {awaiting && (link ? <a href={link} rel="noopener noreferrer">Thanh toán qua payOS</a> : <button type="button" disabled={busy} onClick={pay}><CreditCard size={18} />{busy ? 'Đang tạo link…' : 'Tạo link thanh toán'}</button>)}
-    {cancelledAtProvider && <p role="alert">Thanh toán không thành công hoặc đã bị hủy. Vui lòng thử lại. (MSG32)</p>}
     <button type="button" title="Cập nhật trạng thái đơn" aria-label="Cập nhật trạng thái đơn" onClick={() => { setLink(null); resource.retry(); }}><RefreshCw size={18} /></button>
     {error && <p role="alert">{error}</p>}
   </section>;

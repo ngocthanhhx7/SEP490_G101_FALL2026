@@ -116,8 +116,8 @@ function displayValue(fieldKey, value) {
 }
 
 function sourceLabel(source) {
-  if (source === 'CUSTOMER_REPORTED') return 'Customer cung cấp';
-  if (source === 'DOCUMENT_ATTACHED') return 'Tài liệu Customer đính kèm · chưa được xác minh';
+  if (source === 'CUSTOMER_REPORTED') return 'Bạn cung cấp';
+  if (source === 'DOCUMENT_ATTACHED') return 'Tài liệu đính kèm · chưa xác minh';
   return 'Nguồn chưa được ghi nhận';
 }
 
@@ -147,7 +147,7 @@ function messageForResourceError(code) {
   if (code === 'RESOURCE_NOT_FOUND') return 'Không tìm thấy hồ sơ thú cưng này.';
   if (code === 'INVALID_RESOURCE_ID') return 'Mã hồ sơ thú cưng không hợp lệ.';
   if (code === 'UNAUTHENTICATED') return 'Phiên đăng nhập không còn hợp lệ. Hãy đăng nhập lại để xem hồ sơ.';
-  if (code === 'NETWORK_ERROR' || code === 'TIMEOUT') return 'Chưa thể kết nối máy chủ. Hồ sơ riêng tư không được giữ lại sau khi tải lại.';
+  if (code === 'NETWORK_ERROR' || code === 'TIMEOUT') return 'Chưa thể kết nối. Vui lòng kiểm tra mạng rồi thử lại.';
   return 'Chưa thể tải hồ sơ. Hãy thử lại sau.';
 }
 
@@ -422,20 +422,20 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
       }, { expectedVersion: pet.version });
       if (result?.pending) {
         setReconciliationRequired(true);
-        setCommandNotice({ state: 'pending', title: 'Đang chờ máy chủ xác nhận',
-          message: 'Yêu cầu đã được tiếp nhận nhưng chưa có xác nhận hồ sơ được lưu. Tải lại hồ sơ để kiểm tra trạng thái.' });
+        setCommandNotice({ state: 'pending', title: 'Đang chờ xác nhận',
+          message: 'Yêu cầu đã được tiếp nhận nhưng chưa xác nhận lưu xong. Tải lại hồ sơ để kiểm tra.' });
         return;
       }
       setPet(result.data);
       setDraft(null);
       setEditing(false);
       setCommandNotice({ state: 'success', title: 'Hồ sơ đã được cập nhật',
-        message: 'Máy chủ đã xác nhận phiên bản hồ sơ mới. Snapshot dịch vụ đã xác nhận vẫn giữ nguyên.' });
+        message: 'Đã lưu hồ sơ mới. Các lịch đặt đã xác nhận vẫn giữ thông tin cũ.' });
     } catch (error) {
       if (isAmbiguousAcknowledgement(error)) {
         setReconciliationRequired(true);
         setCommandNotice({ state: 'pending', title: 'Chưa nhận được xác nhận',
-          message: 'Máy chủ chưa xác nhận thay đổi. Không gửi lại yêu cầu; hãy tải lại hồ sơ để kiểm tra dữ liệu hiện tại.' });
+          message: 'Chưa xác nhận được thay đổi. Không gửi lại yêu cầu; hãy tải lại hồ sơ để kiểm tra.' });
       } else if (error?.code === 'VERSION_CONFLICT' || error?.status === 409) {
         setReconciliationRequired(true);
         setCommandNotice({ state: 'warning', title: 'Hồ sơ đã thay đổi',
@@ -448,10 +448,10 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
           message: 'Không tìm thấy hồ sơ thú cưng này.' });
       } else if (error?.status === 422) {
         setCommandNotice({ state: 'error', title: 'Cần kiểm tra thông tin',
-          message: 'Máy chủ chưa chấp nhận một hoặc nhiều trường. Kiểm tra nội dung rồi thử lại.' });
+          message: 'Một số thông tin chưa hợp lệ. Kiểm tra lại nội dung rồi thử lại.' });
       } else {
         setCommandNotice({ state: 'error', title: 'Chưa thể cập nhật hồ sơ',
-          message: 'Máy chủ chưa xác nhận thay đổi. Kiểm tra kết nối hoặc tải lại hồ sơ.' });
+          message: 'Chưa lưu được thay đổi. Kiểm tra kết nối hoặc tải lại hồ sơ.' });
       }
     } finally {
       setSaving(false);
@@ -468,7 +468,7 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
         setReconciliationRequired(true);
         setArchiveDialogOpen(false);
         setCommandNotice({ state: 'pending', title: 'Đang chờ xác nhận lưu trữ',
-          message: 'Yêu cầu đã được tiếp nhận, nhưng hồ sơ chưa được xác nhận là đã lưu trữ. Tải lại để kiểm tra trạng thái.' });
+          message: 'Yêu cầu đã được tiếp nhận nhưng chưa xác nhận lưu trữ. Tải lại để kiểm tra trạng thái.' });
         return;
       }
       setPet(result.data);
@@ -476,13 +476,13 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
       setEditing(false);
       setArchiveDialogOpen(false);
       setCommandNotice({ state: 'success', title: 'Đã lưu trữ hồ sơ',
-        message: 'Hồ sơ có thể được xem cho lịch sử; các snapshot dịch vụ đã xác nhận không bị thay đổi.' });
+        message: 'Bạn vẫn có thể xem lại hồ sơ này. Các lịch đặt đã xác nhận không thay đổi.' });
     } catch (error) {
       setArchiveDialogOpen(false);
       if (isAmbiguousAcknowledgement(error)) {
         setReconciliationRequired(true);
         setCommandNotice({ state: 'pending', title: 'Chưa nhận được xác nhận',
-          message: 'Máy chủ chưa xác nhận trạng thái lưu trữ. Tải lại hồ sơ để kiểm tra; không gửi lại yêu cầu.' });
+          message: 'Chưa xác nhận được trạng thái lưu trữ. Tải lại hồ sơ để kiểm tra; không gửi lại yêu cầu.' });
       } else if (error?.code === 'VERSION_CONFLICT' || error?.status === 409) {
         setReconciliationRequired(true);
         setCommandNotice({ state: 'warning', title: 'Hồ sơ đã thay đổi',
@@ -492,7 +492,7 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
           message: 'Bạn không có quyền thực hiện thao tác này.' });
       } else {
         setCommandNotice({ state: 'error', title: 'Chưa thể lưu trữ hồ sơ',
-          message: 'Máy chủ chưa xác nhận thao tác lưu trữ. Tải lại hồ sơ để kiểm tra trạng thái.' });
+          message: 'Chưa lưu trữ được hồ sơ. Tải lại hồ sơ để kiểm tra trạng thái.' });
       }
     } finally {
       setArchiving(false);
@@ -523,14 +523,14 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
   if (resource.status === 'loading') {
     return <section className="pet-details" aria-labelledby="pet-details-title">
       <h1 id="pet-details-title">Hồ sơ thú cưng</h1>
-      <Notice state="loading" title="Đang tải hồ sơ">Đang tải dữ liệu riêng tư từ máy chủ.</Notice>
+      <Notice state="loading" title="Đang tải hồ sơ">Đang tải hồ sơ thú cưng.</Notice>
     </section>;
   }
 
   if (resource.status === 'pending') {
     return <section className="pet-details" aria-labelledby="pet-details-title">
       <h1 id="pet-details-title">Hồ sơ thú cưng</h1>
-      <Notice state="pending" title="Đang chờ xác nhận hồ sơ">Máy chủ chưa xác nhận dữ liệu hồ sơ. Trạng thái này không đồng nghĩa với đã lưu.</Notice>
+      <Notice state="pending" title="Đang chờ xác nhận hồ sơ">Chưa xác nhận được dữ liệu hồ sơ. Hãy tải lại để kiểm tra.</Notice>
       {resourceAction}
     </section>;
   }
@@ -538,7 +538,7 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
   if (resource.status === 'empty') {
     return <section className="pet-details" aria-labelledby="pet-details-title">
       <h1 id="pet-details-title">Hồ sơ thú cưng</h1>
-      <Notice state="empty" title="Chưa có dữ liệu hồ sơ">Máy chủ chưa trả về hồ sơ thú cưng.</Notice>
+      <Notice state="empty" title="Chưa có dữ liệu hồ sơ">Chưa có thông tin hồ sơ thú cưng.</Notice>
       {resourceAction}
     </section>;
   }
@@ -592,16 +592,12 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
     </header>
 
     {archived && <Notice state="info" title="Hồ sơ đã lưu trữ">
-      Bạn vẫn có thể xem thông tin phục vụ lịch sử. Lưu trữ không xóa hoặc thay đổi snapshot của booking/visit đã xác nhận.
+      Bạn vẫn có thể xem lại thông tin đã lưu. Các lịch đặt đã xác nhận không thay đổi.
     </Notice>}
     {!archived && <AvatarEditor petId={pet.id} onSaved={resource.retry} label={`Ảnh của ${pet.name}`} fallback={pet.species === 'DOG' ? 'Chó' : 'Mèo'} />}
 
-    <Notice state="pending" title="PROVISIONAL · INTEGRATION_PENDING">
-      Màn hình và PetView adapter đang chờ tích hợp. Route đăng ký, phiên/CSRF thật và quyền sở hữu phía server chưa được xác minh. Lịch sử/audit hồ sơ và cơ chế snapshot booking/visit chưa được nối; quy tắc dự kiến theo P01 là sửa hồ sơ không tự đổi hướng dẫn đã xác nhận.
-    </Notice>
-
-    <Notice state="info" title="Hồ sơ và hướng dẫn theo từng dịch vụ">
-      Theo quy tắc dự kiến của P01, hướng dẫn chăm sóc được xác nhận sẽ có snapshot riêng trên booking/visit. Màn hình này chưa thể đọc hoặc xác minh snapshot đó; hãy dùng quy trình booking được tích hợp trước khi dựa vào thay đổi hướng dẫn.
+    <Notice state="info" title="Hướng dẫn chăm sóc cho lịch đặt">
+      Sửa hồ sơ tại đây chỉ áp dụng cho các lần đặt lịch sau, không tự đổi hướng dẫn của lịch đặt đã xác nhận.
     </Notice>
 
     {commandNotice && <Notice state={commandNotice.state} title={commandNotice.title}
@@ -629,7 +625,7 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
       {visibleGroups.map((group) => <section className="pet-details__section" key={group.title} aria-labelledby={`pet-group-${group.title.replaceAll(' ', '-')}`}>
         <h2 id={`pet-group-${group.title.replaceAll(' ', '-')}`}>{group.title}</h2>
         {group.title === 'Sức khỏe tùy chọn' && <p className="pet-details__health-note">
-          Nội dung sức khỏe và vaccine do Customer cung cấp hoặc đính kèm; đây không phải chẩn đoán hay xác nhận chuyên môn. Vaccine không bắt buộc để tạo hồ sơ hoặc đặt dịch vụ.
+          Nội dung sức khỏe và vaccine do bạn cung cấp hoặc đính kèm; đây không phải chẩn đoán hay xác nhận chuyên môn. Vaccine không bắt buộc để tạo hồ sơ hoặc đặt dịch vụ.
         </p>}
         {group.title === 'Liên hệ riêng tư' && <p className="pet-details__health-note">
           Chỉ cung cấp thông tin liên hệ của người khác khi bạn có quyền chia sẻ; không hứa rằng Paw World Care sẽ liên hệ hoặc đưa thú cưng đi khám.
@@ -642,7 +638,7 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
       </section>)}
 
       <div className="pet-details__form-actions">
-        <Button type="submit" loading={saving} loadingLabel="Đang chờ máy chủ…" disabled={submitDisabled}>
+        <Button type="submit" loading={saving} loadingLabel="Đang lưu…" disabled={submitDisabled}>
           Lưu thay đổi
         </Button>
         <Button variant="secondary" disabled={saving || reconciliationRequired} onClick={() => {
@@ -653,10 +649,10 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
       {visibleGroups.map((group) => <section className="pet-details__section" key={group.title} aria-labelledby={`pet-view-${group.title.replaceAll(' ', '-')}`}>
         <h2 id={`pet-view-${group.title.replaceAll(' ', '-')}`}>{group.title}</h2>
         {group.title === 'Sức khỏe tùy chọn' && <p className="pet-details__health-note">
-          Thông tin sức khỏe/vaccine là nội dung Customer cung cấp, không phải chẩn đoán hoặc xác nhận chuyên môn. Không có giá trị vaccine nào là điều kiện đặt dịch vụ mặc định.
+          Thông tin sức khỏe và vaccine do bạn cung cấp, không phải chẩn đoán hoặc xác nhận chuyên môn. Không bắt buộc có thông tin vaccine để đặt dịch vụ.
         </p>}
         {group.title === 'Liên hệ riêng tư' && <p className="pet-details__health-note">
-          Thông tin liên hệ chỉ dành cho Customer xem và được chia sẻ theo quyền, nhu cầu xử lý visit/case.
+          Thông tin liên hệ chỉ hiển thị cho bạn và chỉ chia sẻ khi cần xử lý buổi chăm sóc hoặc sự cố.
         </p>}
         <dl className="pet-details__summary-grid">
           {group.fields.map((fieldKey) => <CareFieldSummary key={fieldKey} fieldKey={fieldKey} field={pet.careFields?.[fieldKey]} />)}
@@ -669,14 +665,14 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
     </div>}
 
     <Dialog open={archiveDialogOpen} intent="destructive" title="Lưu trữ hồ sơ thú cưng?"
-      description="Hồ sơ sẽ được lưu trữ thay vì xóa. Lịch sử và snapshot của booking/visit đã xác nhận vẫn được giữ nguyên."
+      description="Hồ sơ sẽ được lưu trữ thay vì xóa. Các lịch đặt đã xác nhận vẫn giữ nguyên thông tin đã lưu."
       dismissible={!archiving} onClose={() => { if (!archiving) setArchiveDialogOpen(false); }}
       footer={<>
         <Button variant="secondary" disabled={archiving} onClick={() => setArchiveDialogOpen(false)}>Giữ hồ sơ</Button>
         <Button variant="danger" loading={archiving} loadingLabel="Đang lưu trữ…" disabled={archiving || reconciliationRequired}
           onClick={confirmArchive}>Xác nhận lưu trữ</Button>
       </>}>
-      <p>Snapshot dịch vụ là bản hướng dẫn riêng theo lần xác nhận và không bị cập nhật theo hồ sơ này.</p>
+      <p>Hướng dẫn chăm sóc đã lưu khi xác nhận lịch đặt không bị thay đổi theo hồ sơ này.</p>
     </Dialog>
   </section>;
 }

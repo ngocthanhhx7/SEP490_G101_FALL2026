@@ -28,6 +28,7 @@ import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createWithdrawalReviewService } from '../services/employee-scheduling/withdrawal-review.service.js';
 import { createWithdrawalReviewController } from '../controllers/withdrawal-review.controller.js';
 import { createVisitRemindersService } from '../services/employee-scheduling/visit-reminders.service.js';
+import { createLateCheckInAlerts } from '../services/employee-scheduling/late-check-in-alert.service.js';
 
 export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
@@ -109,5 +110,6 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   }
   return { name: 'employee-scheduling', mount: '/api/v1/employee-scheduling', router, repository, dispatch, carePlans, proposals,
     visitReminders: createVisitRemindersService({ connection, clock }),
+    lateCheckInAlerts: createLateCheckInAlerts({ repository, clock }),
     completionMonitor: createVisitCompletionMonitor({ repository, clock }) };
 }

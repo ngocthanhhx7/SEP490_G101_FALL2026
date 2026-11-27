@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
 import { AppError } from '../../utils/app-error.js';
+import { RATING_WINDOW_MS } from './booking-rating-window.js';
 
 export const REVIEW_STATES = Object.freeze([
   'SUBMITTED',
@@ -282,12 +283,15 @@ export function createReviewService({
           'VISIT_NOT_ELIGIBLE',
           'Only an assigned completed visit can be rated'
         );
-      const completedAnchor = Date.parse(
-        visit.completedAt ?? visit.checkOutAt ?? visit.endAt
-      );
+      // The window runs from the end of the booking when the repository knows it.
+      // null means the booking has not ended; the repository rejects that case.
+      const completedAnchor =
+        visit.bookingEndedAt === undefined
+          ? Date.parse(visit.completedAt ?? visit.checkOutAt ?? visit.endAt)
+          : new Date(visit.bookingEndedAt ?? Number.NaN).getTime();
       if (
         Number.isFinite(completedAnchor) &&
-        nowValue(clock) - completedAnchor > 7 * 24 * 60 * 60 * 1000
+        nowValue(clock) - completedAnchor > RATING_WINDOW_MS
       ) {
         fail(
           409,

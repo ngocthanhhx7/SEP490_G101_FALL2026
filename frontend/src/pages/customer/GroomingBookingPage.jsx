@@ -8,6 +8,7 @@ import { GroomingPetsSection } from '../../components/grooming/GroomingPetsSecti
 import { GroomingQuestionsSection } from '../../components/grooming/GroomingQuestionsSection.jsx';
 import { GroomingSlotsSection } from '../../components/grooming/GroomingSlotsSection.jsx';
 import { GroomingPriceSummary } from '../../components/grooming/GroomingPriceSummary.jsx';
+import { GROOMING_DEBT_BLOCKS_BOOKING } from '../../constants/booking-messages.js';
 import { GROOMING_TIERS, msg65 } from '../../constants/grooming-messages.js';
 import { appointmentLabel } from '../../utils/grooming-booking.js';
 import { formatVnd } from '../../utils/product-format.js';
@@ -51,7 +52,7 @@ function GroomingBooking({ api, serviceId, onAnother }) {
   if (flow.booked) return <Booked appointment={flow.booked} onAnother={onAnother} />;
   const hasPets = Object.values(flow.picked).some(choice => choice.answers.biteOrScratch !== 'YES' && choice.serviceIds.length > 0);
   return <>{options.groomingPaymentOutstanding && <p role="alert" className="grooming-inline">
-    Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.
+    {GROOMING_DEBT_BLOCKS_BOOKING}
   </p>}<div className="grooming-layout">
     <fieldset className="grooming-steps" disabled={flow.busy || flow.pending || options.groomingPaymentOutstanding} aria-label="Thông tin lịch hẹn">
       <GroomingPetsSection pets={flow.pets} options={options} picked={flow.picked} onTogglePet={flow.togglePet} onToggleService={flow.toggleService} />

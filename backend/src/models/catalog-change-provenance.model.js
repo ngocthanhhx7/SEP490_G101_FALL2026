@@ -4,7 +4,7 @@ export const CATALOG_VERSION_AUDITS = Object.freeze([
   { type: 'service', source: 'serviceaudits', target: 'serviceversions', actions: ['SERVICE_CREATED', 'SERVICE_VERSIONED'] },
   { type: 'service-policy', source: 'serviceaudits', target: 'servicepolicyversions', actions: ['POLICY_VERSIONED'] },
   { type: 'service-price', source: 'servicepriceaudits', target: 'servicepriceversions', actions: ['SERVICE_PRICE_VERSIONED'] },
-  { type: 'system-setting', source: 'systemsettingaudits', target: 'systemsettingversions', actions: ['SERVICE_CATALOG_VISIBILITY_CHANGED', 'PICKUP_FEES_CHANGED'] }
+  { type: 'system-setting', source: 'systemsettingaudits', target: 'systemsettingversions', actions: ['SERVICE_CATALOG_VISIBILITY_CHANGED', 'PICKUP_FEES_CHANGED', 'FAULTY_PRODUCT_REPORT_DAYS_CHANGED'] }
 ]);
 
 export function catalogChangeAuditField(type) {

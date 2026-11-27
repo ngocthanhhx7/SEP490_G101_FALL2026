@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Package, Store, Undo2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Package, ShieldAlert, Store, Undo2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -10,6 +10,7 @@ const CARDS = [
   { key: 'PREPARE', label: 'Đơn cần chuẩn bị', to: '/admin/product-orders?tab=PREPARE', linkLabel: 'Mở Đơn hàng', Icon: Package },
   { key: 'AWAITING_PICKUP', label: 'Đơn chờ khách đến lấy', to: '/admin/product-orders?tab=AWAITING_PICKUP', linkLabel: 'Mở Đơn hàng', Icon: Store },
   { key: 'RETURNING', label: 'Kiện hoàn về cần kiểm', to: '/admin/product-orders?tab=RETURNING', linkLabel: 'Mở Đơn hàng', Icon: Undo2 },
+  { key: 'CLAIMS_TO_CHECK', label: 'Báo lỗi cần kiểm tra', to: '/admin/faulty-product-claims?tab=WAITING_CHECK', linkLabel: 'Mở Khiếu nại sản phẩm', Icon: ShieldAlert },
   { key: 'LOW_STOCK', label: 'Sản phẩm sắp hết hàng', to: '/admin/stock?tab=LOW_STOCK', linkLabel: 'Mở Tồn kho', Icon: AlertTriangle }
 ];
 
@@ -29,7 +30,7 @@ export function SaleStaffDashboardPage() {
       {CARDS.map(({ key, label, to, linkLabel, Icon }) => <Link key={key} className="pwc-sales-dashboard__card" to={to}>
         <span className="pwc-sales-dashboard__icon"><Icon size={22} aria-hidden="true" /></span>
         <h2>{label}</h2>
-        <span className="pwc-sales-dashboard__count">{resource.data.counts[key].toLocaleString('vi-VN')}</span>
+        <span className="pwc-sales-dashboard__count">{(resource.data.counts[key] ?? 0).toLocaleString('vi-VN')}</span>
         <span className="pwc-sales-dashboard__link">{linkLabel} <ArrowRight size={16} aria-hidden="true" /></span>
       </Link>)}
     </div>}
