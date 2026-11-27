@@ -210,8 +210,11 @@ Codes are `PN-0001`, `PN-0002`, ...: at least four digits and **no upper limit**
 
 The public `GET /api/v1/products` accepts `page` (starting at 1) and `limit`
 (default 20, maximum 50), returning `{ items, page, limit, total }`. Filters remain
-applied across pages. Cart additions validate the accumulated quantity against
-the 99-per-line ceiling and serialize read/update in a retryable transaction.
+applied across pages. Cart quantities must be positive safe integers. Adding
+checks the current quantity plus the requested increment against sellable stock
+and serializes the cart read/update in a retryable transaction. Setting a line
+checks the requested quantity against sellable stock. Either operation accepts
+an exact match and rejects a larger quantity with a stock conflict.
 Concurrent order retries with one key return the committed winner even when that
 winner already emptied the cart. The frontend discards mutation responses from
 an invalidated/different session.

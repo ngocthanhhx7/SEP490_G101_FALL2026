@@ -66,15 +66,16 @@ export function createProductCartService({ connection, eligibility = createProdu
       const customerId = requireCustomer(actor);
       const { productId, quantity } = parseAddCartLine(body);
       const { available } = await sellableProduct(productId);
+      if (quantity > available) throw productSalesErrors.exceedsAvailable(productId, available);
       try {
         await ProductCart.updateOne({ customerId }, { $setOnInsert: { customerId, lines: [], version: 0 } }, { upsert: true });
       } catch (error) { if (error?.code !== 11000) throw error; }
       await unitOfWork.run(async (session) => {
         const cart = await ProductCart.findOne({ customerId }).session(session).lean();
-        const existing = cart.lines.find((line) => String(line.productId) === productId);
-        const next = (existing?.quantity ?? 0) + quantity;
-        parseAddCartLine({ productId, quantity: next });
-        if (next > available) throw productSalesErrors.exceedsAvailable(productId, available);
+        const existing = cart.lines.find((line) => String(line.productId) === productId.toLowerCase());
+        const currentQuantity = existing?.quantity ?? 0;
+        if (quantity > available - currentQuantity) throw productSalesErrors.exceedsAvailable(productId, available);
+        const next = currentQuantity + quantity;
         if (existing) {
           await ProductCart.updateOne({ customerId, 'lines.productId': productId },
             { $set: { 'lines.$.quantity': next }, $inc: { version: 1 } }, { session, runValidators: true });
@@ -92,7 +93,7 @@ export function createProductCartService({ connection, eligibility = createProdu
       const { available } = await sellableProduct(input.productId);
       if (input.quantity > available) throw productSalesErrors.exceedsAvailable(input.productId, available);
       const result = await ProductCart.updateOne({ customerId, 'lines.productId': input.productId },
-        { $set: { 'lines.$.quantity': input.quantity }, $inc: { version: 1 } });
+        { $set: { 'lines.$.quantity': input.quantity }, $inc: { version: 1 } }, { runValidators: true });
       if (result.matchedCount === 0) throw productSalesErrors.cartLineNotFound();
       return view(customerId);
     },
