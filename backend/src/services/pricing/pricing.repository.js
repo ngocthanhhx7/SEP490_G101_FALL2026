@@ -4,6 +4,7 @@ import { petCareModels } from '../../models/pet-care.model.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
 import { servicePriceVersionModel } from '../../models/service-price-version.model.js';
 import { fail } from '../../validators/pet-care.validator.js';
+import { createProductPricingEligibility } from '../product-sales/product-pricing-eligibility.service.js';
 export function createPricingRepository(connection, clock = Date.now) {
   const models = {
       ...pricingModels(connection),
@@ -11,10 +12,12 @@ export function createPricingRepository(connection, clock = Date.now) {
       ...decisionSnapshotModels(connection)
     },
     Price = servicePriceVersionModel(connection),
-    context = createPetCareContext(connection, clock);
+    context = createPetCareContext(connection, clock),
+    tierEligibility = createProductPricingEligibility({ connection });
   return {
     models,
     connection,
+    readTier: (ownerId, options = {}) => tierEligibility.read(ownerId, { ...options, includeReason: true }),
     async context(ownerId, input, { session = null } = {}) {
       const base = await context.context(ownerId, input, { session }),
         now = new Date(clock());

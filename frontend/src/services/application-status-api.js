@@ -11,7 +11,13 @@ export function createApplicationStatusApi({ fetchImpl = (...args) => globalThis
         redirect: 'error', signal: controller.signal
       });
       const envelope = await response.json();
-      if (!response.ok) throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status);
+      if (!response.ok) {
+        throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
+          retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
+          retryAfterAt: envelope?.error?.retryAfterAt,
+          reason: envelope?.error?.reason
+        });
+      }
       if (envelope?.meta?.schemaVersion !== 1 || !envelope.data) throw new ApiError('INVALID_RESPONSE');
       return envelope;
     } catch (error) {

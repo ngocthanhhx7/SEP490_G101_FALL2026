@@ -6,11 +6,13 @@ export function bookingCheckoutInput(value) {
   if (value.acceptServicePolicies !== true) fail('SERVICE_POLICY_CONSENT_REQUIRED', 'Accept the quoted service policies');
   if (!Array.isArray(value.visits) || !value.visits.length || value.visits.length > 60) fail('VALIDATION_FAILED', 'One to sixty visits required');
   const visits = value.visits.map(row => {
-    exact(row, ['itemIndex', 'startAt', 'location', 'addressId', 'requestedSitterId', 'matchId', 'bookingMode'], ['itemIndex', 'startAt', 'location']);
+    exact(row, ['itemIndex', 'startAt', 'location', 'addressId', 'requestedSitterId', 'matchId', 'bookingMode', 'acceptUnavailableSitter'], ['itemIndex', 'startAt', 'location']);
     if (row.bookingMode !== undefined && (!['SYSTEM', 'DIRECT'].includes(row.bookingMode) ||
       (row.bookingMode === 'DIRECT') !== Boolean(row.requestedSitterId))) fail('VALIDATION_FAILED', 'Choose system dispatch or a specific employee');
     if (row.matchId !== undefined) id(row.matchId);
     if (row.requestedSitterId !== undefined) id(row.requestedSitterId);
+    if (row.acceptUnavailableSitter !== undefined && (row.acceptUnavailableSitter !== true || !row.requestedSitterId))
+      fail('VALIDATION_FAILED', 'Availability consent requires a specific employee');
     if (!Number.isSafeInteger(row.itemIndex) || row.itemIndex < 0 || row.itemIndex > 19 || !['HOME', 'FACILITY', 'OUTDOOR'].includes(row.location))
       fail('VALIDATION_FAILED', 'Invalid visit selection');
     if (row.location !== 'FACILITY') id(row.addressId);

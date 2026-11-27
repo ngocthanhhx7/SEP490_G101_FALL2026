@@ -50,22 +50,25 @@ function validateActor(actor) {
   }
 }
 
-function validateInput({ startDate, endDate, expectedVersion, idempotencyKey }) {
+function validateInput({ startDate, endDate, reason, expectedVersion, idempotencyKey }) {
   const start = calendarDate(startDate, 'startDate');
   const end = calendarDate(endDate, 'endDate');
   if (start > end) validationError('endDate', 'The end date must be on or after the start date.');
+  if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 1000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(reason)) {
+    validationError('reason', 'A day-off reason between 1 and 1000 characters is required.');
+  }
   if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
     validationError('expectedVersion', 'A nonnegative availability version is required.');
   }
   if (typeof idempotencyKey !== 'string' || idempotencyKey.length < 8 || idempotencyKey.length > 128) {
     validationError('idempotencyKey', 'An idempotency key is required.');
   }
-  return { startDate: start, endDate: end };
+  return { startDate: start, endDate: end, reason: reason.trim() };
 }
 
-function payloadHash({ startDate, endDate, expectedVersion }) {
+function payloadHash({ startDate, endDate, reason, expectedVersion }) {
   return createHash('sha256')
-    .update(JSON.stringify({ startDate, endDate, expectedVersion }))
+    .update(JSON.stringify({ startDate, endDate, reason, expectedVersion }))
     .digest('hex');
 }
 
@@ -110,9 +113,9 @@ export function createDayOffRequestService({ repository, clock = () => new Date(
   if (typeof clock !== 'function') throw new TypeError('clock must be a function');
 
   return Object.freeze({
-    async request({ actor, startDate, endDate, expectedVersion, idempotencyKey } = {}) {
+    async request({ actor, startDate, endDate, reason, expectedVersion, idempotencyKey } = {}) {
       validateActor(actor);
-      const dates = validateInput({ startDate, endDate, expectedVersion, idempotencyKey });
+      const dates = validateInput({ startDate, endDate, reason, expectedVersion, idempotencyKey });
       const requestedPayloadHash = payloadHash({ ...dates, expectedVersion });
 
       return repository.runForSitterActor(actor, async (transaction, { sitterId } = {}) => {
@@ -128,7 +131,9 @@ export function createDayOffRequestService({ repository, clock = () => new Date(
         };
         const replay = replayResult(await transaction.getIdempotencyResult(identity), requestedPayloadHash);
         if (replay) return replay;
-        if (dates.startDate < dateInServiceTimeZone(clock())) {
+        const nowInstant = clock();
+        const nowMs = nowInstant instanceof Date ? nowInstant.getTime() : new Date(nowInstant).getTime();
+        if (dates.startDate < dateInServiceTimeZone(nowInstant)) {
           validationError('startDate', 'The start date cannot be in the past in Vietnam time.');
         }
 
@@ -148,14 +153,23 @@ export function createDayOffRequestService({ repository, clock = () => new Date(
           throw new AppError(409, 'INVALID_STATE', 'An active day-off request already overlaps these dates');
         }
 
-        const conflicts = safeConflictCount(await transaction.findConfirmedVisitConflicts({
+        const conflictData = await transaction.findConfirmedVisitConflicts({
           sitterId, startDate: dates.startDate, endDate: dates.endDate, limit: MAX_CONFLICTS + 1
-        }));
+        });
+        const conflicts = safeConflictCount(conflictData);
+        if (conflictData.items.some(item => {
+          const visitStart = item?.startAt instanceof Date ? item.startAt.getTime()
+            : typeof item?.startAt === 'string' ? Date.parse(item.startAt) : NaN;
+          return Number.isFinite(visitStart) && visitStart - nowMs < 12 * 3600000;
+        })) {
+          throw new AppError(409, 'WITHDRAWAL_REQUIRED', 'Confirmed visits within 12 hours must use visit withdrawal');
+        }
         const result = {
           request: {
             state: 'PENDING',
             startDate: dates.startDate,
             endDate: dates.endDate,
+            reason: dates.reason,
             availabilityVersion: availability.version
           },
           conflicts,
@@ -171,6 +185,7 @@ export function createDayOffRequestService({ repository, clock = () => new Date(
             requestedBy: actor.userId,
             startDate: dates.startDate,
             endDate: dates.endDate,
+            reason: dates.reason,
             state: 'PENDING'
           },
           confirmedVisitConflictCount: conflicts.count,

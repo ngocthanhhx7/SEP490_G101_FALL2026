@@ -1,6 +1,7 @@
 import { createVisitEvidenceAccess } from '../services/care/visit-evidence-access.service.js';
 import { createVisitEvidenceQuota } from '../services/care/visit-evidence-quota.service.js';
 import express, { Router } from 'express';
+import { applicationIntakeMiddleware } from '../middlewares/application-intake.js';
 import { requireSession, requireCsrf } from '../middlewares/session.js';
 import { createSessionService } from '../services/session.service.js';
 import { createPrivateImageService } from '../services/private-image.service.js';
@@ -12,6 +13,13 @@ import { AppError } from '../utils/app-error.js';
 
 const admissionByConnection = new WeakMap();
 
+export function mediaAdmissionFor(connection, limit = 4) {
+  if (!admissionByConnection.has(connection)) {
+    admissionByConnection.set(connection, createMediaAdmission({ limit }));
+  }
+  return admissionByConnection.get(connection);
+}
+
 export function privateImageModule({ connection, media, secret, maxImagesPerUser,
   requireAuthenticated, csrf, maxInFlight = 4, imageModels, storagePrefix = 'private-images',
   name = 'private-images', mount = '/api/v1/private-images', clock = Date.now }) {
@@ -20,11 +28,7 @@ export function privateImageModule({ connection, media, secret, maxImagesPerUser
     authorizeVisitUpload: storagePrefix === 'private-images' ? createVisitEvidenceQuota({ connection, clock }) : undefined });
   const controller = createPrivateImageController({ service });
   const router = Router();
-  let admission = admissionByConnection.get(connection);
-  if (!admission) {
-    admission = createMediaAdmission({ limit: maxInFlight });
-    admissionByConnection.set(connection, admission);
-  }
+  const admission = mediaAdmissionFor(connection, maxInFlight);
   const parseImage = express.raw({ type: ['image/png', 'image/jpeg'], limit: MAX_IMAGE_BYTES });
   const upload = admitted(admission, async (req, res) => {
     await parseBody(parseImage, req, res);
@@ -138,11 +142,18 @@ export function applicantDocumentRuntimeModule({ config, connection, ports, env,
   if (!config.auth?.enabled) return null;
   const documents = loadApplicantDocumentConfig(env);
   if (!documents) return null;
+  const intake = applicationIntakeMiddleware({ secret: config.auth.tokenSecret, clock, secure: config.nodeEnv === 'production' });
   const session = createSessionService({ connection, clock,
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
+  const account = requireSession(session, { clock }), accountCsrf = requireCsrf(session);
+  function documentOwner(req, res, next) {
+    if (!req.get('X-Application-Token')) return account(req, res, next);
+    intake.require(req, res, error => error ? next(error) : intake.documentOwner(req, res, next));
+  }
   return privateImageModule({ connection, media: ports.applicantDocuments, secret: config.auth.tokenSecret,
     imageModels: applicantDocumentModels(connection), storagePrefix: 'applicant-documents',
     name: 'applicant-documents', mount: '/api/v1/applicant-documents',
-    maxImagesPerUser: documents.maxImagesPerUser, requireAuthenticated: requireSession(session, { clock }),
-    csrf: requireCsrf(session) });
+    maxImagesPerUser: documents.maxImagesPerUser,
+    requireAuthenticated: [intake.sameOrigin, documentOwner],
+    csrf: (req, res, next) => req.applicationApplicant ? next() : accountCsrf(req, res, next), clock });
 }

@@ -5,14 +5,14 @@ import { bookingMoney } from '../../utils/booking-presentation.js';
 import { complaintError, retryKey, uncertainComplaint } from '../../utils/complaint-presentation.js';
 
 const required = 'Trường này là bắt buộc.';
-const missingBilling = 'Chưa có nguồn hóa đơn để xác nhận số tiền.';
+const missingBilling = 'Lịch đặt chưa có thanh toán được xác nhận nên chưa thể đề xuất hoàn tiền.';
 const imageTypes = ['image/png', 'image/jpeg'];
 
 function amountError(raw, value, cap, finalDecision) {
   if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || (!finalDecision && value === 0)) {
     return 'Nhập số nguyên đồng' + (finalDecision ? '.' : ' lớn hơn 0.');
   }
-  if (value > cap) return 'Số tiền không được vượt quá ' + bookingMoney(cap) + ' còn lại của hóa đơn.';
+  if (value > cap) return 'Số tiền không được vượt quá ' + bookingMoney(cap) + ', phần còn lại sau các khoản hoàn đã ghi nhận của lịch đặt.';
   return null;
 }
 
@@ -64,7 +64,6 @@ export function ComplaintManagementForm({ api, imageApi, item, finalDecision = f
     }
     if (reasonRequired && !fieldErrors.amountVnd) {
       if (!reason.trim()) fieldErrors.reason = required;
-      if (!files.length) fieldErrors.evidenceRefs = required;
     }
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length && !pending.current?.payload) return;
@@ -116,7 +115,10 @@ export function ComplaintManagementForm({ api, imageApi, item, finalDecision = f
       } else if (error.code === 'REFUND_CAP_EXCEEDED') {
         pending.current = null;
         setUncertain(false);
-        setErrors({ amountVnd: 'Số tiền vượt phần còn lại của hóa đơn. Hãy tải lại hồ sơ để kiểm tra.' });
+        const remaining = Number.isSafeInteger(error.remainingVnd) ? bookingMoney(error.remainingVnd) : null;
+        setErrors({ amountVnd: remaining
+          ? 'Số tiền không được vượt quá ' + remaining + ', phần còn lại sau các khoản hoàn đã ghi nhận của lịch đặt.'
+          : 'Số tiền vượt phần còn lại của lịch đặt. Hãy tải lại hồ sơ để kiểm tra.' });
       } else {
         const unknown = attempted && uncertainComplaint(error);
         setUncertain(unknown);
@@ -152,7 +154,8 @@ export function ComplaintManagementForm({ api, imageApi, item, finalDecision = f
         aria-describedby={errors.amountVnd ? 'complaint-amount-error' : 'complaint-amount-help'}
         onChange={event => setAmount(event.target.value)} />
       <p id="complaint-amount-help" className="complaint-management__muted">{canUseMoney
-        ? (billing.basis === 'EXPECTED' ? 'Hóa đơn dự kiến ' : 'Hóa đơn ') + bookingMoney(billing.basisAmountVnd)
+        ? 'Khách đã trả ' + bookingMoney(billing.basisAmountVnd)
+          + '. Đã hoàn ' + bookingMoney(billing.approvedTotalVnd ?? 0)
           + '. Còn lại ' + bookingMoney(cap) + '.'
         : missingBilling}</p>
       <FieldError id="complaint-amount-error" message={errors.amountVnd} />
@@ -163,7 +166,7 @@ export function ComplaintManagementForm({ api, imageApi, item, finalDecision = f
         aria-required={reasonRequired} aria-invalid={Boolean(errors.reason)}
         aria-describedby={errors.reason ? 'complaint-reason-error' : 'complaint-reason-help'}
         onChange={event => setReason(event.target.value)} />
-      <p id="complaint-reason-help" className="complaint-management__muted">Bắt buộc khi có số tiền.</p>
+      <p id="complaint-reason-help" className="complaint-management__muted">Bắt buộc nhập lý do khi có số tiền; tệp bằng chứng không bắt buộc.</p>
       <FieldError id="complaint-reason-error" message={errors.reason} />
       <label className="complaint-management__add-file"><span aria-hidden="true">+</span> Thêm tệp
         <input type="file" aria-label="Thêm tệp" accept="image/png,image/jpeg" multiple disabled={!reasonRequired || frozen}
@@ -175,9 +178,9 @@ export function ComplaintManagementForm({ api, imageApi, item, finalDecision = f
           onClick={() => setFiles(previous => previous.filter(row => row.key !== key))}>Bỏ</button>
       </li>)}</ul>}
     </div>}
-    {item.billState === 'ON_HOLD' && <p className="complaint-management__bill-note">
-      Hoá đơn của {item.booking?.code ?? 'lịch đặt'} được giữ đến khi kết quả là cuối cùng.
-    </p>}
+    <p className="complaint-management__bill-note">
+      Khoản hoàn được duyệt sẽ được kế toán Paw World chi trả ngoài hệ thống.
+    </p>
     <FieldError id="complaint-command-error" message={errors.form} />
     <Button type="submit" loading={busy}>
       {uncertain ? 'Thử lại' : finalDecision ? 'Ghi kết quả cuối' : 'Giải quyết'}

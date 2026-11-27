@@ -39,7 +39,7 @@ test('UC-27 / GBR-17: Customer sees saved details and retains checkout actions',
     }
   });
   expect(await screen.findByRole('heading', { name: 'Thông tin lịch đặt' })).toBeVisible();
-  expect(screen.getByText('Chính sách trách nhiệm')).toBeVisible();
+  expect(screen.getByText('Xác nhận điều kiện')).toBeVisible();
   expect(screen.getByText(/Xác nhận đặt lịch lúc 10:12 ngày 10\/11\/2026/)).toBeVisible();
   expect(screen.getByRole('button', { name: 'Tạo link thanh toán' })).toBeVisible();
   expect(screen.getByRole('link', { name: 'Xem đề xuất lịch chăm sóc' })).toHaveAttribute('href', '/account/schedule-proposals/proposal');

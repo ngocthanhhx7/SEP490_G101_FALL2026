@@ -387,7 +387,7 @@ test('backend pricing remains available when AI matching is disabled', async () 
     .expect(404);
 });
 
-test('matching has no pricing prerequisite and decision kinds cannot be crossed', async () => {
+test('ST-BKG-21 / GBR-12: customer recommendation and decision routes are disabled (404) while pricing works independently', async () => {
   await seedSitters();
   const headers = await authFor(customer);
   const quote = await request(app)
@@ -395,18 +395,10 @@ test('matching has no pricing prerequisite and decision kinds cannot be crossed'
     .set(headers)
     .send(quoteBody())
     .expect(201);
-  await models.PricingPolicy.deleteMany({});
-  await servicePriceVersionModel(connection).deleteMany({});
-  const match = await request(app)
+  await request(app)
     .post('/api/v1/ai/recommendations')
     .set(headers)
     .send(matchBody())
-    .expect(201);
-  expect(match.body.data.returned).toBe(5);
-  const saved = await models.DecisionSnapshot.findOne({ kind: 'MATCH' }).lean();
-  await request(app)
-    .get('/api/v1/pricing/quotes/' + saved._id)
-    .set(headers)
     .expect(404);
   await request(app)
     .get('/api/v1/ai/decisions/' + quote.body.data.quoteId)
@@ -462,52 +454,14 @@ test('authenticated routes reject missing CSRF/guest and restrict policy writes 
     .send({})
     .expect(403);
 });
-test('returns five real eligible candidates with explanations, excludes suspended user, no private home data', async () => {
-  const ids = await seedSitters();
-  await User.updateOne({ _id: ids[5] }, { $set: { state: 'SUSPENDED' } });
-  const response = await request(app)
+test('customer recommendation endpoint stays unavailable (404) regardless of sitter pool', async () => {
+  await seedSitters(2);
+  await request(app)
     .post('/api/v1/ai/recommendations')
     .set(await authFor(customer))
     .send(matchBody())
-    .expect(201);
-  expect(response.body.data).toMatchObject({
-    status: 'READY_FOR_OFFER_SHORTLIST',
-    returned: 5,
-    shortfall: 0
-  });
-  expect(
-    response.body.data.candidates.every((c) => c.breakdown.length === 5)
-  ).toBe(true);
-  expect(response.body.data.candidates.map((c) => c.sitterId)).not.toContain(
-    String(ids[5])
-  );
-  expect(JSON.stringify(response.body)).not.toContain('coordinates');
-  expect(JSON.stringify(response.body)).not.toContain('Synthetic address');
-  expect(await models.DecisionSnapshot.countDocuments({ kind: 'MATCH' })).toBe(
-    1
-  );
-});
-test('does not pad the shortlist when fewer than five qualify or a calendar conflict occurs', async () => {
-  const ids = await seedSitters(2);
-  await models.SitterScheduleBlock.create({
-    sitterId: ids[0],
-    startAt: new Date(matchBody().startAt),
-    endAt: new Date(matchBody().endAt),
-    point: { type: 'Point', coordinates: [105.8, 21] },
-    state: 'CONFIRMED',
-    kind: 'VISIT'
-  });
-  const response = await request(app)
-    .post('/api/v1/ai/recommendations')
-    .set(await authFor(customer))
-    .send(matchBody())
-    .expect(201);
-  expect(response.body.data).toMatchObject({
-    status: 'INSUFFICIENT_ELIGIBLE_SITTERS',
-    returned: 1,
-    shortfall: 4
-  });
-  expect(response.body.data.exclusions.VISIT_CONFLICT).toBe(1);
+    .expect(404);
+  expect(await models.DecisionSnapshot.countDocuments({ kind: 'MATCH' })).toBe(0);
 });
 test('Admin creates immutable policy versions; duplicate version conflicts and draft does not replace active', async () => {
   const body = {
@@ -636,16 +590,7 @@ test('creates only valid owned catalog pets, sanitizes address lists and rejects
 test('changed pricing policy caps and special care readiness fail closed', async () => {
   await models.Pet.updateOne(
     { _id: petId },
-    { $set: { careNeedsConfirmed: false } }
-  );
-  await request(app)
-    .post('/api/v1/ai/recommendations')
-    .set(await authFor(customer))
-    .send(matchBody())
-    .expect(409);
-  await models.Pet.updateOne(
-    { _id: petId },
-    { $set: { traits: ['not-priced-yet'] } }
+    { $set: { careNeedsConfirmed: false, traits: ['not-priced-yet'] } }
   );
   await request(app)
     .post('/api/v1/pricing/quotes')
@@ -658,22 +603,11 @@ test('changed pricing policy caps and special care readiness fail closed', async
 });
 test('approved policy is the only ranking source and archived models cannot be activated over HTTP', async () => {
   const headers = await authFor(customer);
-  const original = await request(app).post('/api/v1/ai/recommendations').set(headers).send(matchBody()).expect(201);
   const archive = { version: 'archived-model', weights: { fit: 0, travel: 0, quality: 100, reliability: 0, workload: 0 },
     trainingRows: 200, testMae: 1, baselineMae: 2, testGroups: 10, trainedUntil: new Date(clockNow - 60000).toISOString() };
   const row = await models.SitterRankModel.create({
     ...archive, state: 'APPROVED', sha256: digest(archive), approvedBy: String(admin._id), approvedAt: new Date(clockNow - 1000)
   });
-  const recommendations = await request(app).post('/api/v1/ai/recommendations').set(headers).send(matchBody()).expect(201);
-  expect(recommendations.body.data).toMatchObject({ rankingSource: 'EXPLAINABLE_RULES', modelVersion: null, policyVersion: 1,
-    candidates: original.body.data.candidates });
-
-  const historicalMatchId = original.body.data.matchId;
-  await models.DecisionSnapshot.updateOne({ _id: historicalMatchId }, { $set: {
-    'snapshot.result.rankingSource': 'APPROVED_ADDITIVE_MODEL', 'snapshot.result.modelVersion': archive.version
-  } });
-  const saved = await request(app).get('/api/v1/ai/decisions/' + historicalMatchId).set(headers).expect(200);
-  expect(saved.body.data).toMatchObject({ rankingSource: 'APPROVED_ADDITIVE_MODEL', modelVersion: archive.version });
 
   const path = '/api/v1/ai/admin';
   const adminHeaders = await authFor(admin);
@@ -781,17 +715,14 @@ test('Admin capability version conflict and schedule concurrency guard reject du
   expect(await models.SitterScheduleBlock.countDocuments()).toBe(1);
 });
 
-test('a slow routing lookup cannot save a ready snapshot after the lead-time window closes', async () => {
+test('customer recommendation endpoint returns 404 and saves no match snapshot', async () => {
   await seedSitters();
-  routingAdvanceMs = 3 * 86400000;
   await request(app)
     .post('/api/v1/ai/recommendations')
     .set(await authFor(customer))
     .send(matchBody())
-    .expect(422);
-  expect(await models.DecisionSnapshot.countDocuments({ kind: 'MATCH' })).toBe(
-    0
-  );
+    .expect(404);
+  expect(await models.DecisionSnapshot.countDocuments({ kind: 'MATCH' })).toBe(0);
 });
 
 test('owned booking quote recovers after approved care-trait policy migration; unknown traits remain blocked', async()=>{

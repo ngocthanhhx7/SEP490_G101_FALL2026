@@ -1,0 +1,258 @@
+.visit-schedule {
+  width: min(1160px, 100%);
+  margin: 0 auto;
+  padding: 24px 0 36px;
+  min-width: 0;
+}
+
+.visit-schedule__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #3f2263;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.visit-schedule__back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.visit-schedule__header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  color: #210e3a;
+  line-height: 1.25;
+}
+
+.visit-schedule__summary {
+  margin: 8px 0 0;
+  color: #544666;
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.visit-schedule__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 22px;
+}
+
+.visit-schedule__legend-label {
+  color: #544666;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.visit-schedule-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.visit-schedule-badge--done {
+  background: #dff5e8;
+  color: #16653d;
+}
+
+.visit-schedule-badge--active {
+  background: #dceeff;
+  color: #1553a8;
+}
+
+.visit-schedule-badge--assigned {
+  background: #e3f0ff;
+  color: #1c4e9c;
+}
+
+.visit-schedule-badge--waiting {
+  background: #fdf0c6;
+  color: #8c5a00;
+}
+
+.visit-schedule-badge--cancelled {
+  background: #efeaf4;
+  color: #6b5e7a;
+}
+
+.visit-schedule__board {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
+}
+
+.visit-schedule-day {
+  flex: 1 1 0;
+  min-width: 160px;
+  max-width: 280px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 10px;
+  border-radius: 18px;
+  border: 1px solid #e6dcef;
+  background: #ffffff;
+}
+
+.visit-schedule-day--today {
+  background: #efe5fa;
+  border: 2px solid #6b38a8;
+}
+
+.visit-schedule-day__header {
+  padding-inline: 2px;
+}
+
+.visit-schedule-day__weekday {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #5a4c6e;
+  font-weight: 500;
+}
+
+.visit-schedule-day__today {
+  color: #5a2c91;
+  font-weight: 700;
+}
+
+.visit-schedule-day__date {
+  margin: 2px 0 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #210e3a;
+  line-height: 1.25;
+}
+
+.visit-schedule-day__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.visit-schedule-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 10px;
+  border-radius: 14px;
+  border: 1px solid #ece3f3;
+  background: #ffffff;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.visit-schedule-card--link {
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.visit-schedule-card--link:hover {
+  border-color: #7c4cb5;
+  box-shadow: 0 4px 14px rgba(72, 41, 105, 0.12);
+  transform: translateY(-1px);
+}
+
+.visit-schedule-card--link:focus-visible {
+  outline: 3px solid #7c4cb5;
+  outline-offset: 2px;
+}
+
+.visit-schedule-card--cancelled {
+  background: #f3eff7;
+  border-color: #e4dce9;
+  color: #7c708a;
+  opacity: 0.82;
+  cursor: default;
+}
+
+.visit-schedule-card__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.visit-schedule-card__row svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.visit-schedule-card__time strong {
+  color: #1f0d36;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.visit-schedule-card--cancelled .visit-schedule-card__time strong {
+  color: #847794;
+}
+
+.visit-schedule-card__person {
+  color: #4f4161;
+}
+
+.visit-schedule-card--cancelled .visit-schedule-card__person {
+  color: #7c708a;
+}
+
+.visit-schedule-card__moved {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: #544666;
+}
+
+.visit-schedule__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #fff7e6;
+  color: #5d4520;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.visit-schedule__note svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #c27803;
+}
+
+@media (max-width: 640px) {
+  .visit-schedule {
+    padding: 16px 0 28px;
+  }
+
+  .visit-schedule__board {
+    flex-direction: column;
+    overflow-x: visible;
+    padding: 0;
+  }
+
+  .visit-schedule-day {
+    flex: none;
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    padding: 16px 14px;
+    box-sizing: border-box;
+  }
+}

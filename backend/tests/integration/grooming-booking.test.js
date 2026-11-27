@@ -22,7 +22,7 @@ import { payrollModels } from '../../src/models/payroll.model.js';
 import { employeeSchedulingModels } from '../../src/models/employee-scheduling.model.js';
 import { productSalesModels } from '../../src/models/product.model.js';
 import { serviceModel } from '../../src/models/service.model.js';
-import { groomingLocalDate } from '../../src/utils/grooming-slot-time.js';
+import { groomingLocalDate, groomingSlotKey } from '../../src/utils/grooming-slot-time.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const ADDRESS = 'Cửa hàng Paw World, 25 Láng Hạ, Đống Đa';
@@ -228,6 +228,42 @@ describe('time slots', () => {
     const id = await sitter();
     await reserve(id, '09:00'); await reserve(id, '15:00');
     expect(times(await slotsOf(addDays(TODAY, 1), pet('Bo', ['pet-bathing'])))).toEqual(['08:00:A', '09:00:F', '10:00:A', '11:00:A', '14:00:A', '15:00:F', '16:00:A']);
+  });
+
+  test('ST-GRM-05 marks a slot as PET_ALREADY_BOOKED with the pet name when the selected pet already has an active appointment', async () => {
+    const id = await sitter();
+    const start = at(addDays(TODAY, 1), '09:00');
+    await db.collection('groomingappointments').insertOne({
+      code: `SYNTHETIC-${oid()}`, requestReceipt: { key: String(oid()) }, status: 'BOOKED',
+      slot: { startAt: start, endAt: new Date(+start + HOUR) },
+      pets: [{ reservedSitterId: id, petId: pets.Milo._id, name: 'Milo', status: 'BOOKED', durationMinutes: 60, slotKeys: [groomingSlotKey(start)] }]
+    });
+    await reserve(id, '15:00');
+    const slots = await slotsOf(addDays(TODAY, 1), pet('Milo', ['pet-bathing']));
+    expect(slots.find(slot => slot.time === '09:00')).toMatchObject({ time: '09:00', state: 'PET_ALREADY_BOOKED', conflictPetName: 'Milo' });
+    expect(slots.find(slot => slot.time === '15:00')).toEqual(expect.objectContaining({ time: '15:00', state: 'FULL' }));
+    expect(slots.find(slot => slot.time === '15:00').conflictPetName).toBeUndefined();
+  });
+
+  test('lists slots at the pet history limit and requires review when the limit is exceeded', async () => {
+    await sitter();
+    const date = addDays(TODAY, 1);
+    const start = at(date, '09:00');
+    const appointments = db.collection('groomingappointments');
+    const appointment = () => ({
+      code: `SYNTHETIC-${oid()}`, requestReceipt: { key: String(oid()) }, status: 'BOOKED',
+      slot: { startAt: start, endAt: new Date(+start + HOUR) },
+      pets: [{ petId: pets.Milo._id, status: 'BOOKED', slotKeys: [groomingSlotKey(start)] }]
+    });
+    const selected = pet('Milo', ['pet-bathing']);
+    await appointments.insertMany(Array.from({ length: 200 }, appointment));
+    expect(await slotsOf(date, selected)).toContainEqual(expect.objectContaining({
+      time: '09:00', state: 'PET_ALREADY_BOOKED'
+    }));
+
+    await appointments.insertOne(appointment());
+    const response = await call('post', '/slots').send(slotBody(date, selected)).expect(503);
+    expect(response.body.error.code).toBe('GROOMING_ROSTER_REVIEW_REQUIRED');
   });
 
   test('capacity is the number of sitters: two sitters keep a slot open after one place is held', async () => {

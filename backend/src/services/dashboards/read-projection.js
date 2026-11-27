@@ -91,6 +91,7 @@ export function visitRows(snapshot, scope, ownerField) {
       ...(ownerField && text(row.serviceName, 250) ? { serviceName: row.serviceName } : {}),
       ...(ownerField && text(row.sitterName, 160) ? { sitterName: row.sitterName } : {}),
       ...(ownerField && Array.isArray(row.petNames) ? { petNames: row.petNames.filter(name => text(name, 100)).slice(0, 30) } : {}),
+      ...(ownerField === 'sitterId' && row.handoverPending === true ? { handoverPending: true } : {}),
       ...(ownerField && row.overdue === true ? { overdue: true } : {}) };
   });
 }

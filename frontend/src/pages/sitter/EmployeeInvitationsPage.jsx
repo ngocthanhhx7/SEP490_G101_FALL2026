@@ -4,14 +4,19 @@ import { useCallback, useState } from 'react';
 import { CalendarDays, Check, ChevronRight, ClipboardList, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
-import { Button, Dialog } from '../../components/ui/index.js';
+import { Button, Dialog, Toast } from '../../components/ui/index.js';
 import { OperationsTable, OperationsBadge } from '../../components/common/OperationsWorkspace.jsx';
 import { googleMapsDirections } from '../../utils/maps.js';
 import { sitterAreaLabel } from '../../utils/sitter-area-label.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { AssignedCare } from './AssignedCare.jsx';
 import { VisitWithdrawalDialog } from './VisitWithdrawalDialog.jsx';
-import { VISIT_WITHDRAWAL_MESSAGES } from '../../constants/visit-withdrawal-messages.js';
+import {
+  OFFER_DECLINE_MESSAGES,
+  VISIT_WITHDRAWAL_MESSAGES,
+  VISIT_WITHDRAWAL_REASON_CODES,
+  VISIT_WITHDRAWAL_REASON_LABELS
+} from '../../constants/visit-withdrawal-messages.js';
 import { VisitExecution } from './VisitExecution.jsx';
 import { CompactEmpty, CompactRow } from '../../components/common/CompactSurface.jsx';
 import '../../styles/employee-scheduling.css';
@@ -45,7 +50,13 @@ export function EmployeeInvitationsPage({
     [selected, setSelected] = useState(initialOfferId ? { kind: 'linkedOffer' }
       : /^[a-f0-9]{24}$/i.test(initialVisitId ?? '') ? { kind: 'linked' } : null),
     [withdrawalVisit, setWithdrawalVisit] = useState(null),
-    [withdrawalResult, setWithdrawalResult] = useState(null);
+    [withdrawalResult, setWithdrawalResult] = useState(null),
+    [decliningOffer, setDecliningOffer] = useState(null),
+    [declineReason, setDeclineReason] = useState(''),
+    [declineNote, setDeclineNote] = useState(''),
+    [declineError, setDeclineError] = useState(''),
+    [toastMessage, setToastMessage] = useState('');
+  const dismissToast = useCallback(() => setToastMessage(''), []);
   const offerCursor = offerPages.at(-1),
     assignmentCursor = assignmentPages.at(-1),
     historyCursor = historyPages.at(-1);
@@ -82,7 +93,19 @@ export function EmployeeInvitationsPage({
   const offerLoad = useCallback(({ signal }) => /^[a-f0-9]{24}$/i.test(initialOfferId ?? '') && api.offer
     ? api.offer(initialOfferId, { signal }) : Promise.resolve({ data: null }), [api, initialOfferId]);
   const linkedOffer = useApiResource(offerLoad);
-  const command = useSchedulingCommand(() => {
+  const command = useSchedulingCommand(result => {
+    if (result?.data?.state === 'DECLINED') {
+      const startAt = result.data.startAt ?? decliningOffer?.startAt;
+      if (startAt) setToastMessage(OFFER_DECLINE_MESSAGES.MSG79(startAt));
+      setDecliningOffer(null);
+      setDeclineReason('');
+      setDeclineNote('');
+      setDeclineError('');
+      if (selected?.kind === 'offer' || selected?.kind === 'linkedOffer') {
+        if (selected.kind === 'linkedOffer') onCloseOffer?.();
+        setSelected(null);
+      }
+    }
     resource.retry();
     assignments.retry();
     if (historyOpen) history.retry();
@@ -90,12 +113,38 @@ export function EmployeeInvitationsPage({
   });
   const locked = command.busy || command.pending;
   async function acceptOffer(row, key) {
+    setToastMessage('');
     try {
       return await api.respond(row.id, 'acceptances', row.version, key);
     } catch (error) {
       if (error.code === 'VISIT_ALREADY_ASSIGNED') resource.retry();
       throw error;
     }
+  }
+  function openDeclineForm(row) {
+    setDecliningOffer(row);
+    setDeclineReason('');
+    setDeclineNote('');
+    setDeclineError('');
+  }
+  function closeDeclineForm() {
+    setDecliningOffer(null);
+    setDeclineReason('');
+    setDeclineNote('');
+    setDeclineError('');
+  }
+  function submitDecline(event, row) {
+    event.preventDefault();
+    if (locked) return;
+    if (!declineReason) {
+      setDeclineError(OFFER_DECLINE_MESSAGES.MSG01);
+      return;
+    }
+    setDeclineError('');
+    setToastMessage('');
+    const trimmed = declineNote.trim();
+    const payload = { reasonCode: declineReason, ...(trimmed ? { note: trimmed } : {}) };
+    command.execute(key => api.respond(row.id, 'declines', row.version, key, payload));
   }
   function withdrawalSaved(result) {
     setWithdrawalResult(result.mode === 'EARLY' ? VISIT_WITHDRAWAL_MESSAGES.MSG57(result.startAt) : VISIT_WITHDRAWAL_MESSAGES.MSG56);
@@ -108,14 +157,42 @@ export function EmployeeInvitationsPage({
     if (!pages.length && !data.data?.nextCursor) return null;
     return <CursorPagination page={pages.length + 1} label={label} hasNext={Boolean(data.data?.nextCursor)} onFirst={() => setPages([])} onPrevious={() => setPages(rows => rows.slice(0, -1))} onNext={() => setPages(rows => [...rows, data.data.nextCursor])} previousDisabled={!pages.length || data.status === 'loading'} nextDisabled={!data.data?.nextCursor || data.status !== 'success'} previousLabel={'Trang ' + label + ' trước'} nextLabel={'Trang ' + label + ' sau'} />;
   }
-  function offerActions(row) {
+  function offerActions(row, scope = 'card') {
     if (row.state !== 'PENDING' || !row.canRespond) return null;
+    if (decliningOffer?.id === row.id) {
+      const reasonId = `decline-reason-${scope}-${row.id}`;
+      const noteId = `decline-note-${scope}-${row.id}`;
+      const errorId = `decline-error-${scope}-${row.id}`;
+      return <form className="sitter-offer-decline" onSubmit={event => submitDecline(event, row)} noValidate>
+        <label htmlFor={reasonId}>
+          <span>Lý do <span aria-hidden="true">*</span></span>
+          <select id={reasonId} value={declineReason} disabled={locked}
+            aria-invalid={Boolean(declineError)} aria-describedby={declineError ? errorId : undefined}
+            onChange={event => { setDeclineReason(event.target.value); setDeclineError(''); }}>
+            <option value="">Chọn lý do</option>
+            {VISIT_WITHDRAWAL_REASON_CODES.map(code => <option key={code} value={code}>
+              {VISIT_WITHDRAWAL_REASON_LABELS[code]}
+            </option>)}
+          </select>
+        </label>
+        {declineError && <p id={errorId} className="sitter-offer-decline__error" role="alert">{declineError}</p>}
+        <label htmlFor={noteId}>
+          <span>Ghi chú thêm</span>
+          <textarea id={noteId} rows={2} maxLength={1000} value={declineNote} disabled={locked}
+            onChange={event => setDeclineNote(event.target.value)} />
+        </label>
+        <div className="sitter-offer-decline__actions">
+          <Button type="submit" disabled={locked}>Gửi từ chối</Button>
+          <Button type="button" variant="secondary" disabled={locked} onClick={closeDeclineForm}>Quay lại</Button>
+        </div>
+      </form>;
+    }
     return <div className="sitter-offer-actions">
       <Button className="sitter-offer-actions__accept" disabled={locked} onClick={() => command.execute(key => acceptOffer(row, key))}>
         <Check size={18} aria-hidden="true" />Nhận việc
       </Button>
       <Button variant="secondary" className="sitter-offer-actions__decline" disabled={locked}
-        onClick={() => command.execute(key => api.respond(row.id, 'declines', row.version, key))}>Từ chối</Button>
+        onClick={() => openDeclineForm(row)}>Từ chối</Button>
     </div>;
   }
   const baseColumns = [{
@@ -149,7 +226,8 @@ export function EmployeeInvitationsPage({
         assignments.retry();
         if (historyOpen) history.retry();
       }}><RefreshCw size={18} aria-hidden="true" /><span>Tải lại</span></Button></header>
-    {command.message && <p role="status">{command.message}</p>}{command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại yêu cầu</Button>}
+    <Toast message={toastMessage} onClose={dismissToast} />
+    {!toastMessage && command.message && <p role="status">{command.message}</p>}{command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại yêu cầu</Button>}
     <h2>Lời mời đang chờ</h2><ListStatus resource={resource} name="lời mời" />
     {['success', 'empty'].includes(resource.status) && !offerRows.length && <CompactEmpty icon={ClipboardList} title="Chưa có lời mời đang chờ">
       Lời mời mới sẽ xuất hiện ở đây khi bạn được mời nhận ca.
@@ -174,7 +252,10 @@ export function EmployeeInvitationsPage({
     {assignments.status === 'success' && assignments.data?.items?.length > 0 && <OperationsTable label="Ca đã nhận" rows={assignments.data?.items ?? []} empty="Chưa có ca đã nhận." columns={[...baseColumns, {
       key: 'actions',
       label: 'Thao tác',
-      render: row => <div className="employee-scheduling__actions"><Link className="sitter-workspace-link" to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>{row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
+      render: row => <div className="employee-scheduling__actions"><Link className="sitter-workspace-link" to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>
+        {row.state === 'ASSIGNED' && row.handoverRequired === true && row.handoverAccepted !== true &&
+          <Link className="sitter-workspace-link" to={'/sitter/visits/' + row.id + '/handover'}>Cần xác nhận bàn giao</Link>}
+        {row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
           setWithdrawalResult(null);
           setWithdrawalVisit(row.id);
         }}>Rút khỏi buổi</Button>}</div>
@@ -197,7 +278,9 @@ export function EmployeeInvitationsPage({
           {active.state === 'ASSIGNED' && <VisitTravel api={api} visitId={active.id} employee startAt={active.startAt} endAt={active.endAt} />}
           {['ASSIGNED', 'IN_PROGRESS'].includes(active.state) && <AssignedCare api={api} visitId={active.id} />}
           {api.execution && <VisitExecution key={active.id} api={api} visitId={active.id} onChanged={assignments.retry} />}
-        </> : <>{active.state === 'PENDING' && <p>Hạn phản hồi: {time(active.deadline)}</p>}{offerActions(active)}</>}
+        </> : <>{active.state === 'PENDING' && <p>Hạn phản hồi: {time(active.deadline)}</p>}
+          {active.state === 'DECLINED' && active.declineReasonCode && <p>Lý do từ chối: {VISIT_WITHDRAWAL_REASON_LABELS[active.declineReasonCode] ?? active.declineReasonCode}{active.declineNote ? ` — ${active.declineNote}` : ''}</p>}
+          {offerActions(active, 'dialog')}</>}
       </>}
     </Dialog>
     {withdrawalVisit && <VisitWithdrawalDialog visitId={withdrawalVisit} api={api} onClose={() => setWithdrawalVisit(null)} onSuccess={withdrawalSaved} />}

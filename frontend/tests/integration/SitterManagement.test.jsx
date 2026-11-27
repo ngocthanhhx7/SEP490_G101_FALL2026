@@ -110,6 +110,55 @@ test('Admin records a contract for the selected sitter with the server version a
   expect(payroll.contract.mock.calls[0][0]).toMatchObject({ employeeId: id, expectedVersion: 3 });
   await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
 });
+
+test('ST-ONB-04 starts with the applicant preference and still lets the Admin record a different type', async () => {
+  const api = fixture(), data = (await api.get()).data;
+  api.get.mockResolvedValue({ data: { ...data, employmentType: 'FULL_TIME', application: { ...data.application, employmentType: 'PART_TIME' } } });
+  mount(api, true, { contract: jest.fn() });
+  await screen.findByText('Kinh nghiệm mẫu');
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh hợp đồng đã ký' }));
+  const type = screen.getByLabelText('Hình thức làm việc');
+  expect(type).toHaveValue('PART_TIME');
+  expect(screen.getByLabelText('Lương gross/tháng (VND)')).toHaveValue('3000000');
+  fireEvent.change(type, { target: { value: 'FULL_TIME' } });
+  expect(screen.getByLabelText('Lương gross/tháng (VND)')).toHaveValue('10000000');
+});
+
+test('ST-ONB-14 shows MSG87 under end date and prior start-date conflict at top of contract form', async () => {
+  const api = fixture();
+  const payroll = {
+    contract: jest.fn().mockRejectedValueOnce({
+      status: 422,
+      code: 'VALIDATION_FAILED',
+      reasonCode: 'CONTRACT_EFFECTIVE_DATE_NOT_AFTER_PRIOR',
+      sitterName: 'Nguyễn Hà (Demo)',
+      effectiveAt: '2026-11-26T00:00:00+07:00'
+    })
+  };
+  mount(api, true, payroll);
+  await screen.findByText('Kinh nghiệm mẫu');
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh hợp đồng đã ký' }));
+  const form = screen.getByText('Lưu hợp đồng đã xác minh').closest('form');
+  for (const [name, value] of Object.entries({
+    weeklyMinutes: '2400', signedAt: '2026-11-20', effectiveAt: '2026-11-26', endsAt: '2026-11-25',
+    contractReference: 'synthetic-reversed', workplaceRegion: '1', workplaceReference: 'Cầu Giấy'
+  })) {
+    fireEvent.change(form.elements[name], { target: { value } });
+  }
+  fireEvent.submit(form);
+  expect(await screen.findByText('Ngày kết thúc phải sau ngày bắt đầu.')).toBeVisible();
+  expect(payroll.contract).not.toHaveBeenCalled();
+
+  fireEvent.change(form.elements.endsAt, { target: { value: '2026-12-26' } });
+  expect(screen.queryByText('Ngày kết thúc phải sau ngày bắt đầu.')).not.toBeInTheDocument();
+  fireEvent.submit(form);
+  expect(await screen.findByText(
+    'Nguyễn Hà (Demo) đã có hợp đồng từ ngày 26/11/2026. Hợp đồng mới phải bắt đầu sau ngày đó.'
+  )).toBeVisible();
+});
+
 test('selected sitter reaches invitation command and cannot replace customer directed choice', async () => {
   const invite = jest.fn().mockResolvedValue({ data: { state: 'PENDING' } }), api = { invite,
     plans: async () => ({ data: { items: [] } }), queue: async () => ({ data: { items: [
@@ -148,7 +197,7 @@ function mountStaff(api) {
 }
 
 const staffRow = { ...sitter, code: 'NV-TEST-001', workingWindows: [{ weekday: 1, startLocalTime: '08:00', endLocalTime: '12:00' }],
-  shift: null, approvedLeave: null, withdrawals: null, rating: 4.5, lateCheckIns: 2 };
+  upcomingDaysOff: ['2026-11-28', '2026-12-02'], shift: null, approvedLeave: null, withdrawals: null, rating: 4.5, lateCheckIns: 2 };
 const staffData = { asOf, total: 24, areas: [area], tabCounts: { all: 24, partTime: 16, fullTime: 8 },
   withdrawalsAvailable: false, nextCursor: null };
 
@@ -173,26 +222,29 @@ test('UC-74 Staff tabs and filters combine in the list request and clear the cur
   expect(screen.getByRole('option', { name: 'Sắp xếp: rút buổi' })).toBeDisabled();
 });
 
-test('UC-74 shows real hours, unavailable sources, late-count thresholds and MSG132', async () => {
+test('UC-74 shows real hours, upcoming days off, unavailable sources, late-count thresholds and MSG132', async () => {
   const api = fixture();
   const another = { ...staffRow, id: 'c'.repeat(24), displayName: 'Trần Bình', code: 'NV-TEST-002', employmentType: 'FULL_TIME',
-    rating: null, lateCheckIns: 1, workingWindows: [] };
-  const missing = { ...staffRow, id: 'd'.repeat(24), displayName: 'Phạm C', code: 'DDDDDD', workingWindows: [], lateCheckIns: 0 };
+    rating: null, lateCheckIns: 1, workingWindows: [], upcomingDaysOff: [] };
+  const missing = { ...staffRow, id: 'd'.repeat(24), displayName: 'Phạm C', code: 'DDDDDD', workingWindows: [], upcomingDaysOff: [], lateCheckIns: 0 };
   api.list.mockImplementation(async ({ search }) => ({ data: { ...staffData,
     items: search ? [] : [staffRow, another, missing], total: search ? 0 : 3 } }));
   mountStaff(api);
   const row = await screen.findByRole('row', { name: /NV-TEST-001/ });
   expect(within(row).getByText(/08:00–12:00/)).toBeVisible();
-  expect(within(row).getAllByText('Chưa có dữ liệu')).toHaveLength(2);
+  expect(within(row).getByText('28/11, 02/12')).toBeVisible();
+  expect(within(row).getAllByText('Chưa có dữ liệu')).toHaveLength(1);
   expect(within(row).getByText('★ 4,5')).toBeVisible();
   expect(within(row).getByText('2')).toHaveClass('staff-sitter-count--alert');
   expect(within(row).getByRole('link', { name: /Xem/ })).toHaveAttribute('href', '/staff/sitters/' + id);
   const fullTime = screen.getByRole('row', { name: /NV-TEST-002/ });
   expect(within(fullTime).getByText('Chưa có lịch ca')).toBeVisible();
+  expect(within(fullTime).getByText('Không có')).toBeVisible();
   expect(within(fullTime).getByText('Chưa có')).toBeVisible();
   expect(within(fullTime).getByText('1')).not.toHaveClass('staff-sitter-count--alert');
   const noHours = screen.getByRole('row', { name: /DDDDDD/ });
   expect(within(noHours).getByText('Chưa đặt giờ làm')).toBeVisible();
+  expect(within(noHours).getByText('Không có')).toBeVisible();
   expect(within(noHours).getByText('0')).not.toHaveClass('staff-sitter-count--alert');
   fireEvent.change(screen.getByPlaceholderText('Tìm theo tên, mã hoặc số điện thoại'), { target: { value: 'ZZZ' } });
   expect(await screen.findByText('Không có người chăm sóc phù hợp.')).toBeVisible();

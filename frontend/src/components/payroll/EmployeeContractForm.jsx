@@ -1,12 +1,15 @@
 import { useCallback, useState } from 'react';
 import { PayrollField } from './PayrollDetails.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
+import { CONTRACT_END_AFTER_START_MESSAGE } from '../../utils/contract-error-feedback.js';
 import { Button } from '../ui/index.js';
 import { FileCheck2 } from 'lucide-react';
 
-export function EmployeeContractForm({ employeeId, expectedVersion = 0, busy, locked = false, onSave, loadEmployee }) {
-  const [employmentType, setEmploymentType] = useState('FULL_TIME');
+export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferredEmploymentType, busy, locked = false,
+  onSave, loadEmployee, fieldErrors = null, onClearFieldError }) {
+  const [chosenEmploymentType, setChosenEmploymentType] = useState(null);
   const [draftEmployeeId, setDraftEmployeeId] = useState(employeeId ?? '');
+  const [localErrors, setLocalErrors] = useState({});
   const load = useCallback(async ({ signal }) => {
     if (!loadEmployee || !/^[a-f0-9]{24}$/i.test(draftEmployeeId)) return { data: null };
     return loadEmployee(draftEmployeeId, { signal });
@@ -15,38 +18,60 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, busy, lo
   const selected = employee.data?.id === draftEmployeeId && employee.data?.permissions?.manageContract
     && Number.isSafeInteger(employee.data?.contractVersion) ? employee.data : null;
   const version = loadEmployee ? selected?.contractVersion ?? '' : expectedVersion;
+  const preference = loadEmployee ? selected?.application?.employmentType : preferredEmploymentType;
+  const employmentType = chosenEmploymentType ?? (preference === 'PART_TIME' ? 'PART_TIME' : 'FULL_TIME');
+  const endsAtError = localErrors.endsAt || fieldErrors?.endsAt || '';
+  const clearEndsAtError = () => {
+    if (localErrors.endsAt) setLocalErrors(current => ({ ...current, endsAt: undefined }));
+    if (fieldErrors?.endsAt) onClearFieldError?.('endsAt');
+  };
   async function submit(event) {
     event.preventDefault();
     if (busy || (!locked && loadEmployee && !selected)) return;
     const form = event.currentTarget, data = new window.FormData(form);
+    const effectiveAtValue = String(data.get('effectiveAt') ?? '');
+    const endsAtValue = String(data.get('endsAt') ?? '');
+    if (!locked && endsAtValue && effectiveAtValue && endsAtValue <= effectiveAtValue) {
+      setLocalErrors({ endsAt: CONTRACT_END_AFTER_START_MESSAGE });
+      form.elements.endsAt?.focus();
+      return;
+    }
+    setLocalErrors({});
     const body = locked ? null : {
       employeeId: employeeId ?? data.get('employeeId'),
       expectedVersion: employeeId || loadEmployee ? version : Number(data.get('expectedVersion')),
       employmentType, salaryBasis: 'GROSS', monthlyBaseVnd: employmentType === 'FULL_TIME' ? 10000000 : 3000000,
       payCycle: employmentType === 'FULL_TIME' ? 'MONTHLY' : data.get('payCycle'), weeklyMinutes: Number(data.get('weeklyMinutes')),
-      signedAt: `${data.get('signedAt')}T00:00:00+07:00`, effectiveAt: `${data.get('effectiveAt')}T00:00:00+07:00`,
+      signedAt: `${data.get('signedAt')}T00:00:00+07:00`, effectiveAt: `${effectiveAtValue}T00:00:00+07:00`,
       contractReference: data.get('contractReference'), workplaceRegion: Number(data.get('workplaceRegion')),
       workplaceReference: data.get('workplaceReference'),
-      ...(data.get('endsAt') ? { endsAt: `${data.get('endsAt')}T00:00:00+07:00` } : {})
+      ...(endsAtValue ? { endsAt: `${endsAtValue}T00:00:00+07:00` } : {})
     };
-    if (await onSave(body)) { form.reset(); setEmploymentType('FULL_TIME'); }
+    if (await onSave(body)) { form.reset(); setChosenEmploymentType(null); setLocalErrors({}); }
   }
   return <form onSubmit={submit}>
     <fieldset className="payroll-form employee-contract-fields" disabled={busy || locked}>
       <legend>Thông tin hợp đồng đã ký</legend>
-      <PayrollField label="Mã nhân viên" name="employeeId" pattern="[a-fA-F0-9]{24}" maxLength={24} value={draftEmployeeId} onChange={event => setDraftEmployeeId(event.target.value.trim())} readOnly={Boolean(employeeId)} />
+      <PayrollField label="Mã nhân viên" name="employeeId" pattern="[a-fA-F0-9]{24}" maxLength={24} value={draftEmployeeId}
+        onChange={event => { setDraftEmployeeId(event.target.value.trim()); setChosenEmploymentType(null); }} readOnly={Boolean(employeeId)} />
       {loadEmployee ? <PayrollField label="Phiên bản hợp đồng hiện tại" name="expectedVersion" type="number" value={version} readOnly />
         : <PayrollField label="Phiên bản hợp đồng hiện tại" name="expectedVersion" type="number" min="0" step="1" defaultValue={expectedVersion} readOnly={Boolean(employeeId)} />}
       {loadEmployee && <p role="status">{selected ? `Nhân viên: ${selected.displayName}` : employee.status === 'loading' ? 'Đang kiểm tra hồ sơ nhân viên…' : 'Nhập mã Pet Sitter đã được duyệt để tải phiên bản hợp đồng.'}</p>}
       {loadEmployee && ['error', 'forbidden'].includes(employee.status) && <p role="alert">Không tải được hồ sơ nhân viên. <button type="button" onClick={employee.retry}>Tải lại hồ sơ</button></p>}
-      <label className="payroll-field"><span>Hình thức làm việc</span><select value={employmentType} onChange={event => setEmploymentType(event.target.value)}>
+      <label className="payroll-field"><span>Hình thức làm việc</span><select value={employmentType}
+        disabled={Boolean(loadEmployee && !selected)} onChange={event => setChosenEmploymentType(event.target.value)}>
         <option value="FULL_TIME">Toàn thời gian</option><option value="PART_TIME">Bán thời gian</option>
       </select></label>
       <PayrollField label="Lương gross/tháng (VND)" name="monthlyBaseVnd" value={employmentType === 'FULL_TIME' ? 10000000 : 3000000} readOnly />
       <PayrollField key={employmentType} label="Phút làm việc mỗi tuần" name="weeklyMinutes" type="number" min="1" max="2880" step="1" defaultValue={employmentType === 'PART_TIME' ? 1200 : ''} readOnly={employmentType === 'PART_TIME'} />
       {employmentType === 'PART_TIME' && <label className="payroll-field"><span>Kỳ trả theo hợp đồng</span><select name="payCycle"><option value="WEEKLY">Theo tuần</option><option value="MONTHLY">Theo tháng</option></select></label>}
-      <PayrollField label="Ngày ký" name="signedAt" type="date" /><PayrollField label="Ngày hiệu lực" name="effectiveAt" type="date" />
-      <PayrollField label="Ngày hết hiệu lực" name="endsAt" type="date" required={false} />
+      <PayrollField label="Ngày ký" name="signedAt" type="date" />
+      <PayrollField label="Ngày hiệu lực" name="effectiveAt" type="date" onChange={clearEndsAtError} />
+      <label className="payroll-field"><span>Ngày hết hiệu lực</span>
+        <input name="endsAt" type="date" required={false} aria-invalid={Boolean(endsAtError) || undefined}
+          aria-describedby={endsAtError ? 'employee-contract-error-endsAt' : undefined} onChange={clearEndsAtError} />
+        {endsAtError && <small id="employee-contract-error-endsAt" className="payroll-field__error" role="alert">{endsAtError}</small>}
+      </label>
       <PayrollField label="Mã hồ sơ hợp đồng đã ký" name="contractReference" maxLength={160} />
       <label className="payroll-field"><span>Vùng lương nơi làm việc</span><select name="workplaceRegion" required defaultValue=""><option value="" disabled>Chọn vùng</option>{[1, 2, 3, 4].map(region => <option key={region} value={region}>Vùng {region}</option>)}</select></label>
       <PayrollField label="Phường/xã và căn cứ xác định vùng" name="workplaceReference" maxLength={160} />

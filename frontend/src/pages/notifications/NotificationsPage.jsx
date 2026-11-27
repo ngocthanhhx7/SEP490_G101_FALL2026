@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bell, Check, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { LockScreenNotifications } from './LockScreenNotifications.jsx';
-import { notificationTarget } from '../../utils/notifications.js';
+import { isNotificationIntentPath, notificationTarget } from '../../utils/notifications.js';
 import './notifications.css';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('vi-VN', {
@@ -84,7 +84,7 @@ export function NotificationsPage({ api }) {
   useEffect(() => {
     const to = intent.data?.to;
     if (intent.status === 'success' && intent.data?.id === intentId
-      && /^(?:\/account\/bookings\/[a-f0-9]{24}(?:\/visits\/[a-f0-9]{24})?|\/sitter\/(?:visits\/|invitations\?offerId=)[a-f0-9]{24})$/.test(to ?? '')) {
+      && isNotificationIntentPath(to)) {
       navigate(to, { replace: true });
     }
   }, [intent.status, intent.data, intentId, navigate]);

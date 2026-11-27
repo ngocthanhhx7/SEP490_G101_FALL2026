@@ -20,7 +20,7 @@ export function groomingRuntimeModule({ config, connection, env = {}, clock = Da
   const pricing = createGroomingPricing({ connection, clock, shopServices, hotline: env.GROOMING_SHOP_HOTLINE?.trim() || null,
     refusalLimit: env.PRODUCT_REFUSAL_LIMIT });
   const service = createGroomingService({
-    shopServices, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, hotline: env.GROOMING_SHOP_HOTLINE, pricing,
+    shopServices, connection, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, hotline: env.GROOMING_SHOP_HOTLINE, pricing,
     slots: createGroomingSlots({ connection, clock, shopServices, shiftSource }),
     booking: createGroomingBooking({ connection, clock, pricing, shiftSource, codes: createGroomingAppointmentCode({ connection }),
       facilityAddress: env.BOOKING_FACILITY_ADDRESS, hotline: env.GROOMING_SHOP_HOTLINE })
@@ -34,6 +34,7 @@ export function groomingRuntimeModule({ config, connection, env = {}, clock = Da
   router.post('/slots', csrf, limit, controller.slots);
   router.post('/quotes', csrf, limit, controller.quote);
   router.post('/appointments', csrf, bookLimit, controller.book);
+  router.post('/appointments/:id/cancel', csrf, bookLimit, controller.cancelAppointment);
   router.get('/appointments', controller.listAppointments);
   router.get('/appointments/:id', controller.readAppointment);
   return { name: 'grooming', mount: '/api/v1/grooming', router, service };

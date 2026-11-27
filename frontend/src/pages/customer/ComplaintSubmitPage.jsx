@@ -42,8 +42,9 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
   const scope = canVisit && (choice !== 'BOOKING' || !canWhole) ? 'VISIT' : 'BOOKING';
   const deadline = complaintDeadline(scope === 'VISIT' ? visit.eligibility.deadlineAt : wholeBooking.deadlineAt);
   const visitStart = complaintVisitStart(visit?.startAt);
-  const cutoff = scope === 'BOOKING' ? 'lịch đặt kết thúc' :
-    visit.state === 'STAFF_CLOSED' ? 'buổi được đóng' : 'buổi kết thúc';
+  const cutoff = scope === 'BOOKING' ? 'lịch đặt kết thúc'
+    : visit.eligibility.deadlineSource === 'INCIDENT_RESULT' ? 'nhận kết quả sự cố'
+      : visit.state === 'STAFF_CLOSED' ? 'buổi được đóng' : 'buổi kết thúc';
 
   function choosePhotos(event) {
     const files = [...event.target.files];

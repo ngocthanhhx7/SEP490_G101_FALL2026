@@ -10,7 +10,7 @@ export const workflowStatusLabels = {
 };
 export function CareWorkflowReport({ workflow, readEvidence }) {
   if (!workflow || workflow.mode === 'LEGACY')
-    return <p>Ca legacy: chưa có workflow snapshot; áp dụng checklist đã lưu của ca.</p>;
+    return <p>Buổi này dùng danh sách việc đã lưu.</p>;
   return (
     <section className="care-workflow" aria-label="Kết quả quy trình chăm sóc">
       <h4>

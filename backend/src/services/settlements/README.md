@@ -124,3 +124,9 @@ The tax split is preview-only from confirmed tax amounts, never a hard-coded
 statutory rate or earning eligibility. See the P41 commission/tax addendum.
 
 The execution read now adds server time and authoritative check-in/out window timestamps, saved checklist labels and at most two bound evidence references for the assigned sitter. No storage/schema/index changes or relaxed timing/payment/version gates. Customer booking reports show saved checklist/evidence through the separate booking-owner projection; private image content authorizes the actual bound booking, never a public storage URL.
+
+The assigned sitter can save a plain-text customer note during execution, through
+the same two-hour grace period that applies to workflow tasks and checkout.
+For a versioned workflow, send the note with the visit version to the checklist
+endpoint as a note-only update. The owning customer's booking report projects
+this note for either workflow mode. The Staff/Admin booking projection omits it.

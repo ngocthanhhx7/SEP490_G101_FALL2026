@@ -1,6 +1,7 @@
 import { Schema } from 'mongoose';
 import { applicationMailModel } from './application-mail.model.js';
 import { concurrencyGuardField } from './concurrency-guard.field.js';
+import { APPLICATION_CHECKS, INTERVIEW_OUTCOMES } from '../constants/sitter-application-assessment.js';
 
 const STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'];
 
@@ -9,6 +10,15 @@ export function sitterApplicationModels(connection) {
     documentId: { type: String, required: true },
     documentType: { type: String, enum: ['IDENTITY', 'IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT', 'CERTIFICATE', 'OTHER'], required: true },
     storageRef: { type: String, required: true, select: false }
+  }, { _id: false, versionKey: false, strict: 'throw' });
+
+  const checklistSchema = new Schema(Object.fromEntries(APPLICATION_CHECKS.map(check => [check, { type: Boolean, required: true }])),
+    { _id: false, versionKey: false, strict: 'throw' });
+  const assessmentSchema = new Schema({
+    checklist: { type: checklistSchema, required: true },
+    callAt: { type: Date, default: null },
+    outcome: { type: String, enum: [...INTERVIEW_OUTCOMES, null], default: null },
+    version: { type: Number, required: true, min: 1 }
   }, { _id: false, versionKey: false, strict: 'throw' });
 
   const applicantSchema = new Schema({
@@ -25,6 +35,9 @@ export function sitterApplicationModels(connection) {
     identityLookupKey: { type: String, required: true, select: false },
     activePendingOwnerUserId: { type: Schema.Types.ObjectId, select: false },
     activePendingContactKey: { type: String, select: false },
+    phoneCiphertext: { type: String, select: false },
+    phoneLookupKey: { type: String, select: false },
+    activePendingContactKeys: { type: [String], default: undefined, select: false },
     activePendingIdentityKey: { type: String, select: false },
     ageEligible: { type: Boolean, required: true, enum: [true] },
     ageCheckedAt: { type: Date, required: true },
@@ -34,6 +47,7 @@ export function sitterApplicationModels(connection) {
     workAreas: { type: [String], required: true, validate: value => value.length > 0 },
     privateDocuments: { type: [documentSchema], required: true, validate: value => value.length > 0 },
     state: { type: String, enum: STATES, required: true, default: 'PENDING' },
+    assessment: assessmentSchema,
     interviewNote: { type: String, default: null, maxlength: 2000 },
     decisionReason: { type: String, default: null, maxlength: 1000 },
     rejectedAt: { type: Date, default: null },
@@ -46,6 +60,7 @@ export function sitterApplicationModels(connection) {
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
   applicantSchema.index({ activePendingOwnerUserId: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ activePendingContactKey: 1 }, { unique: true, sparse: true });
+  applicantSchema.index({ activePendingContactKeys: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ activePendingIdentityKey: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ state: 1, createdAt: -1, _id: -1 });
   applicantSchema.index({ submissionKeyDigest: 1 }, { unique: true });
@@ -57,7 +72,7 @@ export function sitterApplicationModels(connection) {
     actorRoles: { type: [String], required: true, default: [] },
     action: {
       type: String,
-      enum: ['APPLICATION_UPDATED', 'APPLICATION_SUBMITTED', 'APPLICATION_VIEWED', 'APPLICATION_REVIEW_STARTED',
+      enum: ['APPLICATION_UPDATED', 'APPLICATION_SUBMITTED', 'APPLICATION_VIEWED', 'APPLICATION_REVIEW_STARTED', 'APPLICATION_ASSESSMENT_SAVED',
         'APPLICATION_DECIDED', 'APPLICATION_DOCUMENT_REQUESTED', 'SITTER_SUSPENDED', 'SITTER_REINSTATED'],
       required: true
     },

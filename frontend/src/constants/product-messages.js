@@ -4,9 +4,16 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG02: 'Vui lòng nhập địa chỉ email hợp lệ.',
   MSG03: 'Vui lòng nhập số điện thoại hợp lệ (10 số, bắt đầu bằng 0).',
   MSG18: 'Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.',
+  MSG32: 'Thanh toán chưa thành công. Vui lòng thử lại.',
+  MSG33: 'Chưa thể mở trang thanh toán lúc này. Vui lòng thử lại sau vài phút.',
+  MSG25: 'Buổi này vừa được giao cho {name}. Trang đã cập nhật thông tin mới nhất.',
+  MSG45: '{name} không còn nhận được buổi này ({reason}). Vui lòng chọn người chăm sóc khác.',
+  MSG46: '{name} đã có buổi khác vào giờ này nên không thể chọn.',
   MSG58: 'Chỉ còn {n} sản phẩm. Vui lòng giảm số lượng.',
   MSG59: 'Đơn hàng {code} đã được đặt.',
   MSG60: 'Đơn hàng này chỉ có thể thanh toán trước.',
+  MSG61: 'Thời hạn báo lỗi của đơn này đã hết vào ngày {date}.',
+  MSG62: 'Đã gửi báo lỗi. Chúng tôi sẽ báo kết quả cho bạn.',
   MSG97: 'Không tìm thấy sản phẩm nào.',
   MSG98: 'Sản phẩm này đã hết hàng.',
   MSG99: 'Đã thêm sản phẩm vào giỏ hàng.',
@@ -17,6 +24,9 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG104: 'Số bán lại được không thể lớn hơn số lượng hoàn về.',
   MSG105: 'Đơn hàng này chưa được thanh toán đủ. Vui lòng thu tiền trước.',
   MSG106: 'Đơn hàng {code} đã được cập nhật.',
+  MSG107: 'Vui lòng ghi kết quả kiểm tra.',
+  MSG108: 'Đã gửi khiếu nại cho Admin.',
+  MSG109: 'Đã lưu quyết định. Khách đã được báo.',
   MSG110: 'Không tìm thấy khách. Đơn vẫn bán nhưng không giảm theo hạng.',
   MSG111: 'Đơn {code} đã hoàn tất.',
   MSG112: 'Đơn {code} đã được huỷ. Hàng đã được trả lại để bán.',
@@ -32,7 +42,13 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG122: 'Phiếu nhập {code}: từ chối {n} {product}. Lý do: {reason}.',
   MSG123: 'Số giảm không được lớn hơn số có thể bán ({n}).',
   MSG124: 'Phiếu điều chỉnh {code} đã được lưu.',
-  MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
+  MSG92: '{name} đã nhận buổi ngày {date} lúc {time}. Khách và cả hai người chăm sóc đã được báo.',
+  MSG125: 'Vui lòng nhập số điện thoại hoặc email.',
+  MSG154: 'Huỷ đơn hàng {code}? Nếu bạn đã thanh toán, Paw World sẽ hoàn đủ số tiền.',
+  MSG155: 'Đơn hàng {code} đã được huỷ.',
+  MSG156: 'Đơn này không thể huỷ nữa.',
+  MSG166: 'Bạn đã nhận đủ đơn {code}? Sau khi xác nhận, đơn chuyển sang Đã giao hàng.',
+  MSG167: 'Đã xác nhận nhận đơn {code}.'
 });
 
 // Backend error code -> message key.
@@ -41,9 +57,11 @@ export const PRODUCT_ERROR_MESSAGE_KEYS = Object.freeze({
   PRODUCT_OUT_OF_STOCK: 'MSG98',
   CART_EMPTY: 'MSG100',
   PRODUCT_ORDER_PREPAY_REQUIRED: 'MSG60',
+  PAYMENT_PROVIDER_UNAVAILABLE: 'MSG33',
   ADDRESS_REQUIRED: 'MSG101',
   ADDRESS_OUT_OF_SERVICE_AREA: 'MSG18',
   TRACKING_CODE_REQUIRED: 'MSG103',
   ORDER_NOT_PAID: 'MSG105',
+  ORDER_NOT_CANCELLABLE: 'MSG156',
   RESELLABLE_QUANTITY_INVALID: 'MSG104'
 });

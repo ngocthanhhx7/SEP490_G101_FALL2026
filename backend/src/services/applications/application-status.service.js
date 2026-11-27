@@ -6,6 +6,7 @@ const APPLICATION_CODE = /^[A-Za-z0-9_-]{22,128}$/;
 const CHALLENGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OTP_CODE = /^\d{6}$/;
 const PUBLIC_STATES = new Set(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED']);
+const RATE_LIMIT_REASONS = new Set(['TOO_MANY_WRONG_CODES', 'HOURLY_LIMIT', 'RESEND_COOLDOWN']);
 
 function invalidRequest() {
   throw new AppError(422, 'VALIDATION_FAILED', 'Application status request is invalid');
@@ -22,8 +23,14 @@ function statusUnavailable() {
 function normalizePortError(error, fallback) {
   if (error?.status === 429 || error?.code === 'OTP_RATE_LIMITED' || error?.code === 'RATE_LIMITED') {
     const retryAfter = Number(error?.details?.retryAfterSeconds);
-    const details = Number.isFinite(retryAfter) && retryAfter > 0
-      ? { retryAfterSeconds: Math.min(3600, Math.ceil(retryAfter)) } : {};
+    const reason = RATE_LIMIT_REASONS.has(error?.details?.reason) ? error.details.reason : undefined;
+    const retryAfterAt = typeof error?.details?.retryAfterAt === 'string'
+      && Number.isFinite(Date.parse(error.details.retryAfterAt)) ? error.details.retryAfterAt : undefined;
+    const details = {
+      ...(Number.isFinite(retryAfter) && retryAfter > 0 ? { retryAfterSeconds: Math.min(3600, Math.ceil(retryAfter)) } : {}),
+      ...(reason ? { reason } : {}),
+      ...(retryAfterAt ? { retryAfterAt } : {})
+    };
     return new AppError(429, 'RATE_LIMITED', 'Please wait before trying again', details);
   }
   if (error?.status >= 500 || error?.code === 'PROVIDER_UNAVAILABLE') return statusUnavailable();

@@ -23,21 +23,33 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
     return rows.map(row => ({ id: row._id, to }));
   }
   return {
-    async productOrder({ order, previous, placed = false, pickupExpired = false }, session) {
+    async productOrder({ order, previous, placed = false, pickupExpired = false, paymentExpired = false }, session) {
       const id = String(order._id), eventId = `product-order:${id}:${order.version ?? 0}`;
       const states = { PLACED: 'đã được tiếp nhận', READY: 'đã sẵn sàng để nhận tại cửa hàng',
         PICKED_UP: 'đã giao cho bạn', HANDED_TO_CARRIER: 'đã bàn giao cho đơn vị vận chuyển',
         DELIVERED: 'đã giao thành công', BEING_RETURNED: 'đang được hoàn về cửa hàng',
         RETURNED: 'đã được xác nhận hoàn trả', CANCELLED: 'đã hủy' };
       let message = `Đơn ${order.code} ${states[order.status] ?? 'vừa được cập nhật'}.`;
-      if (pickupExpired && order.status === 'CANCELLED') {
+      if (order.status === 'DELIVERED' && previous?.status !== 'DELIVERED') {
+        if (order.deliveredBy === 'CUSTOMER') return;
+        message = order.deliveredBy === 'SYSTEM'
+          ? `Đơn ${order.code} đã được tự xác nhận là đã nhận hàng sau 7 ngày vận chuyển. Nếu bạn chưa nhận được hàng, hãy liên hệ cửa hàng.`
+          : `Đơn ${order.code} đã giao thành công.`;
+      } else if (pickupExpired && order.status === 'CANCELLED') {
         message = `Đơn ${order.code} đã huỷ vì quá hạn lấy hàng.`;
+      } else if (paymentExpired && order.status === 'CANCELLED') {
+        message = `Đơn ${order.code} đã huỷ vì quá hạn thanh toán.`;
       } else if (previous && !previous.paid && order.paid) {
         message = `Đơn ${order.code} đã được ghi nhận thanh toán.`;
       } else if (order.status === 'READY' && previous?.status !== 'READY' && order.pickupDeadlineAt) {
         const parts = pickupDeadlineFormat.formatToParts(order.pickupDeadlineAt);
         const { hour, minute, day, month, year } = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
         message += ` Vui lòng đến lấy trước ${hour}:${minute} ${day}/${month}/${year}.`;
+      }
+      if (placed && order.paymentMethod === 'PREPAID' && !order.paid && order.paymentDeadlineAt) {
+        const { hour, minute, day, month, year } = Object.fromEntries(
+          pickupDeadlineFormat.formatToParts(order.paymentDeadlineAt).map(({ type, value }) => [type, value]));
+        message += ` Vui lòng thanh toán trước ${hour}:${minute} ${day}/${month}/${year}.`;
       }
       await write(eventId, placed ? 'ProductOrderPlaced' : 'ProductOrderUpdated',
         [{ id: order.customerId, role: 'CUSTOMER', to: `/customer/product-orders?order=${id}` }],
@@ -65,6 +77,15 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         approved ? 'Hồ sơ ứng tuyển đã được duyệt' : 'Đã có kết quả hồ sơ ứng tuyển',
         approved ? 'Hồ sơ của bạn đã được duyệt. Đăng nhập lại để cập nhật quyền người chăm sóc.' : 'Hồ sơ của bạn đã có kết quả. Vui lòng xem trạng thái hồ sơ.', session);
     },
+    async applicationSubmitted({ applicationId, applicationCode, adminIds }, session) {
+      const to = `/admin/sitter-applications/${applicationId}`;
+      const recipients = Array.isArray(adminIds)
+        ? adminIds.map(id => ({ id, role: 'ADMIN', to }))
+        : (await operators(['ADMIN'], to, session)).map(row => ({ ...row, role: 'ADMIN' }));
+      await write(`application-submitted:${applicationId}`, 'ApplicationSubmitted', recipients,
+        'Có hồ sơ ứng tuyển mới',
+        `Hồ sơ ứng tuyển ${applicationCode} đang chờ xét duyệt.`, session);
+    },
     async complaint({ eventId, event, record }, session) {
       const code = record.code ?? 'khiếu nại';
       const events = {
@@ -77,7 +98,9 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       if (notification) {
         const [roles, title, message] = notification;
         const area = roles.includes('ADMIN') ? 'admin' : 'staff';
-        const to = '/' + area + '/complaints?complaint=' + encodeURIComponent(record.id);
+        const to = event === 'ComplaintRefundProposed'
+          ? '/admin/refunds?complaint=' + encodeURIComponent(record.id)
+          : '/' + area + '/complaints?complaint=' + encodeURIComponent(record.id);
         await write(eventId, event, await operators(roles, to, session), title, message, session);
       }
       if (['ComplaintResolved', 'ComplaintRefundDecided', 'ComplaintDecided'].includes(event)) {
@@ -87,6 +110,32 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         await write(eventId, event, [{ id: record.customerId, role: 'CUSTOMER', to }],
           final ? 'Kết quả cuối của khiếu nại' : 'Khiếu nại đã có kết quả',
           code + (final ? ' đã có kết quả cuối.' : ' đã có kết quả xử lý.'), session);
+      }
+    },
+    async incidentRefundDecided({ eventId, record, outcome }, session) {
+      const cleanIncidentId = String(record.id ?? '').replaceAll('-', '').toUpperCase();
+      const code = record.code ?? ('SC-' + (cleanIncidentId.length > 12 ? cleanIncidentId.slice(-12) : cleanIncidentId));
+      const to = '/cases/' + encodeURIComponent(record.id);
+      const amount = record.moneyDecision?.amountVnd;
+      const fmt = value => `${new Intl.NumberFormat('vi-VN').format(value)} đ`;
+      let staffMessage = `Quản trị viên đã duyệt đề xuất hoàn ${fmt(amount ?? 0)} cho sự cố ${code}.`;
+      if (outcome === 'REDUCE') {
+        staffMessage = `Quản trị viên đã hạ số tiền hoàn cho sự cố ${code} từ ${fmt(record.proposal?.amountVnd ?? 0)} xuống ${fmt(amount ?? 0)}.`;
+      } else if (outcome === 'REJECT') {
+        staffMessage = `Quản trị viên đã từ chối đề xuất hoàn tiền cho sự cố ${code}.${record.moneyDecision?.reason ? ' Lý do: ' + record.moneyDecision.reason : ''}`;
+      }
+      await write(eventId, 'IncidentRefundDecided', await operators(['STAFF'], to, session),
+        'Đã có quyết định về khoản hoàn sự cố', staffMessage, session);
+      const customerMessage = outcome === 'REJECT'
+        ? `Sự cố ${code} đã được giải quyết. Xem kết quả xử lý trong chi tiết sự cố.`
+        : `Sự cố ${code} đã được giải quyết với khoản hoàn tiền ${fmt(amount ?? 0)}.`;
+      if (record.customerId) {
+        await write(eventId, 'IncidentResolved', [{ id: record.customerId, role: 'CUSTOMER', to }],
+          'Sự cố đã được giải quyết', customerMessage, session);
+      }
+      if (record.sitterId) {
+        await write(eventId, 'IncidentResolved', [{ id: record.sitterId, role: 'PET_SITTER', to }],
+          'Sự cố đã được giải quyết', `Sự cố ${code} đã được giải quyết. Vui lòng xem kết quả xử lý.`, session);
       }
     },
     // R3 MSG122: one notice for the Admins for each receipt line that rejected goods. The event id is stable, so saving
@@ -104,6 +153,111 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       const to = /^[a-f0-9]{24}$/.test(bookingId ?? '') && /^[a-f0-9]{24}$/.test(visitId ?? '')
         ? '/account/bookings/' + bookingId + '/visits/' + visitId : '/account/bookings';
       await write(`visit:${visitId}:${version}`, `Visit${operation}`, [{ id: customerId, to }], ...labels[operation], session);
+    },
+    async faultyProductClaim({ event, claim }, session) {
+      const claimId = String(claim._id);
+      const orderId = String(claim.orderId);
+      const eventId = `faulty-claim:${claimId}:${event}:${claim.version ?? 0}`;
+      const adminLink = `/admin/faulty-product-claims?claim=${encodeURIComponent(claimId)}`;
+      const customerLink = `/customer/product-orders?order=${encodeURIComponent(orderId)}`;
+      const meta = { claimId, orderId, claimStatus: claim.status };
+      const writeClaim = async (recipients, title, message) => {
+        for (const recipient of recipients.filter(row => row.id)) {
+          await col('notifications').updateOne(
+            { _id: digest([eventId, String(recipient.id), recipient.role ?? null]) },
+            {
+              $setOnInsert: {
+                eventId,
+                eventType: event,
+                recipientId: String(recipient.id),
+                role: recipient.role ?? null,
+                title,
+                message,
+                channel: 'IN_APP',
+                deepLink: recipient.to,
+                metadata: meta,
+                createdAt: new Date(clock()),
+                readAt: null
+              }
+            },
+            { upsert: true, session }
+          );
+        }
+      };
+
+      if (event === 'FaultyProductClaimSubmitted') {
+        const staff = await operators(['SALE_STAFF'], adminLink, session);
+        await writeClaim(
+          staff.map(row => ({ ...row, role: 'SALE_STAFF' })),
+          'Có báo sản phẩm lỗi mới',
+          `Khách vừa gửi báo sản phẩm lỗi ${claim.code} cho đơn ${claim.orderCode}.`
+        );
+      } else if (event === 'FaultyProductClaimInspected') {
+        const admins = await operators(['ADMIN'], adminLink, session);
+        await writeClaim(
+          admins.map(row => ({ ...row, role: 'ADMIN' })),
+          'Khiếu nại sản phẩm chờ duyệt',
+          `Sale Staff đã kiểm tra khiếu nại ${claim.code} và chuyển Admin duyệt.`
+        );
+      } else if (event === 'FaultyProductClaimDecided') {
+        let message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã có kết quả xử lý.`;
+        if (claim.decision === 'EXCHANGE') {
+          message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã được duyệt đổi hàng mới.`;
+        } else if (claim.decision === 'REFUND') {
+          const formatted = `${new Intl.NumberFormat('vi-VN').format(claim.refundAmountVnd ?? 0)} đ`;
+          message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã được duyệt hoàn tiền ${formatted}. Kế toán sẽ hoàn tiền ngoài hệ thống.`;
+        } else if (claim.decision === 'REJECT') {
+          message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã bị từ chối.`;
+        }
+        await writeClaim(
+          [{ id: claim.customerId, role: 'CUSTOMER', to: customerLink }],
+          'Kết quả báo sản phẩm lỗi',
+          message
+        );
+      } else if (event === 'FaultyProductExchangeSent') {
+        await writeClaim(
+          [{ id: claim.customerId, role: 'CUSTOMER', to: customerLink }],
+          'Đã gửi hàng đổi',
+          `Cửa hàng đã gửi sản phẩm đổi mới cho khiếu nại ${claim.code} (đơn ${claim.orderCode}).`
+        );
+      }
+    },
+    async careInstructionsUpdated({ visitId, bookingId, sitterId, instructionVersion }, session) {
+      await col('notifications').updateOne(
+        { _id: digest([`care-instructions:${visitId}:v${instructionVersion}`, String(sitterId), 'PET_SITTER']) },
+        {
+          $setOnInsert: {
+            eventId: `care-instructions:${visitId}:v${instructionVersion}`,
+            eventType: 'CareInstructionsUpdated',
+            recipientId: String(sitterId),
+            role: 'PET_SITTER',
+            title: 'Khách đã đổi hướng dẫn chăm sóc',
+            message: `Khách hàng đã cập nhật hướng dẫn chăm sóc (phiên bản ${instructionVersion}). Vui lòng đọc và xác nhận trước khi check-in.`,
+            channel: 'IN_APP',
+            deepLink: `/sitter/visits/${visitId}`,
+            metadata: {
+              visitId: String(visitId),
+              bookingId: String(bookingId),
+              instructionVersion
+            },
+            createdAt: new Date(clock()),
+            readAt: null
+          }
+        },
+        { upsert: true, session }
+      );
+    },
+    async bookingCancelled({ eventId, sitters }, session) {
+      for (const row of sitters ?? []) {
+        const count = row.visitIds?.length ?? 1;
+        await write(eventId, 'VisitCancelledByCustomer',
+          [{ id: row.sitterId, role: 'PET_SITTER', to: '/sitter/visits' }],
+          'Khách hàng đã huỷ buổi chăm sóc',
+          count > 1
+            ? `Khách hàng đã huỷ ${count} buổi chăm sóc mà bạn đã nhận.`
+            : 'Khách hàng đã huỷ một buổi chăm sóc mà bạn đã nhận.',
+          session);
+      }
     }
   };
 }

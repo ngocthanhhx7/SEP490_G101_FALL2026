@@ -12,6 +12,11 @@ export function userModel(connection) {
     consentedAt: { type: Date, required: true },
     sourceRef: { type: String, required: true, maxlength: 500 },
   }, { _id: false, strict: 'throw' });
+  const emergencyContactSchema = new Schema({
+    name: { type: String, required: true, maxlength: 100 },
+    phone: { type: String, required: true, maxlength: 30 },
+    relationship: { type: String, required: true, maxlength: 40 },
+  }, { _id: false, strict: 'throw' });
   const schema = new Schema({
     contractGuard: concurrencyGuardField(),
     schedulingGuardVersion: concurrencyGuardField(),
@@ -20,6 +25,7 @@ export function userModel(connection) {
     givenName: { type: String, maxlength: 100, select: false },
     birthDate: { type: String, match: /^\d{4}-\d{2}-\d{2}$/, select: false },
     gender: { type: String, enum: ['MALE', 'FEMALE', 'OTHER', 'UNDISCLOSED', null], select: false },
+    emergencyContact: { type: emergencyContactSchema, default: undefined, select: false },
     roles: { type: [String], enum: [...ACCOUNT_ROLES], required: true,
       validate: { validator: roles => Array.isArray(roles) && roles.length === 1,
         message: 'Each account must have exactly one role' } },

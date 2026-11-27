@@ -4,7 +4,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import { provisionCustomerTierStorage } from '../../src/services/customer-tier-storage.service.js';
 import { createMongoCustomerTierRepository } from '../../src/services/mongo-customer-tier.repository.js';
 import { createCustomerTierService, customerTierWindow } from '../../src/services/customer-tier.service.js';
-import { COUNTER_PAYMENT_METHOD } from '../../src/constants/counter-sale-fields.js';
+import { COUNTER_PAYMENT_METHOD, COUNTER_VIETQR_PAYMENT_METHOD } from '../../src/constants/counter-sale-fields.js';
 import { CUSTOMER_TIER_COLLECTIONS } from '../../src/models/customer-tier.model.js';
 
 const oid = () => new mongoose.Types.ObjectId();
@@ -228,4 +228,56 @@ test('JOB-05 GBR-42: an unpaid counter sale and a counter sale without a custome
   expect(result).toMatchObject({ status: 'COMPLETED' });
   expect(await heldRows(result.day, unpaid)).toMatchObject({ tier: 'MEMBER', held: false, totalVnd: 0 });
   expect(await job.read(unpaid)).toMatchObject({ tier: 'MEMBER' });
+});
+
+test('JOB-05 GBR-42: a COUNTER_VIETQR counter sale counts from payment.paidAt inside [from, asOf) and holds tier when missing', async () => {
+  const clock = () => dayAt(11);
+  const { from, asOf } = customerTierWindow(new Date(clock()));
+  const { GOLD: G } = policy.thresholds;
+  const [paidVietqr, completedVietqr, oldVietqr, missingPaidAt] = await Promise.all(Array.from({ length: 4 }, () => customer()));
+  await db.collection('customer_tiers').insertMany([oldVietqr, missingPaidAt].map(_id => ({ _id, tier: 'SILVER', asOf: old })));
+  await Promise.all([
+    counterOrder(paidVietqr, { paymentMethod: COUNTER_VIETQR_PAYMENT_METHOD, payment: { paidAt: minutesBefore(asOf, 30) } }),
+    counterOrder(completedVietqr, { paymentMethod: COUNTER_VIETQR_PAYMENT_METHOD, status: 'COMPLETED', payment: { paidAt: from }, createdAt: minutesBefore(from, 5) }),
+    counterOrder(oldVietqr, { paymentMethod: COUNTER_VIETQR_PAYMENT_METHOD, total: G, payment: { paidAt: minutesBefore(from, 1) } }),
+    counterOrder(missingPaidAt, { paymentMethod: COUNTER_VIETQR_PAYMENT_METHOD, total: G, createdAt: minutesBefore(asOf, 10) })
+  ]);
+  const job = service({ clock });
+  const result = await job.run();
+  expect(result).toMatchObject({ status: 'COMPLETED' });
+  expect((await job.read(paidVietqr)).tier).toBe('SILVER');
+  expect((await job.read(completedVietqr)).tier).toBe('SILVER');
+  expect((await job.read(oldVietqr)).tier).toBe('MEMBER');
+  expect((await job.read(missingPaidAt)).tier).toBe('SILVER');
+  expect(await heldRows(result.day, missingPaidAt)).toMatchObject({ tier: 'SILVER', held: true, incomplete: true, totalVnd: 0 });
+});
+
+test('JOB-05 GBR-42: PAY_AT_SHOP paid in cash (without payment.paidAt) keeps prior createdAt rule while VietQR uses payment.paidAt', async () => {
+  const clock = () => dayAt(12);
+  const { from, asOf } = customerTierWindow(new Date(clock()));
+  const [cashPickup, vietqrPickup] = await Promise.all([customer(), customer()]);
+  await Promise.all([
+    order(cashPickup, { paymentMethod: 'PAY_AT_SHOP', status: 'PICKED_UP', paid: true, createdAt: minutesBefore(asOf, 20) }),
+    order(vietqrPickup, { paymentMethod: 'PAY_AT_SHOP', status: 'PICKED_UP', paid: true, createdAt: minutesBefore(from, 60), payment: { paidAt: from } })
+  ]);
+  const job = service({ clock });
+  expect(await job.run()).toMatchObject({ status: 'COMPLETED' });
+  expect((await job.read(cashPickup)).tier).toBe('SILVER');
+  expect((await job.read(vietqrPickup)).tier).toBe('SILVER');
+});
+
+test('JOB-05 GBR-42: COD orders marked DELIVERED by CUSTOMER, STAFF or SYSTEM all count toward customer tier', async () => {
+  const clock = () => dayAt(13);
+  const { asOf } = customerTierWindow(new Date(clock()));
+  const [byCustomer, byStaff, bySystem] = await Promise.all([customer(), customer(), customer()]);
+  await Promise.all([
+    order(byCustomer, { deliveredBy: 'CUSTOMER', deliveredAt: minutesBefore(asOf, 30) }),
+    order(byStaff, { deliveredBy: 'STAFF', deliveredAt: minutesBefore(asOf, 20) }),
+    order(bySystem, { deliveredBy: 'SYSTEM', deliveredAt: minutesBefore(asOf, 10) })
+  ]);
+  const job = service({ clock });
+  expect(await job.run()).toMatchObject({ status: 'COMPLETED' });
+  expect((await job.read(byCustomer)).tier).toBe('SILVER');
+  expect((await job.read(byStaff)).tier).toBe('SILVER');
+  expect((await job.read(bySystem)).tier).toBe('SILVER');
 });

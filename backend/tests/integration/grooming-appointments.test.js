@@ -81,22 +81,27 @@ beforeAll(async () => {
     { code: 'cat-mixed', name: 'Synthetic cat', species: 'CAT', active: true, source: 'synthetic fixture' }]);
 }, 600000);
 
+let currentNow = NOW;
+
 // A new app for every test starts the rate limiters from zero, so the many bookings of one customer never reach the limit.
-async function startApp() {
-  const session = { authenticate: async req => actors[req.get('x-test-role')] ? { ...actors[req.get('x-test-role')], expiresAt: NOW + HOUR } : null,
+async function startApp({ hotline } = {}) {
+  await stopApp();
+  const session = { authenticate: async req => actors[req.get('x-test-role')] ? { ...actors[req.get('x-test-role')], expiresAt: currentNow + HOUR } : null,
     verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   const app = express(); app.use(express.json(), requestId);
-  registerModules(app, [groomingRuntimeModule({ connection, sessionService: session, clock: () => NOW,
-    env: { GROOMING_BOOKING_ENABLED: 'true', BOOKING_FACILITY_ADDRESS: ADDRESS }, config: { auth: { enabled: true } } })]);
+  registerModules(app, [groomingRuntimeModule({ connection, sessionService: session, clock: () => currentNow,
+    env: { GROOMING_BOOKING_ENABLED: 'true', BOOKING_FACILITY_ADDRESS: ADDRESS, ...(hotline ? { GROOMING_SHOP_HOTLINE: hotline } : {}) },
+    config: { auth: { enabled: true } } })]);
   app.use(errorHandler(() => {}));
   server = createServer(app); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 }
-const stopApp = () => new Promise(resolve => (server ? server.close(resolve) : resolve()));
+const stopApp = () => new Promise(resolve => (server ? server.close(() => { server = null; resolve(); }) : resolve()));
 afterAll(async () => { await stopApp(); await connection?.close(); await replica?.stop(); }, 30000);
 afterEach(stopApp);
 
 beforeEach(async () => {
+  currentNow = NOW;
   await startApp();
   for (const name of ['users', 'sitterstatuses', 'aisitterprofiles', 'visits', 'bookings', 'customer_tiers']) await db.collection(name).deleteMany({});
   for (const model of [payroll.EmploymentContract, scheduling.EmployeeAvailability, scheduling.EmployeeAvailabilityRevision, ...Object.values(groomingModels(connection))]) await model.deleteMany({});
@@ -439,7 +444,7 @@ describe('Idempotency-Key', () => {
 });
 
 describe('a pet cannot have two overlapping appointments (Q6)', () => {
-  test.each([['BOOKED', true], ['CHECKED_IN', true], ['NO_SHOW', false], ['HANDED_BACK_PAID', false], ['CLOSED_NO_CHARGE', false]])(
+  test.each([['BOOKED', true], ['CHECKED_IN', true], ['NO_SHOW', false], ['HANDED_BACK_PAID', false], ['CLOSED_NO_CHARGE', false], ['CANCELLED', false]])(
     'an existing %s appointment of the pet blocks: %s', async (status, blocks) => {
       await sitter(); await sitter();
       await seed({ code: 'GR-0100', status, times: ['09:00'] });
@@ -534,7 +539,18 @@ describe('reading appointments', () => {
   });
 
   test('refuses an unknown query field, a bad page and an unknown status', async () => {
-    for (const query of ['foo=1', 'page=0', 'limit=51', 'status=PAID', 'status=']) expect((await call('get', `/appointments?${query}`)).status).toBe(422);
+    for (const query of ['foo=1', 'page=0', 'limit=51', 'status=PAID', 'status=', 'upcoming=yes']) expect((await call('get', `/appointments?${query}`)).status).toBe(422);
+  });
+
+  test('lists upcoming BOOKED appointments earliest first with serverNow when upcoming=true', async () => {
+    await seed({ code: 'GR-0210', times: ['14:00'], more: mine() });
+    await seed({ code: 'GR-0211', times: ['10:00'], petDoc: pets.Bo, more: mine() });
+    await seed({ code: 'GR-0212', times: ['11:00'], petDoc: pets.Muop, status: 'CANCELLED', more: mine() });
+    await seed({ code: 'GR-0213', times: ['15:00'], petDoc: pets.Muop, status: 'CHECKED_IN', more: mine() });
+    await seed({ code: 'GR-0214', times: ['07:00'], petDoc: pets.Bo, more: mine() });
+    const upcoming = (await call('get', '/appointments?upcoming=true').expect(200)).body.data;
+    expect(upcoming.serverNow).toBe(new Date(NOW).toISOString());
+    expect(upcoming.items.map(item => item.code)).toEqual(['GR-0211', 'GR-0210']);
   });
 
   test('does not show internal check-in, work, staff or payment fields to the customer', async () => {

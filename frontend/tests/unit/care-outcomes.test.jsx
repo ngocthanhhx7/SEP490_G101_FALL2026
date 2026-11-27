@@ -27,7 +27,7 @@ test('rating preserves the same payload and key after an uncertain response', as
   fireEvent.submit(screen.getByText('Gửi đánh giá').closest('form'));
   await screen.findByText('Kiểm tra lại đánh giá'); expect(screen.getByLabelText('Mức hài lòng')).toBeDisabled();
   fireEvent.submit(screen.getByText('Kiểm tra lại đánh giá').closest('form'));
-  await screen.findByText('Đã ghi nhận đánh giá của bạn.');
+  await screen.findByText('Cảm ơn bạn. Đánh giá của bạn đã được lưu.');
   expect(api.rateVisit.mock.calls[0]).toEqual(api.rateVisit.mock.calls[1]);
-  expect(api.rateVisit.mock.calls[0][1]).toEqual({ rating: 4, expectedVersion: 4 });
+  expect(api.rateVisit.mock.calls[0][1]).toEqual({ rating: 4, comment: '', expectedVersion: 4 });
 });
