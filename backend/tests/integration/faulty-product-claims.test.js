@@ -171,10 +171,10 @@ beforeEach(async () => {
   }
 });
 
-async function oneItemClaim() {
+async function oneItemClaim({ deliveredAt = new Date(nowMs) } = {}) {
   const product = await seedProduct();
   const order = await seedDeliveredOrder({
-    customerId: customerSession.user.id, product, quantity: 1, deliveredAt: new Date(nowMs)
+    customerId: customerSession.user.id, product, quantity: 1, deliveredAt
   });
   const photoId = 'f'.repeat(64);
   await seedCustomerPhoto(customerSession.user.id, photoId);
@@ -253,6 +253,33 @@ test('customer submit, replay and eligibility return a customer claim view witho
   expect(listed.status).toBe('REJECTED');
   expect((await submit(key).expect(201)).body.data).toEqual(listed);
   await request(app).get(eligibility).set(authHeaders(otherCustomerSession)).expect(404);
+});
+
+test('policy changes apply to new submissions without rewriting the deadline of an existing claim', async () => {
+  const day = 86_400_000;
+  const changeDays = (expectedVersion, days) => request(app).put('/api/v1/system-settings/faulty-product-report-days')
+    .set(authHeaders(adminSession)).send({ expectedVersion, days }).expect(200);
+  const deliveredAt = new Date(nowMs - 3 * day);
+  const { order, submit } = await oneItemClaim({ deliveredAt });
+  const initial = await changeDays(0, 10);
+  const key = 'synthetic-claim-with-policy-snapshot';
+  const created = await submit(key).expect(201);
+  const claimId = created.body.data.id;
+  const deadlineAt = new Date(+deliveredAt + 10 * day);
+  const initialPolicy = { version: initial.body.data.version, days: 10, deadlineAt };
+
+  nowMs += 1;
+  await changeDays(1, 2);
+  const eligibility = await request(app).get(`/api/v1/product-orders/${order._id}/faulty-claim-eligibility`)
+    .set(authHeaders(customerSession)).expect(200);
+  expect(eligibility.body.data).toMatchObject({ reportDays: 2, reason: 'CLAIM_DEADLINE_PASSED' });
+  await submit('synthetic-claim-under-new-policy').expect(409);
+  await submit(key).expect(201);
+  const stored = await models.FaultyProductClaim.findById(claimId).lean();
+  expect(stored.reportPolicy).toEqual(initialPolicy);
+  const staff = await request(app).get(`/api/v1/admin/faulty-product-claims/${claimId}`)
+    .set(authHeaders(saleSession)).expect(200);
+  expect(staff.body.data.reportPolicy).toEqual({ ...initialPolicy, deadlineAt: deadlineAt.toISOString() });
 });
 
 test('ST-ORD-14 full exchange flow: submit, MSG107/MSG108, Admin approve exchange, exchange-sent deducts stock once & writes FAULTY_EXCHANGE history without StockAdjustment', async () => {

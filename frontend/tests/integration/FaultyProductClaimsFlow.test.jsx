@@ -94,6 +94,7 @@ test('FaultyProductClaimsPage enforces MSG107 for Sale Staff, MSG108/MSG109, and
     orderId: ORDER_ID,
     orderCode: 'DH-0001',
     orderDeliveredAt: '2026-11-25T03:00:00.000Z',
+    reportPolicy: { version: 2, days: 7, deadlineAt: '2026-12-02T03:00:00.000Z' },
     customerName: 'Khách 01',
     customerPhone: '0912345678',
     productId: PRODUCT_ID,
@@ -127,6 +128,7 @@ test('FaultyProductClaimsPage enforces MSG107 for Sale Staff, MSG108/MSG109, and
   };
   const { unmount } = withRole(<FaultyProductClaimsPage api={saleApi} />, ['SALE_STAFF']);
   expect(await screen.findByRole('heading', { name: /KN-0001/ })).toBeInTheDocument();
+  expect(screen.getByText(/02\/12\/2026.*7 ngày · Bản 2/)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Gửi Admin duyệt' }));
   expect(await screen.findByText('Vui lòng ghi kết quả kiểm tra.')).toBeInTheDocument();
   expect(saleApi.inspectClaim).not.toHaveBeenCalled();

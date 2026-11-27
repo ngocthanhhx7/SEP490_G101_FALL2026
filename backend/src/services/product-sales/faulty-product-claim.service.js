@@ -6,7 +6,6 @@ import { systemSettingVersionModel } from '../../models/system-setting-version.m
 import { PRODUCT_PERMISSIONS } from '../../constants/product-permissions.js';
 import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
 import {
-  DEFAULT_FAULTY_PRODUCT_REPORT_DAYS,
   FAULTY_CLAIM_CODE_PREFIX,
   FAULTY_CLAIM_COUNTER_ID,
   FAULTY_CLAIM_LIMITS,
@@ -24,6 +23,7 @@ import {
 } from '../../validators/faulty-product-claim.validator.js';
 import { AppError } from '../../utils/app-error.js';
 import { hasRole } from '../../utils/roles.js';
+import { createSystemSettingsService } from '../system-settings.service.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 import { sellableQuantity } from './product-order-pricing.js';
@@ -69,24 +69,18 @@ function requireClaimDecider(actor) {
 export function createFaultyProductClaimService({ connection, phones, readImage = null, clock = Date.now }) {
   const { Product, ProductOrder, ProductCounter, FaultyProductClaim } = productSalesModels(connection);
   const getUser = () => userModel(connection);
-  const getSettingVersion = () => systemSettingVersionModel(connection);
+  const settings = createSystemSettingsService({ connection, SettingVersion: systemSettingVersionModel(connection), clock });
   const unitOfWork = createUnitOfWork(connection);
   let notifications = null;
   const getNotifications = () => (notifications ??= createDomainNotifications({ connection, clock }));
   const col = name => connection.db.collection(name);
 
-  async function currentReportDays(at, session = null) {
-    const query = getSettingVersion().findOne({ key: 'FAULTY_PRODUCT_REPORT_DAYS', effectiveAt: { $lte: at } })
-      .sort({ effectiveAt: -1, version: -1 });
-    if (session) query.session(session);
-    const record = await query.lean();
-    return Number.isSafeInteger(record?.valueDays) && record.valueDays >= 1
-      ? record.valueDays
-      : DEFAULT_FAULTY_PRODUCT_REPORT_DAYS;
-  }
-
   function orderCompletionDate(order) {
     return order.deliveredAt ?? order.updatedAt ?? order.createdAt;
+  }
+
+  function reportDeadline(deliveredAt, days) {
+    return new Date(new Date(deliveredAt).getTime() + days * DAY_MS);
   }
 
   async function nextClaimNumber(session) {
@@ -124,6 +118,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
     return {
       ...toCustomerClaimView(doc),
       orderDeliveredAt: doc.orderDeliveredAt,
+      reportPolicy: doc.reportPolicy ?? null,
       customerId: String(doc.customerId),
       customerName: doc.customerName,
       customerPhone,
@@ -192,7 +187,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
       }).lean();
       if (!order) throw productSalesErrors.notFound();
       const at = new Date(clock());
-      const reportDays = await currentReportDays(at);
+      const { days: reportDays } = await settings.currentFaultyProductReportDays(at);
       const claims = await FaultyProductClaim.find({ orderId: order._id, customerId: oid(customerId) })
         .sort({ createdAt: -1, _id: -1 })
         .limit(50)
@@ -209,7 +204,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
         };
       }
       const deliveredAt = orderCompletionDate(order);
-      const deadlineAt = new Date(new Date(deliveredAt).getTime() + reportDays * DAY_MS);
+      const deadlineAt = reportDeadline(deliveredAt, reportDays);
       const deadlineDate = formatVietnamDate(deadlineAt);
       const expired = at.getTime() > deadlineAt.getTime();
       return {
@@ -259,9 +254,9 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
               throw new AppError(409, 'ORDER_NOT_DELIVERED', 'Only delivered or picked-up orders can be reported');
             }
 
-            const reportDays = await currentReportDays(at, session);
+            const { version: policyVersion, days: reportDays } = await settings.currentFaultyProductReportDays(at, session);
             const deliveredAt = orderCompletionDate(order);
-            const deadlineAt = new Date(new Date(deliveredAt).getTime() + reportDays * DAY_MS);
+            const deadlineAt = reportDeadline(deliveredAt, reportDays);
             if (at.getTime() > deadlineAt.getTime()) {
               throw new AppError(409, 'CLAIM_DEADLINE_PASSED', 'Faulty product report deadline has passed', {
                 deadlineAt: deadlineAt.toISOString(),
@@ -324,6 +319,7 @@ export function createFaultyProductClaimService({ connection, phones, readImage 
               orderId: order._id,
               orderCode: order.code,
               orderDeliveredAt: new Date(deliveredAt),
+              reportPolicy: { version: policyVersion, days: reportDays, deadlineAt },
               customerId: oid(customerId),
               customerName: customer?.displayName ?? 'Khách hàng',
               productId: line.productId,

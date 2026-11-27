@@ -291,6 +291,11 @@ export function FaultyProductClaimsPage({ api: suppliedApi } = {}) {
                 <dd>{selected.orderCode}</dd>
                 <dt>Ngày giao / nhận</dt>
                 <dd>{formatOrderDate(selected.orderDeliveredAt)}</dd>
+                <dt>Hạn báo lỗi lúc gửi</dt>
+                <dd>{selected.reportPolicy
+                  ? `${formatOrderDateTime(selected.reportPolicy.deadlineAt)} · ${selected.reportPolicy.days} ngày · ${selected.reportPolicy.version
+                    ? `Bản ${selected.reportPolicy.version}` : 'Mặc định'}`
+                  : 'Chưa ghi nhận'}</dd>
                 <dt>Khách hàng</dt>
                 <dd>{selected.customerName}</dd>
                 <dt>Số điện thoại</dt>

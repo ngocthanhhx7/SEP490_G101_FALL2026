@@ -78,6 +78,11 @@ const orderPayment = sub({
   paidAt: { type: Date },
   receipts: { type: [paymentReceipt], default: [], validate: (list) => list.length <= PRODUCT_PAYMENT_LIMITS.maxReceipts }
 });
+const faultyReportPolicy = sub({
+  version: { ...integer(0), required: true },
+  days: { ...integer(1, 365), required: true },
+  deadlineAt: { type: Date, required: true }
+});
 const cashPayment = sub({
   amount: { ...integer(), required: true },
   receivedAt: { type: Date, required: true },
@@ -286,6 +291,7 @@ export function productSalesModels(connection) {
         orderId: { type: oid, required: true },
         orderCode: { type: String, required: true, maxlength: 20 },
         orderDeliveredAt: { type: Date, required: true },
+        reportPolicy: { type: faultyReportPolicy, immutable: true },
         customerId: { type: oid, required: true },
         customerName: { type: String, required: true, maxlength: 100 },
         productId: { type: oid, required: true },

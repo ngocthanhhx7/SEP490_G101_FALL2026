@@ -73,7 +73,21 @@ days), Sale Staff inspection, Admin exchange/refund/reject decisions (read-only
 `stock-history.service.js` merges `EXCHANGE_SENT` claims as `FAULTY_EXCHANGE`
 entries alongside goods receipts and stock adjustments.
 
-## Faulty product claims
+Each accepted claim saves the applied settings version, day count and deadline
+alongside its order delivery date. Version 0 denotes the built-in seven-day
+default. Staff see the saved snapshot on the claim. The current setting governs
+new submissions. Historical claims without a saved snapshot stay readable.
+
+The `faultyproductclaims` collection owns the independent claim lifecycle and
+permits several product-line claims against one order. This keeps global Staff
+queues and per-product exchange history directly queryable across orders. Stock
+history reads the same claim that records the exchange and its stock deduction.
+
+| Query | Compound index |
+| --- | --- |
+| Staff queue filtered by status, newest first | `status: 1, createdAt: -1, _id: -1` |
+| Product stock history filtered to sent exchanges, newest first | `productId: 1, status: 1, exchangeSentAt: -1, _id: -1` |
+| Submission quantity check for one purchased line | `orderId: 1, productId: 1, status: 1` |
 
 New submissions serialize on the affected order and count existing claims for
 the purchased line inside the transaction. Pending, approved and fulfilled

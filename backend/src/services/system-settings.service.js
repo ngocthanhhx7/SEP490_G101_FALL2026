@@ -105,9 +105,9 @@ export function createSystemSettingsService({ connection, SettingVersion, clock 
     return setting.enabled;
   }
 
-  async function currentFaultyProductReportDays(at = new Date(clock())) {
+  async function currentFaultyProductReportDays(at = new Date(clock()), session = null) {
     const record = await SettingVersion.findOne({ key: FAULTY_DAYS_KEY, effectiveAt: { $lte: at } })
-      .sort({ effectiveAt: -1, version: -1 }).lean();
+      .sort({ effectiveAt: -1, version: -1 }).session(session).lean();
     return faultyDaysView(record);
   }
 
