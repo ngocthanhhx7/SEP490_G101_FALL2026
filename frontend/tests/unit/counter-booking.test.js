@@ -1,5 +1,6 @@
 import {
   buildCounterBookingInput, counterBookingCurrency, counterBookingDateLabel,
+  counterBookingFormatDdMmYyyy, counterBookingParseDdMmYyyy,
   isCounterBookingReady, normalizeCounterBookingService
 } from '../../src/utils/counter-booking.js';
 
@@ -24,4 +25,10 @@ test('checkout body contains identity and selectable location, never frontend am
     lines: body.lines, date: body.date, time: body.slot, quote: null, pickup: true, pickupQuote: null })).toBe(false);
   expect(isCounterBookingReady({ customer: { id: 'customer' }, petIds: ['pet1'],
     lines: body.lines, date: body.date, time: body.slot, quote: { totalVnd: null }, pickup: false })).toBe(false);
+});
+test('formats and parses dd/mm/yyyy dates strictly', () => {
+  expect(counterBookingFormatDdMmYyyy('2026-11-29')).toBe('29/11/2026');
+  expect(counterBookingParseDdMmYyyy('29/11/2026')).toBe('2026-11-29');
+  expect(counterBookingParseDdMmYyyy('31/02/2026')).toBeNull();
+  expect(counterBookingParseDdMmYyyy('11/29/2026')).toBeNull();
 });

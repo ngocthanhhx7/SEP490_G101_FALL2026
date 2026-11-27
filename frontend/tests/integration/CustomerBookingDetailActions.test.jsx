@@ -214,4 +214,11 @@ describe('Customer Booking Details actions column (UC-27, UC-78)', () => {
     expect(await screen.findByText('Đã ghi nhận đã đón Milo.')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Đã đón' })).toBeNull();
   });
+
+  test('renders Vietnamese tier label on booking details', async () => {
+    const payload = bookingPayload();
+    payload.details.price = { ...payload.details.price, tierCode: 'MEMBER', tierDiscountVnd: 0 };
+    mountCustomer({ [`/checkout/bookings/${bookingId}`]: () => jsonReply(payload) });
+    expect(await screen.findByText('Giảm giá hạng Thành viên')).toBeVisible();
+  });
 });

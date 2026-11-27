@@ -294,7 +294,11 @@
 .cb-slot-section { padding-top: 17px; }
 .cb-slot-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 12px; }
 .cb-slot-title h3 { margin: 0; font-size: 13px; }
-.cb-slot-title input { border: 1px solid #e9e4ee; border-radius: 8px; font-size: 11px; padding: 4px; color: #524163; background: #fff; max-width: 150px; }
+.cb-date-field { position: relative; display: inline-flex; align-items: center; border: 1px solid #e8e2ec; border-radius: 8px; background: #fff; padding-right: 4px; }
+.cb-date-field input[type="text"] { border: 0; background: transparent; padding: 6px 6px 6px 9px; font-size: 12px; color: #524163; width: 96px; outline: none; }
+.cb-date-native { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+.cb-date-picker-btn { border: 0; background: transparent; color: #675976; padding: 4px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
+.cb-date-picker-btn:hover { color: var(--cb-purple); background: #f5ebfa; }
 .cb-slot-list { display: flex; flex-wrap: wrap; gap: 9px; }
 .cb-slot-list button {
   border: 1px solid #e7e3ea;
@@ -329,11 +333,14 @@
 .cb-select-wrap svg { pointer-events: none; position: absolute; right: 7px; top: 7px; }
 .cb-cart-remove { position: absolute; right: 9px; top: 35px; color: #878090; border: 0; background: transparent; padding: 3px; display: grid; place-items: center; }
 .cb-cart-remove:hover { color: #ba3b61; }
-.cb-cart-line-detail { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; border-top: 1px solid #eeeaf0; padding-top: 10px; }
-.cb-cart-line-detail label { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 11px; color: #675976; }
-.cb-cart-line-detail input,
-.cb-cart-line-detail select { border: 1px solid #e8e2ec; border-radius: 6px; padding: 7px; font-size: 12px; max-width: 200px; }
-.cb-cart-line-detail input { width: 75px; }
+.cb-cart-line-detail { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; border-top: 1px solid #eeeaf0; padding-top: 10px; align-items: flex-end; }
+.cb-cart-line-detail label,
+.cb-visit-datetime { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 11px; color: #675976; }
+.cb-cart-line-detail input[type="number"],
+.cb-cart-line-detail input[type="time"],
+.cb-cart-line-detail select { border: 1px solid #e8e2ec; border-radius: 6px; padding: 6px 7px; font-size: 12px; max-width: 200px; }
+.cb-cart-line-detail input[type="number"] { width: 70px; }
+.cb-visit-datetime-inputs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cb-cart-empty { border: 1px dashed #d6cddc; text-align: center; padding: 25px 10px; color: #726a7e; border-radius: 12px; font-size: 13px; }
 .cb-pickup { margin-top: 14px; }
 .cb-pickup-toggle {

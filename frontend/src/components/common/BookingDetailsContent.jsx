@@ -100,7 +100,7 @@ export function BookingDetailsContent({ booking, visitActions }) {
           <Row label="Giá một buổi">{summary(price.visitPricesVnd.map(amount))}</Row>
           <Row label="Giảm nhiều buổi">{price.discountVnd > 0 ? `− ${amount(price.discountVnd)}` : amount(price.discountVnd)}</Row>
           {price.tierDiscountVnd !== null && price.tierDiscountVnd !== undefined &&
-            <Row label={`Giảm giá hạng ${({ MEMBER: 'Member', SILVER: 'Silver', GOLD: 'Gold' })[price.tierCode] ?? ''}`}>
+            <Row label={`Giảm giá hạng ${({ MEMBER: 'Thành viên', SILVER: 'Bạc', GOLD: 'Vàng', DIAMOND: 'Kim cương' })[price.tierCode] ?? ''}`}>
               {price.tierDiscountVnd > 0 ? `− ${amount(price.tierDiscountVnd)}` : amount(price.tierDiscountVnd)}
             </Row>}
           <Row label="Tổng"><strong className="booking-details__total">{amount(price.totalVnd)}</strong></Row>

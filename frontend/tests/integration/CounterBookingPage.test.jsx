@@ -136,3 +136,13 @@ test('new pet uses the existing breed catalog and confirms care needs before the
     traits: [], weightKg: 3, careNeedsConfirmed: true
   }));
 });
+test('date fields in slot section and cart display dd/mm/yyyy', async () => {
+  await initialize();
+  expect(screen.getByRole('textbox', { name: 'Chọn ngày làm dịch vụ' })).toHaveValue('28/11/2026');
+  const serviceButtons = screen.getAllByRole('button', { name: '+ Thêm' });
+  fireEvent.click(serviceButtons[2]);
+  const visitDate = screen.getByRole('textbox', { name: 'Ngày buổi 1' });
+  expect(visitDate).toHaveAttribute('placeholder', 'dd/mm/yyyy');
+  fireEvent.change(visitDate, { target: { value: '29/11/2026' } });
+  expect(visitDate).toHaveValue('29/11/2026');
+});

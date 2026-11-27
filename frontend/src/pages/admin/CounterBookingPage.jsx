@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
+import { Calendar, Check, ChevronDown, Plus, Search, X } from 'lucide-react';
 import {
   buildCounterBookingInput, counterBookingCurrency, counterBookingDateLabel,
-  counterBookingLocalDate, counterBookingTierLabel, COUNTER_BOOKING_LOCATION_LABELS,
+  counterBookingFormatDdMmYyyy, counterBookingLocalDate, counterBookingParseDdMmYyyy,
+  counterBookingTierLabel, COUNTER_BOOKING_LOCATION_LABELS,
   isCounterBookingReady, normalizeCounterBookingService
 } from '../../utils/counter-booking.js';
 import './counter-booking.css';
@@ -62,8 +63,37 @@ function PetDialog({ onCancel, onSave, busy, api }) {
   </div>;
 }
 
+function VietnameseDateInput({ value, min, max, disabled, required, ariaLabel, onChange }) {
+  const [draft, setDraft] = useState(() => counterBookingFormatDdMmYyyy(value));
+  const pickerRef = useRef(null);
+  useEffect(() => { setDraft(counterBookingFormatDdMmYyyy(value)); }, [value]);
+  const inRange = iso => (!min || iso >= min) && (!max || iso <= max);
+  function handleText(event) {
+    const next = event.target.value;
+    setDraft(next);
+    const parsed = counterBookingParseDdMmYyyy(next);
+    if (parsed && inRange(parsed)) onChange(parsed);
+  }
+  return <span className="cb-date-field">
+    <input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10} required={required}
+      aria-label={ariaLabel} value={draft} disabled={disabled} onChange={handleText}
+      onBlur={() => setDraft(counterBookingFormatDdMmYyyy(value))} />
+    <input ref={pickerRef} className="cb-date-native" type="date" tabIndex={-1} aria-hidden="true"
+      min={min} max={max} value={value || ''} disabled={disabled}
+      onChange={event => { if (event.target.value) onChange(event.target.value); }} />
+    <button type="button" className="cb-date-picker-btn" disabled={disabled} aria-label="Mở lịch chọn ngày"
+      onClick={() => pickerRef.current?.showPicker?.()}><Calendar size={14} aria-hidden="true" /></button>
+  </span>;
+}
+
 function CartLine({ line, addresses, onRemove, onUpdate, disabled }) {
   const hasMoreSettings = !line.spa || line.location !== 'FACILITY';
+  function updateVisitStart(index, nextDate, nextTime) {
+    const combined = nextDate && nextTime ? `${nextDate}T${nextTime}` : nextDate ? `${nextDate}T09:00` : '';
+    onUpdate(line.key, {
+      starts: Array.from({ length: line.visitCount }, (_, i) => i === index ? combined : line.starts?.[i] ?? '')
+    });
+  }
   return <article className="cb-cart-line" data-testid="counter-booking-cart-line">
     <div className="cb-cart-line-head"><div><strong>{line.name}</strong><span>{line.petNames.join(', ')} · {line.petDescriptions.join(', ')}</span></div>
       <b>{counterBookingCurrency(line.priceVnd)}</b></div>
@@ -75,10 +105,18 @@ function CartLine({ line, addresses, onRemove, onUpdate, disabled }) {
     {hasMoreSettings && <div className="cb-cart-line-detail">
       <label>Các buổi<input type="number" min="1" max="60" value={line.visitCount} disabled={disabled}
         onChange={event => onUpdate(line.key, { visitCount: Math.max(1, Math.min(60, Number(event.target.value) || 1)) })} /></label>
-      {Array.from({ length: line.visitCount }, (_, index) => <label key={index}>Buổi {index + 1}<input type="datetime-local" required
-        value={line.starts?.[index] ?? ''} disabled={disabled} onChange={event => onUpdate(line.key, {
-          starts: Array.from({ length: line.visitCount }, (_, i) => i === index ? event.target.value : line.starts?.[i] ?? '')
-        })} /></label>)}
+      {Array.from({ length: line.visitCount }, (_, index) => {
+        const [visitDate = '', visitTime = ''] = (line.starts?.[index] ?? '').split('T');
+        return <div key={index} className="cb-visit-datetime">
+          <span>Buổi {index + 1}</span>
+          <div className="cb-visit-datetime-inputs">
+            <VietnameseDateInput value={visitDate} min={counterBookingLocalDate(0)} required disabled={disabled}
+              ariaLabel={`Ngày buổi ${index + 1}`} onChange={nextDate => updateVisitStart(index, nextDate, visitTime)} />
+            <input type="time" required aria-label={`Giờ buổi ${index + 1}`} value={visitTime} disabled={disabled}
+              onChange={event => updateVisitStart(index, visitDate || counterBookingLocalDate(1), event.target.value)} />
+          </div>
+        </div>;
+      })}
       {line.unitLabel === 'ngày' && <label>Số ngày<input type="number" min="1" max="60" value={line.dayCount ?? 1}
         disabled={disabled} onChange={event => onUpdate(line.key, { dayCount: Number(event.target.value) })} /></label>}
       {line.location !== 'FACILITY' && <label>Địa chỉ<select value={line.addressId || ''} disabled={disabled}
@@ -380,8 +418,9 @@ export function CounterBookingPage({ api, initialDate = counterBookingLocalDate(
         </div>
         <div className="cb-slot-section">
           <div className="cb-slot-title"><h3>Khung giờ tại cửa hàng · {counterBookingDateLabel(date)}</h3>
-            <label><span className="cb-visually-hidden">Chọn ngày làm dịch vụ</span><input type="date" min={counterBookingLocalDate(0)}
-              max={counterBookingLocalDate(30)} value={date} disabled={busy} onChange={event => { setDate(event.target.value); requestKey.current = null; }} /></label></div>
+            <VietnameseDateInput value={date} min={counterBookingLocalDate(0)} max={counterBookingLocalDate(30)}
+              disabled={busy} ariaLabel="Chọn ngày làm dịch vụ"
+              onChange={next => { setDate(next); requestKey.current = null; }} /></div>
           <div className="cb-slot-list" role="group" aria-label="Khung giờ tại cửa hàng">
             {slots.map(slot => <button key={slot} type="button" className={time === slot ? 'is-selected' : ''}
               aria-pressed={time === slot} onClick={() => { setTime(slot); requestKey.current = null; }}>{slot}</button>)}

@@ -21,6 +21,21 @@ export function counterBookingDateLabel(date) {
   return new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(time);
 }
 
+export function counterBookingFormatDdMmYyyy(isoDate) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : '';
+}
+
+export function counterBookingParseDdMmYyyy(text) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((text || '').trim());
+  if (!match) return null;
+  const [, dd, mm, yyyy] = match;
+  const iso = `${yyyy}-${mm}-${dd}`;
+  const parsed = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10) === iso ? iso : null;
+}
+
 export const counterBookingTierLabel = value => ({
   SILVER: 'Bạc', GOLD: 'Vàng', MEMBER: 'Thành viên', DIAMOND: 'Kim cương'
 })[value] ?? value ?? 'Thành viên';
