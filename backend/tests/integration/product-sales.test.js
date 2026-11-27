@@ -172,22 +172,62 @@ describe('catalog', () => {
     expect(new Set([...first.body.data.items, ...second.body.data.items].map(row => row.id)).size).toBe(28);
     await api().get('/api/v1/products?page=0').expect(422);
   });
-  test('lists only Shown products and filters by category, pet type and name', async () => {
+  test('IT-FE21-UC55-01 lets a Guest list only Shown products with catalogue summary fields', async () => {
     const all = await api().get('/api/v1/products').expect(200);
     expect(all.body.data.items).toHaveLength(8);
     expect(all.body.data.items.map((item) => item.code)).not.toContain('SP-0036');
-    const dogFood = await api().get('/api/v1/products?category=FOOD&petType=DOG').expect(200);
-    expect(dogFood.body.data.items.map((item) => item.code)).toEqual(['SP-0012', 'SP-0020']);
-    const search = await api().get('/api/v1/products').query({ search: 'pate' }).expect(200);
-    expect(search.body.data.items.map((item) => item.code)).toEqual(['SP-0016']);
-    expect((await api().get('/api/v1/products').query({ search: 'zzz' }).expect(200)).body.data.items).toEqual([]);
+    expect(all.body.data.items[0]).toEqual(expect.objectContaining({
+      photos: expect.any(Array), name: expect.any(String), description: expect.any(String), sellingPrice: expect.any(Number)
+    }));
   });
 
-  test('reports availability and hides Hidden products from details', async () => {
+  test('IT-FE21-UC55-02 returns database-backed Shown products to a Customer', async () => {
+    const data = (await api('a').get('/api/v1/products').expect(200)).body.data;
+    const stored = await product(data.items[0].code);
+    expect(data.items[0]).toMatchObject({ id: String(stored._id), name: stored.name, category: stored.category,
+      petType: stored.petType, sellingPrice: stored.sellingPrice, photos: stored.photos });
+  });
+
+  test('IT-FE21-UC55-03 searches Shown products by a partial name', async () => {
+    const search = await api().get('/api/v1/products').query({ search: 'pate' }).expect(200);
+    expect(search.body.data.items.map((item) => item.code)).toEqual(['SP-0016']);
+  });
+
+  test('IT-FE21-UC55-04 filters Shown products by pet type and category together', async () => {
+    const dogFood = await api().get('/api/v1/products?category=FOOD&petType=DOG').expect(200);
+    expect(dogFood.body.data.items.map((item) => item.code)).toEqual(['SP-0012', 'SP-0020']);
+  });
+
+  test('IT-FE21-UC55-05 returns a successful empty page for an unmatched catalogue search', async () => {
+    const response = await api().get('/api/v1/products?search=zzz').expect(200);
+    expect(response.body.data.items).toEqual([]);
+  });
+
+  test('IT-FE21-UC55-06 reports Out of stock when physical stock minus held quantity is zero', async () => {
+    const stored = await product('SP-0035');
+    expect(stored.stockOnHand - stored.quantityHeld).toBe(0);
     const collar = await api().get(`/api/v1/products/${await idOf('SP-0035')}`).expect(200);
     expect(collar.body.data).toMatchObject({ inStock: false, available: 0, sellingPrice: 60000 });
+    const rejected = await addToCart('a', 'SP-0035', 1);
+    expect(rejected.status).toBe(409);
+    expect(rejected.body.error.code).toBe('PRODUCT_OUT_OF_STOCK');
     await api().get(`/api/v1/products/${await idOf('SP-0036')}`).expect(404);
     await api().get('/api/v1/products?category=NOPE').expect(422);
+  });
+
+  test('IT-FE21-UC56-01 shows database-backed product details to a Customer', async () => {
+    const summary = (await api('a').get('/api/v1/products?search=hạt').expect(200)).body.data.items[0];
+    const detail = (await api('a').get(`/api/v1/products/${summary.id}`).expect(200)).body.data;
+    const stored = await models.Product.findById(summary.id).lean();
+    expect(detail).toMatchObject({ photos: stored.photos, name: stored.name, category: stored.category,
+      petType: stored.petType, description: stored.description, sellingPrice: stored.sellingPrice });
+  });
+
+  test('IT-FE21-UC56-04 shows a Guest the public price without member pricing', async () => {
+    const detail = (await api().get(`/api/v1/products/${await idOf('SP-0012')}`).expect(200)).body.data;
+    expect(detail).toMatchObject({ sellingPrice: 250000, inStock: true });
+    expect(detail).not.toHaveProperty('discountedUnitPrice');
+    expect(detail).not.toHaveProperty('tierCode');
   });
 });
 
@@ -272,23 +312,42 @@ describe('cart', () => {
     expect(added.map(response => response.status)).toEqual([201, 201]);
     expect((await api('a').get('/api/v1/product-cart')).body.data.lines[0].quantity).toBe(3);
   });
-  test('requires a Customer session and does not reserve stock', async () => {
+  test('IT-FE21-UC55-07 adds one in-stock product from the Product List to the Customer cart', async () => {
     await api().get('/api/v1/product-cart').expect(401);
     await api('admin').get('/api/v1/product-cart').expect(403);
-    const added = await addToCart('a', 'SP-0012', 2);
+    const added = await addToCart('a', 'SP-0012', 1);
     expect(added.status).toBe(201);
-    expect(added.body.data).toMatchObject({ lineCount: 1, subtotal: 500000, deliveryFee: 25000 });
+    expect(added.body.data).toMatchObject({ lineCount: 1, subtotal: 250000, deliveryFee: 25000,
+      lines: [expect.objectContaining({ productId: await idOf('SP-0012'), quantity: 1 })] });
     expect((await product('SP-0012')).quantityHeld).toBe(0);
   });
 
-  test('rejects quantities above what can be sold and out-of-stock products', async () => {
+  test('IT-FE21-UC56-05 adds a valid requested quantity after checking sellable stock', async () => {
+    const added = await addToCart('a', 'SP-0014', 4);
+    expect(added.status).toBe(201);
+    expect(added.body.data.lines).toEqual([expect.objectContaining({ productId: await idOf('SP-0014'), quantity: 4, available: 6 })]);
+  });
+
+  test('IT-FE21-UC56-06 rejects a quantity greater than the sellable quantity with MSG58', async () => {
     const tooMany = await addToCart('a', 'SP-0014', 7);
     expect(tooMany.status).toBe(409);
     expect(tooMany.body.error).toMatchObject({ code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', available: 6 });
     await addToCart('a', 'SP-0014', 4);
     expect((await addToCart('a', 'SP-0014', 3)).body.error.code).toBe('PRODUCT_QUANTITY_EXCEEDS_AVAILABLE');
-    expect((await addToCart('a', 'SP-0035', 1)).body.error.code).toBe('PRODUCT_OUT_OF_STOCK');
+  });
+
+  test('IT-FE21-UC56-07 rejects an out-of-stock product with MSG98', async () => {
+    const response = await addToCart('a', 'SP-0035', 1);
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('PRODUCT_OUT_OF_STOCK');
     expect((await addToCart('a', 'SP-0036', 1)).status).toBe(404);
+  });
+
+  test('IT-FE21-UC56-08 requires a Guest to sign in before adding a product to the cart', async () => {
+    const response = await api().post('/api/v1/product-cart/lines').send({ productId: await idOf('SP-0012'), quantity: 1 });
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHENTICATED');
+    expect(await models.ProductCart.countDocuments()).toBe(0);
   });
 
   test('changes and removes lines', async () => {

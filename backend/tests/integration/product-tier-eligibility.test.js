@@ -71,12 +71,16 @@ test('AC-08 only counts the customer’s own refusals and requires advance payme
   expect(() => createProductPricingEligibility({ connection, refusalLimit: '2.5' })).toThrow(TypeError);
 });
 
-test('AC-11 stored overdue states suppress the discount without limiting payment options', async () => {
+test('IT-FE21-UC56-03 shows the regular price when the Customer is not eligible for a tier discount', async () => {
   await col('bookings').insertMany([{ customerId: other, paymentState: 'OVERDUE' },
     { customerId: customer, state: 'OVERDUE', paymentState: 'PAID' }]);
   expect(await eligibility.read(customer)).toMatchObject({ discountBps: 500, prepaidOnly: false });
   const stored = await col('bookings').insertOne({ customerId: customer, paymentState: 'OVERDUE' });
   expect(await eligibility.read(customer)).toMatchObject({ tierCode: 'SILVER', discountBps: 0, prepaidOnly: false });
+  const actor = { userId: String(customer), state: 'ACTIVE', roles: ['CUSTOMER'] };
+  const price = await createProductCustomerPriceService({ catalog: { read: async () => ({ sellingPrice: 250000 }) }, eligibility })
+    .read(actor, String(oid()));
+  expect(price).toMatchObject({ unitPrice: 250000, unitDiscount: 0, discountedUnitPrice: 250000, tierCode: 'SILVER', discountBps: 0 });
   await col('bookings').updateOne({ _id: stored.insertedId }, { $set: { state: 'OVERDUE' }, $unset: { paymentState: '' } });
   expect(await eligibility.read(customer)).toMatchObject({ tierCode: 'SILVER', discountBps: 0, prepaidOnly: false });
 });
@@ -99,7 +103,7 @@ test('AC-11 customer price derives the rate from the authenticated actor and kee
   await expect(service.read({ ...actor, roles: ['ADMIN'] }, String(oid()))).rejects.toMatchObject({ status: 403 });
 });
 
-test('AC-11 personalized catalog pricing is private and hides unavailable products', async () => {
+test('IT-FE21-UC56-02 applies the authenticated Customer tier discount on Product Details', async () => {
   const { Product } = productSalesModels(connection);
   const product = await Product.create({
     code: 'SP-9994', name: 'Synthetic food', category: 'FOOD', petType: 'DOG',
