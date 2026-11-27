@@ -50,6 +50,9 @@ function errorMessage(error) {
   if (error?.code === 'VISIT_CANCELLED') {
     return 'Buổi chăm sóc này đã bị huỷ.';
   }
+  if (error?.code === 'CARE_INSTRUCTIONS_SCOPE_CHANGED') {
+    return 'Đã qua mốc 2 giờ. Hãy tải lại phạm vi và xác nhận các buổi áp dụng.';
+  }
   if (error?.code === 'VERSION_CONFLICT') {
     return 'Dữ liệu buổi chăm sóc vừa thay đổi. Vui lòng tải lại trước khi lưu.';
   }
@@ -77,6 +80,7 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [saveBlocked, setSaveBlocked] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
   const data = dataOverride ?? resource.data;
@@ -125,6 +129,7 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
     setSelectedVisitId(visit.visitId);
     setDraft(buildDraftFromVisit(visit));
     setFormError('');
+    setSaveBlocked('');
   }
 
   function updatePet(petId, field, value) {
@@ -161,9 +166,31 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
     setFormError('');
   }
 
+  async function refreshScope() {
+    setSaving(true);
+    try {
+      const result = await api.getBookingCareInstructions(bookingId);
+      const refreshed = result.data.visits.find(row => row.visitId === selectedVisit.visitId);
+      const savedVersions = new Map(visits.map(row => [row.visitId, row.version]));
+      const affected = result.data.visits.filter(row => row.visitId === selectedVisit.visitId
+        || (Date.parse(row.startAt) > Date.parse(refreshed?.startAt)
+          && !row.withinTwoHours && !row.locked && !row.cancelled));
+      const canKeepDraft = saveBlocked === 'CARE_INSTRUCTIONS_SCOPE_CHANGED'
+        && refreshed && affected.every(row => savedVersions.get(row.visitId) === row.version);
+      setDataOverride(result.data);
+      if (refreshed && !canKeepDraft) setDraft(buildDraftFromVisit(refreshed));
+      setSaveBlocked('');
+      setFormError(canKeepDraft ? 'Kiểm tra các buổi áp dụng bên dưới rồi xác nhận lại.' : '');
+    } catch {
+      setFormError('Chưa tải lại được phạm vi áp dụng. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleConfirm(event) {
     event.preventDefault();
-    if (!selectedVisit || !draft || saving || readOnly) return;
+    if (!selectedVisit || !draft || saving || readOnly || saveBlocked) return;
     const emptyTask = draft.tasks.some(task => !task.label.trim());
     if (emptyTask) {
       setFormError('Vui lòng nhập nội dung cho tất cả việc cần làm hoặc xoá dòng trống.');
@@ -172,6 +199,8 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
     setSaving(true);
     setFormError('');
     try {
+      const applyFromNextVisit = selectedVisit.withinTwoHours;
+      const applyToLater = applyFromNextVisit || draft.applyToLater;
       const payload = {
         expectedVersion: selectedVisit.version,
         pets: draft.pets.map(pet => ({
@@ -186,7 +215,9 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
           required: task.locked ? true : task.required
         })),
         homeAccessNote: draft.homeAccessNote,
-        applyToLater: selectedVisit.withinTwoHours ? true : draft.applyToLater
+        applyToLater,
+        applyFromNextVisit,
+        ...(applyToLater ? { targetVersions: laterEligibleVisits.map(({ visitId, version }) => ({ visitId, version })) } : {})
       };
       const result = await api.confirmVisitCareInstructions(bookingId, selectedVisit.visitId, payload);
       if (result?.data) {
@@ -197,6 +228,9 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
       setToastMessage(MSG51_SAVED);
     } catch (error) {
       setFormError(errorMessage(error));
+      if (['CARE_INSTRUCTIONS_SCOPE_CHANGED', 'CARE_INSTRUCTIONS_CUTOFF', 'VERSION_CONFLICT'].includes(error?.code)) {
+        setSaveBlocked(error.code);
+      }
     } finally {
       setSaving(false);
     }
@@ -309,7 +343,10 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
                     : 'Buổi này còn dưới 2 giờ trước giờ bắt đầu và không còn buổi sau chưa bắt đầu để áp dụng thay đổi.'}
                 </Notice>
               )}
-              {formError && <Notice state="error" title="Chưa lưu được thay đổi">{formError}</Notice>}
+              {formError && <Notice state={saveBlocked ? 'error' : 'warning'} title={saveBlocked ? 'Chưa lưu được thay đổi' : 'Hướng dẫn chăm sóc'}
+                action={saveBlocked && <Button type="button" variant="secondary" disabled={saving} onClick={refreshScope}>Tải lại phạm vi</Button>}>
+                {formError}
+              </Notice>}
 
               <section aria-label="Hướng dẫn theo từng thú cưng">
                 <h2>Hướng dẫn theo thú cưng</h2>
@@ -424,10 +461,10 @@ export function BookingCareInstructionsPage({ api: suppliedApi, bookingId: suppl
               )}
 
               <div className="booking-care-page__actions">
-                <Button type="submit" loading={saving} loadingLabel="Đang lưu…" disabled={readOnly || saving}>
+                <Button type="submit" loading={saving} loadingLabel="Đang lưu…" disabled={readOnly || saving || !!saveBlocked}>
                   Xác nhận hướng dẫn
                 </Button>
-                <Button type="button" variant="secondary" disabled={readOnly || saving} onClick={discardChanges}>
+                <Button type="button" variant="secondary" disabled={readOnly || saving || !!saveBlocked} onClick={discardChanges}>
                   Huỷ thay đổi
                 </Button>
               </div>

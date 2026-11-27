@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { BookingCareInstructionsPage } from '../../src/pages/customer/BookingCareInstructionsPage.jsx';
+import { VisitExecution } from '../../src/pages/sitter/VisitExecution.jsx';
 import { SitterVisitPage } from '../../src/pages/sitter/SitterVisitPage.jsx';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 
@@ -138,6 +139,68 @@ test('customer edits feeding instructions, adds task, confirms and sees MSG51 to
   // Switch to under-2h visit and verify notice
   fireEvent.click(screen.getByRole('button', { name: /Buổi 2/i }));
   expect(await screen.findByText(/dưới 2 giờ trước giờ bắt đầu/i)).toBeInTheDocument();
+});
+
+test('crossing the cutoff requires rereading the affected visits and confirming a second time', async () => {
+  const visit = { version: 0, state: 'SCHEDULED', instructionVersion: 1, withinTwoHours: false,
+    pets: [{ petId: PET_ID, name: 'Milo', feeding: 'Ăn hạt', medicine: '', behavior: '' }], tasks: [] };
+  const visits = [
+    { ...visit, visitId: VISIT_1, startAt: '2026-11-27T06:00:00.000Z' },
+    { ...visit, visitId: VISIT_2, startAt: '2026-11-28T06:00:00.000Z' }
+  ];
+  const api = {
+    getBookingCareInstructions: jest.fn().mockResolvedValueOnce({ data: { visits } })
+      .mockResolvedValueOnce({ data: { visits: [{ ...visits[0], withinTwoHours: true }, visits[1]] } }),
+    confirmVisitCareInstructions: jest.fn()
+      .mockRejectedValueOnce({ code: 'CARE_INSTRUCTIONS_SCOPE_CHANGED' })
+      .mockResolvedValueOnce({ data: { visits } })
+  };
+  withSession(<BookingCareInstructionsPage api={api} bookingId={BOOKING_ID} />);
+  fireEvent.change(await screen.findByLabelText('Cho ăn (Milo)'), { target: { value: 'Pate gà' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hướng dẫn' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Tải lại phạm vi' }));
+  await screen.findByText(/kiểm tra các buổi áp dụng/i);
+  expect(api.confirmVisitCareInstructions).toHaveBeenCalledTimes(1);
+  expect(screen.getByLabelText('Cho ăn (Milo)')).toHaveValue('Pate gà');
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hướng dẫn' }));
+  await waitFor(() => expect(api.confirmVisitCareInstructions).toHaveBeenLastCalledWith(BOOKING_ID, VISIT_1,
+    expect.objectContaining({ applyToLater: true, applyFromNextVisit: true,
+      targetVersions: [{ visitId: VISIT_2, version: 0 }] })));
+});
+
+test('a finished workflow still needs the saved customer checklist before checkout', async () => {
+  const task = { itemId: 'custom-task-1', label: 'Chải lông nhẹ', required: true };
+  const row = {
+    visitId: VISIT_1, version: 2, state: 'IN_PROGRESS',
+    workflow: { mode: 'VERSIONED', title: 'Quy trình chăm sóc', tasks: [], completed: 0 },
+    checklistItemIds: [task.itemId], checklistItems: [task], checklist: []
+  };
+  const api = {
+    execution: jest.fn().mockImplementation(async () => ({ data: { ...row } })),
+    executeVisit: jest.fn().mockImplementation(async (_visitId, _action, payload) => {
+      row.checklist = payload.items;
+      row.version += 1;
+      return { data: { version: row.version } };
+    }),
+    uploadEvidence: jest.fn()
+  };
+  withSession(<VisitExecution api={api} visitId={VISIT_1} />);
+  const field = await screen.findByLabelText(task.label);
+  const attachPhoto = () => fireEvent.change(screen.getByLabelText(/Ảnh tại ca chăm sóc/i), {
+    target: { files: [new globalThis.File(['synthetic'], 'out.jpg', { type: 'image/jpeg' })] }
+  });
+  attachPhoto();
+  const checkOut = () => screen.getByRole('button', { name: 'Check-out hoàn tất ca' });
+  expect(checkOut()).toBeDisabled();
+  fireEvent.change(field, { target: { value: 'DONE' } });
+  expect(checkOut()).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu nội dung chăm sóc' }));
+  await waitFor(() => expect(api.executeVisit).toHaveBeenCalledWith(VISIT_1, 'checklists', {
+    expectedVersion: 2, items: [{ itemId: task.itemId, status: 'DONE' }]
+  }, expect.any(String)));
+  await waitFor(() => expect(screen.getByLabelText(task.label)).toHaveValue('DONE'));
+  attachPhoto();
+  expect(checkOut()).toBeEnabled();
 });
 
 test('sitter sees unread MSG80 and Check-in disabled until clicking Tôi đã đọc bản mới', async () => {

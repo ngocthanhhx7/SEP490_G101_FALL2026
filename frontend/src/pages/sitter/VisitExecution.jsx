@@ -59,11 +59,13 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const complete = Array.isArray(required) && required.every(id => {
     const item = current(id); return item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim();
   });
+  const chosenChecklist = allChecklistItems.map(entry => current(entry.itemId))
+    .filter(item => item.status === 'DONE' || (item.status === 'SKIPPED' && item.reason?.trim()));
   const checkInBlockedByInstructions = row.state === 'ASSIGNED' && row.careInstructionsPendingAck === true;
   const versioned = row.workflow?.mode === 'VERSIONED';
   const phaseComplete = phase => row.workflow?.tasks.filter(task => task.step.phase === phase).every(task => !['BLOCKED','NEEDS_REVIEW'].includes(task.status) && (!task.step.required || task.status === 'COMPLETED' || task.status === 'SKIPPED' && task.step.canSkip) && task.step.photoSlots.every(slot => task.evidence.filter(photo => photo.photoSlotId === slot.photoSlotId).length >= slot.minPhotos));
   const workflowReady = !versioned || (row.state === 'ASSIGNED' ? phaseComplete('CHECK_IN') : ['CHECK_IN','EXECUTION','CHECK_OUT'].every(phaseComplete));
-  const savedChecklist = versioned || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
+  const savedChecklist = versioned && !allChecklistItems.length || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
@@ -83,7 +85,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
     {command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại thao tác ca</Button>}
     {versioned && <VisitWorkflowExecution row={row} api={api} visitId={visitId} onSaved={() => { resource.retry(); onChanged?.(); }} locked={locked || early || expired} />}
-    {!versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked}><legend>Nội dung chăm sóc</legend>
+    {row.state === 'IN_PROGRESS' && (!versioned || allChecklistItems.length > 0) && <fieldset disabled={locked}><legend>{versioned ? 'Việc bổ sung' : 'Nội dung chăm sóc'}</legend>
       {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : allChecklistItems.map(entry => {
         const id = entry.itemId;
         const item = current(id);
@@ -94,12 +96,10 @@ export function VisitExecution({ api, visitId, onChanged }) {
           <textarea maxLength={1000} value={item.reason ?? ''} onChange={event => setItems(value => ({ ...value, [id]: { ...item, reason: event.target.value } }))} />
         </label>}</div>;
       })}
-      <Button disabled={!complete || locked} onClick={() => {
-        const chosen = allChecklistItems
-          .map(entry => current(entry.itemId))
-          .filter(item => item.status === 'DONE' || (item.status === 'SKIPPED' && item.reason?.trim()))
-          .map(item => ({ itemId: item.itemId, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }));
-        const payload = { expectedVersion: row.version, items: chosen };
+      <Button disabled={!complete || !chosenChecklist.length || locked} onClick={() => {
+        const payload = { expectedVersion: row.version, items: chosenChecklist.map(item => ({
+          itemId: item.itemId, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {})
+        })) };
         command.execute(key => api.executeVisit(visitId, 'checklists', payload, key));
       }}><Check size={18} />Lưu nội dung chăm sóc</Button>
     </fieldset>}

@@ -7,6 +7,7 @@ import { loadConfig } from '../../src/config/environment.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { userModel } from '../../src/models/user.model.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
+import { workflowHash } from '../../src/services/care/workflow-snapshot.service.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { assertEmployeeSchedulingStorage } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
 import { assertPayrollStorage } from '../../src/services/payroll/payroll-storage.service.js';
@@ -216,7 +217,7 @@ beforeEach(async () => {
   }
 });
 
-test('ST-BKG-26 full flow: customer edits assigned visit, sitter sees unread + notification, check-in blocked until acknowledged, checklist & check-out succeed', async () => {
+test.each(['legacy', 'versioned'])('ST-BKG-26 full flow: customer edits, sitter acknowledges and completes a %s visit', async mode => {
   const startAt = new Date(nowMs + 3 * 3600000);
   const endAt = new Date(nowMs + 4 * 3600000);
   const sitterOid = new mongoose.Types.ObjectId(sitterSession.user.id);
@@ -224,6 +225,21 @@ test('ST-BKG-26 full flow: customer edits assigned visit, sitter sees unread + n
     { sitterId: sitterOid, state: 'ASSIGNED', startAt, endAt }
   ]);
   const visitId = String(visits[0]._id);
+
+  const versioned = mode === 'versioned';
+  if (versioned) {
+    const definition = {
+      title: 'Quy trình chăm sóc thử',
+      steps: ['CHECK_IN', 'EXECUTION', 'CHECK_OUT'].map(phase => ({
+        stepId: phase.toLowerCase(), phase, scope: 'PER_VISIT', species: [], locations: [],
+        required: true, canSkip: false, photoSlots: []
+      }))
+    };
+    await col('visits').updateOne({ _id: visits[0]._id }, { $set: {
+      'snapshots.workflow': { definition, revision: 1, hash: workflowHash(definition) },
+      workflowResults: definition.steps.map(step => ({ taskKey: `${step.stepId}:visit`, status: 'COMPLETED' }))
+    } });
+  }
 
   // Role/ownership guards
   await request(app).get(`/api/v1/checkout/bookings/${booking._id}/care-instructions`).set(authHeaders(otherCustomerSession)).expect(404);
@@ -362,35 +378,34 @@ test('ST-BKG-26 full flow: customer edits assigned visit, sitter sees unread + n
   const optionalCustom = execAfterAck.body.data.checklistItems.find(item => item.label === 'Chơi bóng 5 phút');
   expect(optionalCustom.required).toBe(false);
 
-  // Missing required custom task blocks checkout
-  await request(app)
+  const defaults = versioned ? [] : ['service-scope', 'pet-condition'].map(itemId => ({ itemId, status: 'DONE' }));
+  if (versioned) {
+    expect(execAfterAck.body.data.workflow).toMatchObject({ mode: 'VERSIONED', completed: 3 });
+    expect(execAfterAck.body.data.checklistItemIds).toEqual([requiredCustom.itemId]);
+  }
+
+  // An optional completed item cannot satisfy the missing required task.
+  const partial = await request(app)
     .patch(`/api/v1/visits/${visitId}/checklists`)
     .set(authHeaders(sitterSession, 'checklist-partial-01'))
     .send({
       expectedVersion: checkedIn.body.data.version,
-      items: [
-        { itemId: 'service-scope', status: 'DONE' },
-        { itemId: 'pet-condition', status: 'DONE' }
-      ]
+      items: [...defaults, { itemId: optionalCustom.itemId, status: 'DONE' }]
     })
     .expect(200);
-  await request(app)
+  const blocked = await request(app)
     .post(`/api/v1/visits/${visitId}/check-outs`)
     .set(authHeaders(sitterSession, 'checkout-blocked-01'))
-    .send({ expectedVersion: checkedIn.body.data.version + 1, mediaId: checkOutMedia })
+    .send({ expectedVersion: partial.body.data.version, mediaId: checkOutMedia })
     .expect(409);
+  expect(blocked.body.error.code).toBe('CHECKLIST_REQUIRED');
 
-  // Completing all required tasks (leaving optional omitted) allows checkout
   const savedChecklist = await request(app)
     .patch(`/api/v1/visits/${visitId}/checklists`)
     .set(authHeaders(sitterSession, 'checklist-complete-01'))
     .send({
-      expectedVersion: checkedIn.body.data.version + 1,
-      items: [
-        { itemId: 'service-scope', status: 'DONE' },
-        { itemId: 'pet-condition', status: 'DONE' },
-        { itemId: requiredCustom.itemId, status: 'DONE' }
-      ]
+      expectedVersion: partial.body.data.version,
+      items: [...defaults, { itemId: requiredCustom.itemId, status: 'DONE' }]
     })
     .expect(200);
 
@@ -400,6 +415,39 @@ test('ST-BKG-26 full flow: customer edits assigned visit, sitter sees unread + n
     .send({ expectedVersion: savedChecklist.body.data.version, mediaId: checkOutMedia })
     .expect(200);
   expect(checkedOut.body.data.state).toBe('COMPLETED');
+});
+
+test('bulk care instructions reject a stale target and require confirmation when the cutoff changes', async () => {
+  const start = new Date(nowMs + 3 * 3600000);
+  const later = new Date(nowMs + 24 * 3600000);
+  const { booking, visits } = await seedBookingWithVisits([
+    { startAt: start, endAt: new Date(+start + 3600000) },
+    { startAt: later, endAt: new Date(+later + 3600000) }
+  ]);
+  const [firstId, laterId] = visits.map(row => String(row._id));
+  const put = (id, body) => request(app)
+    .put(`/api/v1/checkout/bookings/${booking._id}/visits/${id}/care-instructions`)
+    .set(authHeaders(customerSession)).send({ expectedVersion: 0, pets: [], tasks: [], ...body });
+
+  await put(laterId, { tasks: [{ label: 'Việc riêng của buổi sau', required: true }] }).expect(200);
+  const outdated = await put(firstId, {
+    applyToLater: true, targetVersions: [{ visitId: laterId, version: 0 }]
+  }).expect(409);
+  expect(outdated.body.error.code).toBe('VERSION_CONFLICT');
+  expect((await col('visits').findOne({ _id: visits[1]._id })).careInstructions.tasks)
+    .toContainEqual(expect.objectContaining({ label: 'Việc riêng của buổi sau' }));
+
+  nowMs += 3600000 + 1;
+  const payload = {
+    applyToLater: true, targetVersions: [{ visitId: laterId, version: 1 }],
+    tasks: [{ label: 'Đã xác nhận phạm vi mới', required: true }]
+  };
+  const crossesCutoff = await put(firstId, payload).expect(409);
+  expect(crossesCutoff.body.error.code).toBe('CARE_INSTRUCTIONS_SCOPE_CHANGED');
+  expect((await col('visits').findOne({ _id: visits[1]._id })).version).toBe(1);
+  const confirmed = await put(firstId, { ...payload, applyFromNextVisit: true }).expect(200);
+  expect(confirmed.body.data.updatedVisitIds).toEqual([laterId]);
+  expect((await col('visits').findOne({ _id: visits[0]._id })).version).toBe(0);
 });
 
 test('GBR-23 under 2 hours keeps old version on current visit and applies new version only to later unstarted visits', async () => {
@@ -424,7 +472,9 @@ test('GBR-23 under 2 hours keeps old version on current visit and applies new ve
         { itemId: 'pet-condition', label: 'Ghi nhận tình trạng thú cưng sau chăm sóc', required: true }
       ],
       homeAccessNote: 'Ghi chú mới cho buổi sau',
-      applyToLater: false
+      applyToLater: true,
+      applyFromNextVisit: true,
+      targetVersions: [{ visitId: String(visits[1]._id), version: 0 }]
     })
     .expect(200);
 

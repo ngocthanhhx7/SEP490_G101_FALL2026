@@ -152,6 +152,11 @@ function isWithinCutoff(visit, nowMs) {
   return Number.isFinite(startMs) && startMs - nowMs < CARE_INSTRUCTIONS_CUTOFF_MS;
 }
 
+// Published workflow tasks keep their immutable definition and their own results.
+export function additionalCareChecklist(visit) {
+  return (visit.careInstructions?.tasks ?? []).filter(item => !LOCKED_DEFAULT_TASK_IDS.includes(item.itemId));
+}
+
 export function createVisitCareInstructionsService({ connection, clock = Date.now }) {
   const col = name => connection.db.collection(name);
   const uow = createUnitOfWork(connection);
@@ -273,19 +278,18 @@ export function createVisitCareInstructionsService({ connection, clock = Date.no
           && !isWithinCutoff(visit, nowMs)
         );
 
-        let targets;
-        if (withinTwoHours) {
-          if (!laterEligible.length) {
-            fail(
-              409,
-              'CARE_INSTRUCTIONS_CUTOFF',
-              'Còn dưới 2 giờ trước buổi này và không còn buổi sau chưa bắt đầu để áp dụng thay đổi.'
-            );
-          }
-          targets = laterEligible;
-        } else {
-          targets = [selected, ...(input.applyToLater ? laterEligible : [])];
+        if (withinTwoHours && !laterEligible.length) {
+          fail(409, 'CARE_INSTRUCTIONS_CUTOFF', 'Còn dưới 2 giờ trước buổi này và không còn buổi sau để áp dụng thay đổi.');
         }
+        if (input.applyFromNextVisit !== withinTwoHours) {
+          fail(409, 'CARE_INSTRUCTIONS_SCOPE_CHANGED', 'The visit cutoff changed; confirm the current scope');
+        }
+        const laterTargets = input.applyToLater ? laterEligible : [];
+        if (laterTargets.length !== input.targetVersions.size || laterTargets.some(target =>
+          input.targetVersions.get(String(target._id)) !== (target.version ?? 0))) {
+          fail(409, 'VERSION_CONFLICT', 'The later visits changed; reload before saving');
+        }
+        const targets = withinTwoHours ? laterTargets : [selected, ...laterTargets];
 
         const inputPetMap = new Map(input.pets.map(pet => [pet.petId, pet]));
         const updatedVisitIds = [];

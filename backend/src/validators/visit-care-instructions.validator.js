@@ -46,7 +46,7 @@ function cleanText(value, field, max, required = false) {
 
 export function parseVisitCareInstructionsInput(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) invalid();
-  const allowed = new Set(['expectedVersion', 'pets', 'tasks', 'homeAccessNote', 'applyToLater']);
+  const allowed = new Set(['expectedVersion', 'pets', 'tasks', 'homeAccessNote', 'applyToLater', 'applyFromNextVisit', 'targetVersions']);
   if (Object.keys(body).some(key => !allowed.has(key))) invalid('Unsupported fields in care instructions');
 
   if (body.expectedVersion !== undefined && (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0)) {
@@ -54,6 +54,27 @@ export function parseVisitCareInstructionsInput(body) {
   }
   if (body.applyToLater !== undefined && typeof body.applyToLater !== 'boolean') {
     invalid('applyToLater must be a boolean');
+  }
+
+  if (body.applyFromNextVisit !== undefined && typeof body.applyFromNextVisit !== 'boolean') {
+    invalid('applyFromNextVisit must be a boolean');
+  }
+  if (body.applyFromNextVisit && !body.applyToLater) invalid('Applying from the next visit requires a later-visit selection');
+  if (body.applyToLater && (body.expectedVersion === undefined || !Array.isArray(body.targetVersions))) {
+    invalid('Selected and later visit versions are required');
+  }
+  if (body.targetVersions !== undefined && (!Array.isArray(body.targetVersions) || body.targetVersions.length > 59
+    || !body.applyToLater && body.targetVersions.length > 0)) {
+    invalid('targetVersions must list the later visits to update');
+  }
+  const targetVersions = new Map();
+  for (const row of body.targetVersions ?? []) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)
+      || Object.keys(row).some(key => !['visitId', 'version'].includes(key))
+      || !Number.isSafeInteger(row.version) || row.version < 0) invalid('Invalid later visit version');
+    const visitId = parseCareObjectId(row.visitId, 'targetVersions.visitId');
+    if (targetVersions.has(visitId)) invalid('Duplicate later visit');
+    targetVersions.set(visitId, row.version);
   }
 
   if (!Array.isArray(body.pets) || body.pets.length > CARE_INSTRUCTIONS_LIMITS.maxPets) {
@@ -110,6 +131,8 @@ export function parseVisitCareInstructionsInput(body) {
     pets,
     tasks,
     homeAccessNote,
-    applyToLater: body.applyToLater === true
+    applyToLater: body.applyToLater === true,
+    applyFromNextVisit: body.applyFromNextVisit === true,
+    targetVersions
   };
 }
