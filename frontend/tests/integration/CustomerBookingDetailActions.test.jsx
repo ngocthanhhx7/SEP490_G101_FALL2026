@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { CustomerBookingDetailPage } from '../../src/pages/customer/CustomerBookingDetailPage.jsx';
@@ -187,5 +187,31 @@ describe('Customer Booking Details actions column (UC-27, UC-78)', () => {
     expect(within(table).queryByRole('columnheader', { name: 'Thao tác' })).toBeNull();
     expect(within(table).queryByRole('link', { name: 'Theo dõi buổi' })).toBeNull();
     expect(screen.queryByRole('link', { name: /Xem cả .* buổi/ })).toBeNull();
+  });
+
+  test('Staff pickup locks repeated clicks until the command completes and reloads saved handover', async () => {
+    const pickup = { addressText: 'Địa chỉ thử', distanceMeters: 2000, feeVnd: 20000, canPickUp: true, canReturn: false };
+    const visit = { id: visitActiveId, startAt: '2026-11-26T02:00:00.000Z', endAt: '2026-11-26T03:00:00.000Z', state: 'ASSIGNED', pickup };
+    let resolvePickup, recorded = false;
+    const pending = new Promise(resolve => { resolvePickup = resolve; });
+    globalThis.fetch = jest.fn(async (url, options) => {
+      if (options?.method === 'POST') return pending;
+      return jsonReply(bookingPayload({ visits: [{ ...visit, pickup: recorded
+        ? { ...pickup, canPickUp: false, pickedUpAt: '2026-11-26T01:00:00.000Z' } : pickup }] }));
+    });
+    render(<MemoryRouter initialEntries={[`/staff/bookings/${bookingId}`]}>
+      <SessionProvider adapter={{ getCsrfToken: () => 'csrf-token',
+        resolve: async () => ({ status: 'authenticated', user: { id: 'staff-1', roles: ['STAFF'] }, csrfToken: 'csrf-token' }) }}>
+        <Routes><Route path="/staff/bookings/:bookingId" element={<StaffBookingDetailPage />} /></Routes>
+      </SessionProvider>
+    </MemoryRouter>);
+    const button = await screen.findByRole('button', { name: 'Đã đón' });
+    act(() => { fireEvent.click(button); fireEvent.click(button); });
+    expect(button).toBeDisabled();
+    expect(globalThis.fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
+    recorded = true;
+    await act(async () => { resolvePickup(jsonReply({ petNames: ['Milo'] })); });
+    expect(await screen.findByText('Đã ghi nhận đã đón Milo.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Đã đón' })).toBeNull();
   });
 });

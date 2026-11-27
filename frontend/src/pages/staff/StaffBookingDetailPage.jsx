@@ -1,11 +1,11 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BookingDetailsContent } from '../../components/common/BookingDetailsContent.jsx';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
-import { readStaffBooking } from '../../services/booking-details-api.js';
+import { readStaffBooking, recordVisitPickup } from '../../services/booking-details-api.js';
 import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import { StaffBookingChangeRequests } from './booking-change/StaffBookingChangeRequests.jsx';
 
@@ -19,12 +19,40 @@ function StaffBookingDetail({ bookingId }) {
   const request = useMemo(() => createApiClient({ getCsrfToken }), [getCsrfToken]);
   const load = useCallback(({ signal }) => readStaffBooking(request, bookingId, { signal }), [request, bookingId]);
   const resource = useApiResource(load);
+  const [pendingPickup, setPendingPickup] = useState(null);
+  const pickupLock = useRef(false);
+  const [pickupFeedback, setPickupFeedback] = useState(null);
+  const recordPickup = async (visit, action) => {
+    if (pickupLock.current) return;
+    pickupLock.current = true;
+    setPendingPickup(visit.id); setPickupFeedback(null);
+    try {
+      const result = await recordVisitPickup(request, bookingId, visit.id, action);
+      if (result.pending) {
+        setPickupFeedback({ state: 'pending', text: 'Yêu cầu đang xử lý. Tải lại để xác nhận.' });
+      } else {
+        const names = result.data?.petNames?.join(', ') || 'thú cưng';
+        setPickupFeedback({ state: 'success', text: action === 'pick-up' ? `Đã ghi nhận đã đón ${names}.` : `Đã ghi nhận đã trả ${names} về nhà.` });
+        resource.retry();
+      }
+    } catch (error) {
+      setPickupFeedback({ state: 'error', text: apiErrorFeedback(error) });
+    } finally { pickupLock.current = false; setPendingPickup(null); }
+  };
   return <section className="staff-booking-detail">
     <Link className="staff-booking-detail__back" to="/staff/dispatch">Quay lại Điều phối ca</Link>
     <h1>Chi tiết lịch đặt</h1>
     <StaffBookingChangeRequests bookingId={bookingId} enabled={resource.status === 'success'} onDecision={resource.retry} />
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải lịch đặt" />}
-    {resource.status === 'success' && <BookingDetailsContent booking={resource.data} />}
+    {pickupFeedback && <Notice state={pickupFeedback.state} title={pickupFeedback.text} />}
+    {resource.status === 'success' && <BookingDetailsContent booking={resource.data} visitActions={
+      resource.data.details.visits.some(visit => visit.pickup) ? {
+        columnLabel: 'Đưa đón', forVisit: visit => visit.pickup ? <>
+          {visit.pickup.canPickUp && <Button disabled={Boolean(pendingPickup)} onClick={() => recordPickup(visit, 'pick-up')}>Đã đón</Button>}
+          {visit.pickup.canReturn && <Button disabled={Boolean(pendingPickup)} onClick={() => recordPickup(visit, 'return')}>Đã trả</Button>}
+        </> : '—'
+      } : undefined
+    } />}
     {!['loading', 'success'].includes(resource.status) && <Notice state={resource.status} title="Chưa tải được lịch đặt">
       <p>{apiErrorFeedback({ status: resource.httpStatus, code: resource.code })}</p>
       <Button onClick={resource.retry}>Thử lại</Button>

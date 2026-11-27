@@ -135,7 +135,13 @@ export function BookingDetailsContent({ booking, visitActions }) {
               </time></td>
               <td>{time(visit.startAt)} – {time(visit.endAt)}{visit.endAt && date(visit.startAt) !== date(visit.endAt) && ` (${date(visit.endAt)})`}</td>
               <td>{visit.sitterName ?? '—'}</td>
-              <td><span className="booking-details__status" data-state={visit.state}>{visitStatus[visit.state] ?? 'Đang cập nhật'}</span></td>
+              <td><span className="booking-details__status" data-state={visit.state}>{visitStatus[visit.state] ?? 'Đang cập nhật'}</span>
+                {visit.pickup && <div>
+                  <p>Đón và trả tận nhà · {visit.pickup.addressText} · {(visit.pickup.distanceMeters / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km · {amount(visit.pickup.feeVnd)}</p>
+                  {visit.pickup.pickedUpAt && <p>Đã đón</p>}
+                  {visit.pickup.returnedAt && <p>Đã trả về nhà</p>}
+                </div>}
+              </td>
               <td>{visitActions?.reportForVisit?.(visit) ?? '—'}</td>
               {visitActions?.forVisit && visitActions.showColumn !== false && <td>{visitActions.forVisit(visit)}</td>}
             </tr>)}</tbody>
