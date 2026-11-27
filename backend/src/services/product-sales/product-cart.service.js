@@ -2,7 +2,7 @@ import { productSalesModels } from '../../models/product.model.js';
 import { createProductPricingEligibility } from './product-pricing-eligibility.service.js';
 import { PRODUCT_LIMITS, PRODUCT_DEMO_SHIPPING_FEE_VND } from '../../constants/product-fields.js';
 import { parseAddCartLine, parseSetCartLine, parseRemoveCartLine } from '../../validators/product-cart.validator.js';
-import { priceProductOrder, sellableQuantity } from './product-order-pricing.js';
+import { priceProductOrder, ProductOrderAmountError, sellableQuantity } from './product-order-pricing.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 
@@ -40,7 +40,7 @@ export function createProductCartService({ connection, eligibility = createProdu
     try {
       totals = priceProductOrder({ lines: items, discountBps: pricing.discountBps, allowEmpty: true });
     } catch (error) {
-      if (error instanceof RangeError) throw productSalesErrors.amountOutOfRange();
+      if (error instanceof ProductOrderAmountError) throw productSalesErrors.amountOutOfRange();
       throw error;
     }
     const pricedItems = items.map((item, index) => {
