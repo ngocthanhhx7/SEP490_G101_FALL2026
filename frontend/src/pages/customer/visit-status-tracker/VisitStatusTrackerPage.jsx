@@ -119,7 +119,9 @@ function Tracker({ bookingId, visitId }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const read = useMemo(() => createVisitTrackerApi(), []);
   const { getCsrfToken } = useSession();
-  const travelApi = useMemo(() => createVisitTravelApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  const request = useMemo(() => createApiClient({ getCsrfToken }), [getCsrfToken]);
+  const travelApi = useMemo(() => createVisitTravelApi(request), [request]);
+  const dogWalkApi = useMemo(() => createVisitTravelApi(request, { dogWalk: true }), [request]);
   const load = useCallback(signal => read(bookingId, visitId, { signal }), [read, bookingId, visitId]);
   const { data, error, retry } = useVisitTracker(load);
   const back = '/account/bookings/' + encodeURIComponent(bookingId);
@@ -179,6 +181,10 @@ function Tracker({ bookingId, visitId }) {
           </Button>{profileOpen && <PublishedProfile load={load} />}</>}
         </Panel>}
         {actions.travel === true && <VisitTravel api={travelApi} visitId={visit.id} available />}
+        {actions.walkLocation?.available === true && <Panel title="Theo dõi đi dạo">
+          <VisitTravel api={dogWalkApi} visitId={visit.id} available dogWalk />
+          {actions.incident === true && <Link to={'/visits/' + encodeURIComponent(visit.id) + '/incidents/new'}>Báo cáo sự cố</Link>}
+        </Panel>}
         {actions.careReport && <Panel title="Thao tác"><ReportAction bookingId={booking.id} visitId={visit.id} /></Panel>}
       </aside>
     </div>

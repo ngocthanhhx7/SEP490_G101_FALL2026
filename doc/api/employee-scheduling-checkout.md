@@ -26,6 +26,25 @@ before startAt while the visit is assigned. Check-in or endAt closes it. Freshne
 and maximum accuracy error is 100 m. The owner tracker exposes the journey entry only inside the
 window and while travel is enabled. Coordinates require explicit employee sharing.
 
+Live Dog Walk tracking (UC-46) uses the same travel gate and private route middleware.
+The assigned sitter explicitly starts sharing after recorded check-in. Only the active
+sitter assigned to the visit and the booking's customer can read that walk. Non-walk services and
+closed visits have no live view. This is foreground GPS, sampled at most every 15 seconds
+after the first sample. Customers see a stale-location message (MSG146) when no recent
+location is available. The tracker links to the incident form for the same visit when
+the incident runtime is enabled.
+
+| Method/path under `/api/v1/employee-scheduling` | Input/result |
+| --- | --- |
+| GET `/visits/:id/dog-walk` | Assigned sitter or owning customer; current sharing status and fresh location |
+| POST `/visits/:id/dog-walk` | Assigned sitter; action START/STOP and expectedVersion |
+| PUT `/visits/:id/dog-walk/location` | Assigned sitter; same sample contract as pre-visit travel |
+
+The walk uses a separate record in the existing expiring travel collection. New updates
+replace the previous coordinate. Stop clears the coordinate, and check-out or operational
+closure deletes the record in the same transaction. The existing TTL expires unattended
+records at the latest allowed checkout time (two hours after the scheduled end).
+
 Map API `/api/v1/maps/search` accepts POST `{query}` with `MAPS_ENABLED=true`. Configured
 Google returns at most five `{label, coordinates}` results. Vietmap returns
 `{label, provider:'VIETMAP', refId}` and requires POST `/api/v1/maps/places/resolve`

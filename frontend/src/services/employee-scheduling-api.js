@@ -13,6 +13,7 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     visitWorkflow: createServiceWorkflowApi(request).visit,
     reviewWorkflow: createServiceWorkflowApi(request).review,
     ...createVisitTravelApi(request),
+    dogWalk: createVisitTravelApi(request, { dogWalk: true }),
     ...createVisitClosureApi(request),
     ...createNeedsActionApi(request),
     async assignedVisitSummary(id, { signal } = {}) {

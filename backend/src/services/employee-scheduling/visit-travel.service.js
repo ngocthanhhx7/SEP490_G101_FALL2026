@@ -4,6 +4,8 @@ import { fail, id, exact } from '../../validators/pet-care.validator.js';
 import { travelCommand, travelLocation } from '../../validators/visit-travel.validator.js';
 import { assertEmployeeSchedulingStorage } from './scheduling-storage.service.js';
 import { edgeKey } from '../sitter-matching/routing.service.js';
+import { dogWalkLocationId, dogWalkLocationExpiresAt, isDogWalkService, isDogWalkWindowOpen,
+  TRAVEL_BOOKING_STATES } from './dog-walk-location.service.js';
 
 const oid = value => new Types.ObjectId(value);
 const FRESH_MS = 90000, BEFORE_MS = 30 * 60000;
@@ -12,17 +14,19 @@ export function isVisitTravelWindowOpen(visit, now) {
   return visit.state === 'ASSIGNED' && !visit.checkInAt && !!visit.sitterId &&
     now >= new Date(visit.startAt).getTime() - BEFORE_MS && now < new Date(visit.endAt).getTime();
 }
-export function createVisitTravelService({ repository, routingProvider, clock = Date.now }) {
+export function createVisitTravelService({ repository, routingProvider, clock = Date.now, dogWalk = false }) {
   const { models, col, uow } = repository, Travel = models.EmployeeVisitTravel;
+  const recordId = visitId => dogWalk ? dogWalkLocationId(visitId) : visitId;
+  const windowOpen = dogWalk ? isDogWalkWindowOpen : isVisitTravelWindowOpen;
   function access(actor, visit) {
     const sitter = actor.roles?.includes('PET_SITTER') && String(visit?.sitterId) === actor.userId;
-    const viewer = actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role)) ||
+    const viewer = (!dogWalk && actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) ||
       (actor.roles?.includes('CUSTOMER') && String(visit?.customerId) === actor.userId);
     if (actor.state !== 'ACTIVE' || !visit || (!sitter && !viewer)) fail('RESOURCE_NOT_FOUND', 'Visit unavailable', 404);
     return sitter;
   }
   function view(visit, row, owner) {
-    const available = isVisitTravelWindowOpen(visit, clock()), matches = row?.sitterId === String(visit.sitterId);
+    const available = Boolean(windowOpen(visit, clock())), matches = row?.sitterId === String(visit.sitterId);
     const fresh = available && matches && row.sharing && row.coordinates?.length === 2 &&
       row.observedAt && clock() - row.observedAt.getTime() <= FRESH_MS && row.accuracyMeters <= 100;
     return { visitId: String(visit._id), available, version: matches ? row.version : 0,
@@ -36,8 +40,9 @@ export function createVisitTravelService({ repository, routingProvider, clock = 
     const visit = await col('visits').findOne({ _id: oid(visitId) });
     const owner = access(actor, visit);
     const booking = await col('bookings').findOne({ _id: visit.bookingId });
-    if (!booking || !['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'].includes(booking.state)) visit.state = 'CLOSED';
-    const row = await Travel.findById(visitId).lean();
+    if (dogWalk && !owner && String(booking?.customerId) !== actor.userId) fail('RESOURCE_NOT_FOUND', 'Visit unavailable', 404);
+    if (!TRAVEL_BOOKING_STATES.includes(booking?.state) || (dogWalk && !await isDogWalkService(col, visit))) visit.state = 'CLOSED';
+    const row = !dogWalk || windowOpen(visit, clock()) ? await Travel.findById(recordId(visitId)).lean() : null;
     return { visit, row, owner };
   }
   async function write(actor, visitId, work) {
@@ -45,15 +50,19 @@ export function createVisitTravelService({ repository, routingProvider, clock = 
     if (actor.state !== 'ACTIVE' || !actor.roles?.includes('PET_SITTER')) fail('FORBIDDEN', 'Assigned employee required', 403);
     await assertEmployeeSchedulingStorage(Travel.db);
     return uow.run(async session => {
-      const visit = await col('visits').findOneAndUpdate({ _id: oid(visitId), sitterId: oid(actor.userId), state: 'ASSIGNED', checkInAt: null,
-        startAt: { $lte: new Date(clock() + BEFORE_MS) }, endAt: { $gt: new Date(clock()) } },
+      const now = clock();
+      const window = dogWalk ? { state: 'IN_PROGRESS', checkInAt: { $type: 'date' }, checkOutAt: null }
+        : { state: 'ASSIGNED', checkInAt: null, startAt: { $lte: new Date(now + BEFORE_MS) }, endAt: { $gt: new Date(now) } };
+      // The visit write serializes with check-out and operational closure.
+      const visit = await col('visits').findOneAndUpdate({ _id: oid(visitId), sitterId: oid(actor.userId), ...window },
       { $inc: { travelGuardVersion: 1 } }, { session, returnDocument: 'after' });
-      if (!visit) fail('TRAVEL_WINDOW_CLOSED', 'Travel is only available during assigned work', 409);
-      const booking = await col('bookings').findOneAndUpdate({ _id: visit.bookingId, state: { $in: ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'] } },
+      if (!visit || (dogWalk && (!windowOpen(visit, now) || !await isDogWalkService(col, visit, session))))
+        fail('TRAVEL_WINDOW_CLOSED', 'Travel is only available during assigned work', 409);
+      const booking = await col('bookings').findOneAndUpdate({ _id: visit.bookingId, state: { $in: TRAVEL_BOOKING_STATES } },
         { $inc: { travelGuardVersion: 1 } }, { session, returnDocument: 'after' });
       if (!booking) fail('TRAVEL_WINDOW_CLOSED', 'Booking is no longer active', 409);
       await repository.employeeGuard(actor.userId, session, actor.authEpoch);
-      const current = await Travel.findById(visitId).session(session).lean();
+      const current = await Travel.findById(recordId(visitId)).session(session).lean();
       return work(visit, current?.sitterId === actor.userId ? current : null, session);
     });
   }
@@ -77,15 +86,16 @@ export function createVisitTravelService({ repository, routingProvider, clock = 
     async get(actor, visitId) { const { visit, row, owner } = await load(actor, visitId); return view(visit, row, owner); },
     async command(actor, visitId, body) {
       const { action, expectedVersion } = travelCommand(body);
+      if (dogWalk && action === 'ARRIVED') fail('VALIDATION_FAILED', 'Dog walk supports start and stop only', 422);
       return write(actor, visitId, async (visit, row, session) => {
         if ((row?.version ?? 0) !== expectedVersion) fail('VERSION_CONFLICT', 'Reload travel status', 409);
         if (action === 'ARRIVED' && (!row?.sharing || row.state !== 'EN_ROUTE')) fail('INVALID_STATE', 'Start travel before arrival', 409);
-        const at = new Date(clock()), next = { _id: visitId, sitterId: actor.userId, version: expectedVersion + 1,
+        const at = new Date(clock()), next = { _id: recordId(visitId), sitterId: actor.userId, version: expectedVersion + 1,
           state: action === 'START' ? 'EN_ROUTE' : action === 'ARRIVED' ? 'ARRIVED' : 'STOPPED',
           sharing: action === 'START', sessionId: action === 'START' ? randomUUID() : null,
-          updatedAt: at, expiresAt: new Date(visit.endAt), coordinates: [] };
-        await Travel.replaceOne({ _id: visitId }, next, { upsert: true, session });
-        await models.EmployeeScheduleEvent.create([{ type: `TRAVEL_${action}`, actorId: actor.userId,
+          updatedAt: at, expiresAt: dogWalk ? dogWalkLocationExpiresAt(visit) : visit.endAt, coordinates: [] };
+        await Travel.replaceOne({ _id: next._id }, next, { upsert: true, session });
+        if (!dogWalk) await models.EmployeeScheduleEvent.create([{ type: `TRAVEL_${action}`, actorId: actor.userId,
           sitterId: actor.userId, visitId, at }], { session });
         return view(visit, next, true);
       });
@@ -94,9 +104,10 @@ export function createVisitTravelService({ repository, routingProvider, clock = 
       const input = travelLocation(body, clock());
       return write(actor, visitId, async (visit, row, session) => {
         if (!row?.sharing || row.state !== 'EN_ROUTE' || row.sessionId !== input.sessionId) fail('LOCATION_SHARING_STOPPED', 'Location sharing is stopped', 409);
+        if (dogWalk && input.observedAt < visit.checkInAt) fail('LOCATION_STALE', 'Location must be captured after check-in', 409);
         if (row.observedAt && row.observedAt >= input.observedAt) fail('LOCATION_OUT_OF_ORDER', 'Newer location already received', 409);
         const next = { ...row, ...input, updatedAt: new Date(clock()) };
-        await Travel.updateOne({ _id: visitId }, { $set: { ...input, updatedAt: next.updatedAt } }, { session });
+        await Travel.updateOne({ _id: recordId(visitId) }, { $set: { ...input, updatedAt: next.updatedAt } }, { session });
         return view(visit, next, true);
       });
     },

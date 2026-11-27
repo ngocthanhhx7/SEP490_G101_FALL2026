@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/index.js';
 
 import { CareProgressSteps } from '../../components/common/CareProgressSteps.jsx';
 import { VisitEvidencePreview } from '../../components/common/VisitEvidencePreview.jsx';
+import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 
 const date = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 const labels = { 'service-scope': 'Thực hiện nội dung dịch vụ', 'pet-condition': 'Kiểm tra tình trạng thú cưng' };
@@ -84,6 +85,8 @@ export function VisitExecution({ api, visitId, onChanged }) {
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
     {row.workflow?.mode === 'LEGACY' && <p>Buổi này dùng danh sách việc đã lưu.</p>}
     <h4>{states[row.state] ?? 'Cần kiểm tra trạng thái ca'}</h4>
+    {row.walkLocationAvailable === true && row.state === 'IN_PROGRESS' && !expired &&
+      <VisitTravel api={api.dogWalk} visitId={visitId} employee available dogWalk />}
     {row.completionAttention === 'COMPLETION_REVIEW_REQUIRED' && <p role="alert">Cần xác minh kết thúc. Buổi đã quá hạn check-out; điều phối và quản trị đã được thông báo để hỗ trợ.</p>}
     {row.completionAttention === 'COMPLETION_VERIFICATION_PENDING' && <p role="status">Đang chờ quản trị đối chiếu bằng chứng và giờ kết thúc thực tế.</p>}
     {row.closureOutcome && <p role="status">Kết quả đối chiếu: {row.closureOutcome === 'SERVICE_PERFORMED' ? 'Đã xác minh dịch vụ thực hiện' : 'Không thực hiện dịch vụ, cần đối soát tài chính'}.</p>}
