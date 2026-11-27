@@ -22,3 +22,5 @@
 .payroll-check { display: flex; align-items: center; gap: .5rem; }
 .payroll-pagination { display: flex; justify-content: flex-end; gap: .75rem; align-items: center; margin: 1rem 0; }
 .payroll-pagination button { width: 44px; height: 44px; padding: 0; }
+.payroll-toast { position: fixed; top: 1.25rem; right: 1.25rem; z-index: 60; display: flex; align-items: center; gap: .75rem; padding: .85rem 1.1rem; border: 1px solid #216443; border-radius: 10px; background: #edf8f1; color: #195136; box-shadow: 0 8px 24px #18272224; font-weight: 600; }
+.payroll-workspace .payroll-toast button { padding: 0 .35rem; border: 0; background: transparent; color: inherit; font-size: 1.2rem; }

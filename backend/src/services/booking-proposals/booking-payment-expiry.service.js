@@ -110,8 +110,8 @@ export function createBookingPaymentExpiryService({ connection, provider, clock 
           await col('notifications').updateOne({ _id: digest([eventId, String(booking.customerId)]) }, { $setOnInsert: {
             eventId, eventType: 'BOOKING_PAYMENT_EXPIRED', recipientId: String(booking.customerId), role: 'CUSTOMER', channel: 'IN_APP',
             title: 'Đơn đã hết hạn thanh toán',
-            message: 'This booking was not paid in 15 minutes and is no longer held. Please book again.',
-            metadata: { bookingId: String(booking._id), messageCode: 'MSG67' }, deepLink: `/account/bookings/${booking._id}`,
+            message: 'Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.',
+            metadata: { bookingId: String(booking._id) }, deepLink: `/account/bookings/${booking._id}`,
             createdAt: asOf, readAt: null
           } }, { session, upsert: true });
           return true;

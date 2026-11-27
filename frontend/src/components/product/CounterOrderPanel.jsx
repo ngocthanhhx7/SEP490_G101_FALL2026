@@ -34,6 +34,7 @@ export function CounterOrderPanel({ sale }) {
           disabled={locked} onChange={value => sale.change(line, value)} onLimit={() => sale.limit(line)} />
         <strong className="counter-line-total">{formatVnd(order ? line.lineTotal : quoted?.lineTotal) || '—'}</strong>
         {!order && <button type="button" className="pwc-shop-link-button" aria-label={`Bỏ ${line.productName}`} disabled={locked} onClick={() => sale.remove(line.productId)}>Bỏ</button>}
+        {!order && sale.lineNotices?.[line.productId] && <p className="counter-line-error" role="alert">{sale.lineNotices[line.productId]}</p>}
       </div>;
     })}</div>
     {!order && previewState === 'loading' && <p className="pwc-shop-hint" role="status">Đang tính tổng…</p>}
