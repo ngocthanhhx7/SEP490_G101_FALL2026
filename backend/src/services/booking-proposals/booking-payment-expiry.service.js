@@ -40,7 +40,10 @@ export function createBookingPaymentExpiryService({ connection, provider, clock 
   async function runBatch() {
     await assertFinanceSourceStorage(connection);
     const asOf = new Date(clock());
-    const eligible = { state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: { $lte: asOf } };
+    // Counter bookings share a single payment intent with a grooming appointment.
+    // Their expiry must cancel both records atomically in counterCheckout.expireBatch().
+    const eligible = { state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: { $lte: asOf },
+      createdChannel: { $ne: 'COUNTER' } };
     const page = afterId => col('bookings').find(afterId ? { ...eligible, _id: { $gt: afterId } } : eligible,
       { maxTimeMS: 5000 }).sort({ _id: 1 }).limit(50).toArray();
     let bookings = await page(scanAfterId);

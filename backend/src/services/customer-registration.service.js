@@ -38,7 +38,8 @@ export function createCustomerRegistrationHandler({ connection, User, models = i
     }
 
     const policyConsents = await registrationPolicyService.validateAndBuildReceipt({ policyVersions, session: mongoSession, now });
-    const existing = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })
+    const existing = await models.Contact.findOne({ channel, lookupKey: contactLookup,
+      state: { $in: ['VERIFIED', 'UNVERIFIED'] } })
       .session(mongoSession).lean();
     if (existing) {
       throw new AppError(409, 'CONTACT_ALREADY_LINKED', 'Contact verification could not be completed');

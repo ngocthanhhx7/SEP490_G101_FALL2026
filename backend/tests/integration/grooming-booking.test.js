@@ -23,6 +23,14 @@ import { employeeSchedulingModels } from '../../src/models/employee-scheduling.m
 import { productSalesModels } from '../../src/models/product.model.js';
 import { serviceModel } from '../../src/models/service.model.js';
 import { groomingLocalDate } from '../../src/utils/grooming-slot-time.js';
+import { createCounterCheckout } from '../../src/services/counter-booking/counter-checkout.service.js';
+import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
+import { createPricingService } from '../../src/services/pricing/pricing.service.js';
+import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
+import { notificationModels } from '../../src/models/notification.model.js';
+import { createMongoPaymentWebhookRepository } from '../../src/services/providers/payos/mongo-payment-webhook.repository.js';
+import { createPayosPaymentWebhookService } from '../../src/services/providers/payos/payment-webhook.service.js';
+import { hasUnpaidGrooming } from '../../src/services/grooming/grooming-unpaid.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const ADDRESS = 'Cửa hàng Paw World, 25 Láng Hạ, Đống Đa';
@@ -38,7 +46,7 @@ const WINDOWS = [1, 2, 3, 4, 5, 6, 7].flatMap(weekday => [
 ]);
 const actors = Object.fromEntries(['CUSTOMER', 'CUSTOMER2', 'STAFF', 'PET_SITTER', 'ADMIN'].map(role =>
   [role, { userId: String(oid()), roles: [role === 'CUSTOMER2' ? 'CUSTOMER' : role], state: 'ACTIVE' }]));
-let replica, connection, server, base, db, services, pets, repository, payroll, scheduling, product;
+let replica, connection, server, base, db, services, pets, repository, payroll, scheduling, product, counterGrooming;
 const sid = code => String(services[code]);
 const call = (method, path, role = 'CUSTOMER', csrf = true) => {
   const req = request(base)[method](`/api/v1/grooming${path}`);
@@ -82,6 +90,8 @@ beforeAll(async () => {
   for (const model of [...Object.values(payroll), ...Object.values(scheduling)]) { await model.createCollection(); await model.createIndexes(); }
   for (const name of ['users', 'bookings', 'payments', 'productorders', 'sitterstatuses', 'aisitterprofiles', 'visits']) await db.createCollection(name).catch(() => {});
   await provisionCustomerTierStorage(connection); await provisionGroomingStorage(connection);
+  await provisionFinanceSources(connection);
+  for (const model of Object.values(notificationModels(connection))) { await model.createCollection(); await model.createIndexes(); }
   await db.collection('customer_tier_policies').updateOne({ _id: 'current' }, { $set: {
     state: 'APPROVED', approvedAt: new Date(0), approvedBy: 'synthetic-reviewer', approvalReference: 'synthetic-fixture-only' } });
   const rows = await serviceModel(connection).find({}).select('code').lean();
@@ -91,8 +101,9 @@ beforeAll(async () => {
   const session = { authenticate: async req => actors[req.get('x-test-role')] ? { ...actors[req.get('x-test-role')], expiresAt: NOW + HOUR } : null,
     verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   const app = express(); app.use(express.json(), requestId);
-  registerModules(app, [groomingRuntimeModule({ connection, sessionService: session, clock: () => NOW,
-    env: { GROOMING_BOOKING_ENABLED: 'true', BOOKING_FACILITY_ADDRESS: ADDRESS }, config: { auth: { enabled: true } } })]);
+  counterGrooming = groomingRuntimeModule({ connection, sessionService: session, clock: () => NOW,
+    env: { GROOMING_BOOKING_ENABLED: 'true', BOOKING_FACILITY_ADDRESS: ADDRESS }, config: { auth: { enabled: true } } });
+  registerModules(app, [counterGrooming]);
   app.use(errorHandler(() => {}));
   server = createServer(app); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -110,6 +121,179 @@ beforeEach(async () => {
   const owner = actors.CUSTOMER.userId;
   const make = (name, species, breedCode, weightKg, more = {}) => repository.models.Pet.create({ ownerId: owner, name, species, breedCode, weightKg, traits: [], careNeedsConfirmed: true, ...more });
   pets = { Milo: await make('Milo', 'DOG', 'dog-mixed', 12), Bo: await make('Bơ', 'DOG', 'dog-mixed', 4), Muop: await make('Mướp', 'CAT', 'cat-mixed', 4) };
+});
+
+test('counter mixed cash checkout commits one booking and one spa appointment, and replays without duplicate receipts', async () => {
+  await sitter();
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const input = { customerId: actors.CUSTOMER.userId, date, slot: '09:00', paymentMethod: 'COUNTER_CASH',
+    lines: [
+      { serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('nail-trimming'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId], visitCount: 1, starts: [at(date, '14:00').toISOString()] }
+    ], pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'YES', skinCondition: 'NO' }] };
+  const quote = await counter.preview(actors.ADMIN, input);
+  expect(quote.totalVnd).toBeGreaterThan(0);
+  expect(await db.collection('bookings').countDocuments()).toBe(0);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(0);
+  const result = await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-cash-test');
+  expect(result).toMatchObject({ paid: true, status: 'PAID', totalVnd: quote.totalVnd });
+  expect(result.bookingAmountVnd + result.groomingAmountVnd).toBe(quote.totalVnd);
+  expect(await db.collection('bookings').countDocuments()).toBe(1);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: result.receiptId })).toBe(1);
+  const savedBooking = await db.collection('bookings').findOne({ counterCheckoutId: result.receiptId });
+  const savedSpa = await db.collection('groomingappointments').findOne({ counterCheckoutId: result.receiptId });
+  const receipt = await db.collection('payments').findOne({ counterReceiptId: result.receiptId });
+  expect(savedBooking).toMatchObject({ createdChannel: 'COUNTER', state: 'DISPATCH_PENDING', paymentState: 'PAID' });
+  expect(savedSpa).toMatchObject({ createdChannel: 'COUNTER', counterPaymentState: 'PAID',
+    payment: { method: 'CASH', amountVnd: result.groomingAmountVnd } });
+  expect(receipt.receiptMoney.amountVnd).toBe(result.bookingAmountVnd);
+  expect(receipt.counterTotalVnd).toBe(quote.totalVnd);
+  await db.collection('groomingappointments').updateOne({ _id: savedSpa._id }, { $set: { handedBackAt: new Date(NOW) } });
+  expect(await hasUnpaidGrooming(connection, actors.CUSTOMER.userId)).toBe(false);
+  await db.collection('groomingappointments').updateOne({ _id: savedSpa._id }, { $set: {
+    'pets.0.surchargeConsent': true, 'pets.0.surchargeVnd': 30000 } });
+  expect(await hasUnpaidGrooming(connection, actors.CUSTOMER.userId)).toBe(true);
+  await db.collection('groomingappointments').updateOne({ _id: savedSpa._id },
+    { $set: { 'payment.amountVnd': result.groomingAmountVnd + 30000 } });
+  expect(await hasUnpaidGrooming(connection, actors.CUSTOMER.userId)).toBe(false);
+  expect(await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-cash-test')).toEqual(result);
+  await expect(counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-cash-other')).rejects.toMatchObject({ code: 'QUOTE_ALREADY_USED' });
+});
+
+test('counter VietQR reserves two linked orders for 15 minutes, then verified webhook pays both without creating duplicates', async () => {
+  await sitter();
+  const provider = { createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
+    checkoutUrl: 'https://pay.payos.vn/web/synthetic-counter', paymentLinkId: 'synthetic' }), verifyWebhook: async body => body };
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider, webOrigin: 'http://localhost:5173' });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const input = { customerId: actors.CUSTOMER.userId, date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId], visitCount: 1, starts: [at(date, '14:00').toISOString()] }],
+    pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] };
+  const quote = await counter.preview(actors.ADMIN, input);
+  const pending = await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-qr-test');
+  expect(pending).toMatchObject({ status: 'PENDING', paid: false, checkoutUrl: 'https://pay.payos.vn/web/synthetic-counter' });
+  expect(await db.collection('bookings').countDocuments()).toBe(1);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
+  expect(await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', createdChannel: 'COUNTER' });
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'BOOKED', counterPaymentState: 'AWAITING_PAYMENT', createdChannel: 'COUNTER' });
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(0);
+  const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+  const webhook = createPayosPaymentWebhookService({ provider, clock: () => new Date(NOW),
+    repository: createMongoPaymentWebhookRepository({ connection, getCounterCheckout: () => counter }) });
+  const payload = { orderCode: Number(intent.providerReference), reference: 'synthetic-counter-bank-reference', amount: quote.totalVnd,
+    currency: 'VND', code: '00', paymentLinkId: 'synthetic', transactionDateTime: new Date(NOW).toISOString() };
+  expect(await webhook.handleWebhook(payload)).toEqual({ status: 'PAYMENT_VERIFIED' });
+  expect(await webhook.handleWebhook(payload)).toEqual({ status: 'DUPLICATE' });
+  expect(await counter.status(actors.ADMIN, pending.receiptId)).toMatchObject({ status: 'PAID', totalVnd: quote.totalVnd });
+  expect(await db.collection('bookings').countDocuments()).toBe(1);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(1);
+  expect(await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ state: 'DISPATCH_PENDING', paymentState: 'PAID' });
+  const booking = await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId });
+  const receipt = await db.collection('payments').findOne({ counterReceiptId: pending.receiptId });
+  expect(receipt.receiptMoney.amountVnd).toBe(booking.paymentSnapshot.amountVnd);
+  expect(receipt.counterTotalVnd).toBe(quote.totalVnd);
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ counterPaymentState: 'PAID', payment: { method: 'VIETQR', amountVnd: pending.totalVnd -
+      (await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId })).paymentSnapshot.amountVnd } });
+});
+
+test('counter VietQR expiry releases booking and spa reservations together, preserving the historical records', async () => {
+  await sitter();
+  let tick = NOW;
+  const provider = { createPaymentLink: async body => ({ orderCode: body.orderCode, amount: body.amount,
+    checkoutUrl: 'https://pay.payos.vn/web/synthetic-expiry', paymentLinkId: 'synthetic' }),
+  getPaymentLink: async orderCode => ({ orderCode, amount: intent.amountVnd, amountPaid: 0, providerStatus: 'EXPIRED' }) };
+  const counter = createCounterCheckout({ connection, clock: () => tick,
+    pricing: createPricingService({ repository, clock: () => tick }),
+    checkout: createBookingCheckoutService({ connection, clock: () => tick, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider, webOrigin: 'http://localhost:5173' });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const preview = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+    date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId], visitCount: 1,
+        starts: [at(date, '14:00').toISOString()] }], pickup: { enabled: false },
+    answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+  const pending = await counter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'mixed-expiry-test');
+  const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+  tick += 16 * 60000;
+  expect(await counter.expireBatch()).toMatchObject({ expired: 1 });
+  expect(await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ state: 'CANCELLED' });
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED' });
+  expect(await db.collection('visits').countDocuments({ bookingId: new mongoose.Types.ObjectId(pending.bookingId),
+    state: { $ne: 'CANCELLED' } })).toBe(0);
+  expect(await counter.status(actors.ADMIN, pending.receiptId)).toMatchObject({ status: 'EXPIRED' });
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(0);
+  expect(intent.amountVnd).toBe(preview.totalVnd);
+});
+
+test('counter VietQR cancellation confirms payOS is unpaid before freeing a spa-only held slot', async () => {
+  await sitter();
+  let requestAmount = null;
+  const provider = { createPaymentLink: async payload => {
+    requestAmount = payload.amount;
+    return { orderCode: payload.orderCode, amount: payload.amount,
+      checkoutUrl: 'https://pay.payos.vn/web/synthetic-cancel', paymentLinkId: 'synthetic' };
+  }, getPaymentLink: async orderCode => ({ orderCode, amount: requestAmount, amountPaid: 0, providerStatus: 'PENDING' }),
+  cancelPaymentLink: async orderCode => ({ orderCode, amount: requestAmount, amountPaid: 0, providerStatus: 'CANCELLED' }) };
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider, webOrigin: 'http://localhost:5173' });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const quote = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+    date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+    pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+  const pending = await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'cancel-spa-only');
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'BOOKED', counterPaymentState: 'AWAITING_PAYMENT' });
+  expect(await counter.cancel(actors.ADMIN, pending.receiptId)).toMatchObject({ status: 'CANCELLED' });
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED' });
+  expect(await db.collection('bookings').countDocuments({ counterCheckoutId: pending.receiptId })).toBe(0);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(0);
+});
+
+test('counter mixed checkout rolls back both orders if grooming slot becomes unavailable after preview', async () => {
+  await sitter();
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const quote = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+    date, slot: '09:00', paymentMethod: 'COUNTER_CASH',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId],
+        visitCount: 1, starts: [at(date, '14:00').toISOString()] }],
+    pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+  const start = at(date, '09:00');
+  await db.collection('groomingappointments').insertOne({ code: 'SYNTHETIC-SLOT-TAKEN',
+    status: 'BOOKED', slot: { startAt: start, endAt: new Date(+start + HOUR) },
+    pets: [{ petId: pets.Bo._id, slotKeys: [`${date}T09:00+07:00`], status: 'BOOKED' }] });
+  const receiptsBefore = await db.collection('payments').countDocuments({ counterReceiptId: { $exists: true } });
+  await expect(counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'rollback-on-spa-conflict'))
+    .rejects.toMatchObject({ code: 'GROOMING_PET_ALREADY_BOOKED' });
+  expect(await db.collection('bookings').countDocuments()).toBe(0);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: { $exists: true } })).toBe(receiptsBefore);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
 });
 
 describe('options and access', () => {

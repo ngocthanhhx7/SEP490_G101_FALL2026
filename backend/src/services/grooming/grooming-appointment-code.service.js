@@ -5,15 +5,15 @@ import { GROOMING_CODE_COUNTER_ID, GROOMING_CODE_PREFIX } from '../../constants/
 // and the unique index on `code` is the last guard.
 export function createGroomingAppointmentCode({ connection }) {
   const { GroomingCounter } = groomingModels(connection);
-  const next = () => GroomingCounter.findOneAndUpdate({ _id: GROOMING_CODE_COUNTER_ID }, { $inc: { value: 1 } }, { upsert: true, returnDocument: 'after' });
+  const next = session => GroomingCounter.findOneAndUpdate({ _id: GROOMING_CODE_COUNTER_ID }, { $inc: { value: 1 } }, { upsert: true, returnDocument: 'after', session });
   return {
-    async nextCode() {
+    async nextCode({ session = null } = {}) {
       let counter;
       try {
-        counter = await next();
+        counter = await next(session);
       } catch (error) {
-        if (error?.code !== 11000) throw error;
-        counter = await next();
+        if (session || error?.code !== 11000) throw error;
+        counter = await next(session);
       }
       return `${GROOMING_CODE_PREFIX}${String(counter.value).padStart(4, '0')}`;
     }

@@ -33,6 +33,9 @@ export function userModel(connection) {
     authEpoch: { type: Number, required: true, min: 0, default: 0 },
     version: { type: Number, required: true, min: 0, default: 0 },
     synthetic: { type: Boolean, default: false },
+    // Counter-created customers have not proven possession of their phone yet.
+    createdChannel: { type: String, enum: ['COUNTER'], default: undefined },
+    createdBy: { type: Schema.Types.ObjectId, default: undefined },
     fixtureKey: { type: String },
     policyConsents: { type: [policyConsentSchema], default: undefined, immutable: true },
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false,
