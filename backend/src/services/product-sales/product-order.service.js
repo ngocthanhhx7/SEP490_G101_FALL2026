@@ -13,7 +13,7 @@ import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseCancelO
 import { parseNoBody } from '../../validators/product-order-management.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { createDeliveryCompletion, createOrderTransition } from './product-order-transition.js';
-import { priceProductOrder, productOrderRefundAmount, sellableQuantity } from './product-order-pricing.js';
+import { priceProductOrder, ProductOrderAmountError, productOrderRefundAmount, sellableQuantity } from './product-order-pricing.js';
 import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
 
@@ -172,6 +172,7 @@ export function createProductOrderService({
         });
         return toOrderView(order);
       } catch (error) {
+        if (error instanceof ProductOrderAmountError) throw productSalesErrors.amountOutOfRange();
         // A concurrent request with the same key committed first: return that order instead of failing.
         if (error?.code === 11000 || error?.code === 'CART_EMPTY' || error?.code === 'PRODUCT_ORDER_PREPAY_REQUIRED') {
           const winner = await replay(customerId, key, fingerprint);

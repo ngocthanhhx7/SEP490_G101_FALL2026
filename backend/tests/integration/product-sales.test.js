@@ -317,6 +317,18 @@ describe('placing an order', () => {
     expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines).toEqual([]);
   });
 
+  test('shipping that would overflow the order amount rolls back checkout and keeps the cart', async () => {
+    const code = 'SP-0012';
+    const quantity = Number.MAX_SAFE_INTEGER - 1000;
+    await models.Product.updateOne({ code }, { $set: { stockOnHand: quantity, sellingPrice: 1 } });
+    expect((await addToCart('a', code, quantity)).status).toBe(201);
+    const rejected = await placeDelivery('a', addressA._id).expect(422);
+    expect(rejected.body.error.code).toBe('PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE');
+    expect(await models.ProductOrder.countDocuments()).toBe(0);
+    expect(await product(code)).toMatchObject({ stockOnHand: quantity, quantityHeld: 0 });
+    expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lines[0].quantity).toBe(quantity);
+  });
+
   test('concurrent identical retries return the same order even after the winner empties the cart', async () => {
     await addToCart('a', 'SP-0012', 2);
     const key = idem();
