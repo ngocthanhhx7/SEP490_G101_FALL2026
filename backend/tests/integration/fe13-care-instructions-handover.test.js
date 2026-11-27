@@ -15,7 +15,7 @@ function fixture({ startAt = '2026-10-15T04:00:00.000Z', handoverRequired = fals
       startAt, endAt: '2026-10-15T05:00:00.000Z', handoverRequired },
     care: { version: 1, instructions: { feeding: 'Feed twice daily', medication: 'None', handling: 'Gentle' },
       updatedAt: '2026-10-14T00:00:00.000Z', requiresAcknowledgement: false, acknowledgements: [] },
-    history: [], handover: null, idempotency: new Map(), audit: jest.fn()
+    history: [], handover: null, handoverWrites: 0, idempotency: new Map(), audit: jest.fn()
   };
   const tx = {
     getVisit: async () => state.visit,
@@ -38,6 +38,7 @@ function fixture({ startAt = '2026-10-15T04:00:00.000Z', handoverRequired = fals
     getHandover: async () => state.handover,
     getReplacementAssignment: async ({ sitterId }) => sitterId === REPLACEMENT ? { sitterId, state: 'ASSIGNED' } : null,
     confirmHandover: async ({ replacementSitterId, instructionVersion, confirmedAt }) => {
+      state.handoverWrites++;
       state.handover = { visitId: VISIT, state: 'CONFIRMED', replacementSitterId, instructionVersion, confirmedAt, accessGranted: true };
       state.visit = { ...state.visit, sitterId: replacementSitterId, version: state.visit.version + 1,
         handoverRequired: false, handoverAccepted: true };
@@ -54,7 +55,10 @@ describe('FE-13 Care Instructions and Handover integration contracts', () => {
     const { care, state } = fixture();
     const result = await care.updateInstructions({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
       expectedVersion: 1, idempotencyKey: 'care-update-1', instructions: { feeding: 'Feed three times', medication: 'None' } });
+    const replay = await care.updateInstructions({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+      expectedVersion: 1, idempotencyKey: 'care-update-1', instructions: { feeding: 'Feed three times', medication: 'None' } });
     expect(result).toMatchObject({ visitId: VISIT, version: 2, requiresAcknowledgement: true });
+    expect(replay).toEqual(result);
     expect(state.history).toHaveLength(1);
   });
 
@@ -93,12 +97,17 @@ describe('FE-13 Care Instructions and Handover integration contracts', () => {
 
   test('IT-FE13-UC41-06: acknowledged replacement confirms handover successfully', async () => {
     const { care, handover, state } = fixture();
-    await care.acknowledgeInstructions({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
+    const acknowledgement = await care.acknowledgeInstructions({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
       instructionVersion: 1, idempotencyKey: 'replacement-ack' });
+    const acknowledgementReplay = await care.acknowledgeInstructions({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
+      instructionVersion: 1, idempotencyKey: 'replacement-ack' });
+    expect(acknowledgementReplay).toEqual(acknowledgement);
+    expect(state.care.acknowledgements).toHaveLength(1);
     await expect(handover.confirm({ actor: actor(CURRENT, ['STAFF']), visitId: VISIT,
       replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 1, idempotencyKey: 'handover-confirm' }))
       .resolves.toMatchObject({ state: 'CONFIRMED', replacementSitterId: REPLACEMENT, accessGranted: true });
     expect(state.visit).toMatchObject({ sitterId: REPLACEMENT, handoverAccepted: true });
+    expect(state.handoverWrites).toBe(1);
   });
 
   test('IT-FE13-UC41-10: non-authorized sitter cannot confirm handover', async () => {
@@ -122,7 +131,8 @@ describe('FE-13 Care Instructions and Handover integration contracts', () => {
     ['IT-FE13-UC41-04', 'Replacement sitter can view prior Visit reports'],
     ['IT-FE13-UC41-07', 'Unconfirmed handover within one hour enters Staff Needs action'],
     ['IT-FE13-UC41-08', 'Urgent replacement still requires handover immediately before Check In'],
-    ['IT-FE13-UC41-09', 'Customer update after handover requires a new sitter acknowledgement']
+    ['IT-FE13-UC41-09', 'Customer update after handover requires a new sitter acknowledgement'],
+    ['IT-FE13-UC41-12', 'Retrying handover confirmation with the same key and payload creates one handover record (missing: version check precedes idempotency replay)']
   ];
   for (const [id, description] of pendingCases) test.todo(`${id}: ${description}`);
 });
