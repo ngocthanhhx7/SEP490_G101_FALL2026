@@ -331,10 +331,23 @@ export function createPayosProvider(options = {}) {
     });
   }
 
+  async function cancelPaymentLink(orderCode, cancellationReason = 'Counter booking cancelled') {
+    requireConfiguration();
+    if (!Number.isSafeInteger(orderCode) || orderCode <= 0 ||
+      typeof cancellationReason !== 'string' || cancellationReason.length > 120)
+      invalidRequest(['orderCode', 'cancellationReason']);
+    const data = await sendRequest(`/v2/payment-requests/${encodeURIComponent(orderCode)}/cancel`,
+      { method: 'POST', body: { cancellationReason } });
+    if (data.orderCode !== orderCode || data.status !== 'CANCELLED' ||
+      data.amountPaid !== 0) throw failure('PAYOS_CANCEL_NOT_CONFIRMED', 'Payment provider did not confirm cancellation', 409);
+    return { orderCode, amount: data.amount, amountPaid: data.amountPaid, providerStatus: data.status };
+  }
+
   return Object.freeze({
     isConfigured: configured && typeof fetchImpl === 'function',
     createPaymentLink,
     getPaymentLink,
+    cancelPaymentLink,
     verifyWebhook
   });
 }

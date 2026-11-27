@@ -3,8 +3,8 @@ import { dispatchReason } from '../../utils/dispatch-format.js';
 
 // The sitter choice shared by "Giao người" and "Đổi người chăm sóc": one radio per sitter who passes the checks,
 // and the sitters who do not pass listed with the reason. The markup is the one the dispatch picker always had.
-export function DispatchCandidateOptions({ items, selected, disabled, onSelect, name = 'dispatch-sitter', meta }) {
-  return <fieldset className="dispatch-candidate-list"><legend>Chọn một người chăm sóc</legend>{items.map(item =>
+export function DispatchCandidateOptions({ items, selected, disabled, onSelect, name = 'dispatch-sitter', legend = 'Chọn một người chăm sóc', meta }) {
+  return <fieldset className="dispatch-candidate-list"><legend>{legend}</legend>{items.map(item =>
     <label key={item.sitterId} className="dispatch-candidate">
       <input type="radio" name={name} value={item.sitterId} checked={selected === item.sitterId} disabled={disabled} onChange={() => onSelect(item.sitterId)} />
       <span><strong>{item.displayName ?? 'Người chăm sóc'}</strong>{selected === item.sitterId && <span className="dispatch-selected-label">Đang chọn</span>}

@@ -4,6 +4,7 @@ import { DEMO_WORK_AREAS } from '../../constants/demo-work-areas.js';
 import { hasRole } from '../../utils/roles.js';
 import { fail, id } from '../../validators/pet-care.validator.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
+import { pickupHandoverActions } from '../pickup/visit-pickup.service.js';
 
 const CARE_FIELDS = ['feeding', 'handling', 'health', 'allergies', 'medication'];
 const areas = new Map(DEMO_WORK_AREAS.map(({ code, label }) => [code, label]));
@@ -77,7 +78,7 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
     const visits = await connection.db.collection('visits').find({
       bookingId: booking._id, state: { $ne: 'SUPERSEDED' },
       ...(booking.visitIds?.length ? { _id: { $in: booking.visitIds } } : {})
-    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, bookingChangeRequestId: 1, checkInAt: 1, checkOutAt: 1, cancelledAt: 1, cancellationFeeVnd: 1, cancellationReason: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, workflowResults: 1, location: 1, evidenceRefs: 1,
+    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, bookingChangeRequestId: 1, checkInAt: 1, checkOutAt: 1, cancelledAt: 1, cancellationFeeVnd: 1, cancellationReason: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, 'snapshots.pickup': 1, pickedUpAt: 1, returnedAt: 1, workflowResults: 1, location: 1, evidenceRefs: 1,
       ...(includeCustomerName ? {} : { customerNote: 1 }) }, maxTimeMS: 2000 })
       .sort({ startAt: 1, _id: 1 }).limit(60).toArray();
     const refundRows = await connection.db.collection('refunds').find({
@@ -138,6 +139,11 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
           ...previousSlotFor(visit),
           ...(pendingOfferVisitIds.has(String(visit._id)) ? { hasPendingOffer: true } : {}),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
+          ...(visit.location === 'FACILITY' && visit.snapshots?.pickup ? { pickup: {
+            addressText: visit.snapshots.pickup.addressText, distanceMeters: visit.snapshots.pickup.distanceMeters,
+            feeVnd: visit.snapshots.pickup.feeVnd, pickedUpAt: visit.pickedUpAt ?? null, returnedAt: visit.returnedAt ?? null,
+            ...(includeCustomerName ? pickupHandoverActions(visit, clock()) : {})
+          } } : {}),
           ...(!includeCustomerName && visit.customerNote ? { customerNote: visit.customerNote } : {}),
           checklist: (visit.checklist ?? []).slice(0, 100).map(item => ({ itemId: item.itemId,
             label: visit.snapshots?.checklistItems?.find(row => row.itemId === item.itemId)?.label ?? item.itemId,

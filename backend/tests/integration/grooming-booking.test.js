@@ -23,6 +23,14 @@ import { employeeSchedulingModels } from '../../src/models/employee-scheduling.m
 import { productSalesModels } from '../../src/models/product.model.js';
 import { serviceModel } from '../../src/models/service.model.js';
 import { groomingLocalDate, groomingSlotKey } from '../../src/utils/grooming-slot-time.js';
+import { createCounterCheckout } from '../../src/services/counter-booking/counter-checkout.service.js';
+import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
+import { createPricingService } from '../../src/services/pricing/pricing.service.js';
+import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
+import { notificationModels } from '../../src/models/notification.model.js';
+import { createMongoPaymentWebhookRepository } from '../../src/services/providers/payos/mongo-payment-webhook.repository.js';
+import { createPayosPaymentWebhookService } from '../../src/services/providers/payos/payment-webhook.service.js';
+import { hasUnpaidGrooming } from '../../src/services/grooming/grooming-unpaid.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const ADDRESS = 'Cửa hàng Paw World, 25 Láng Hạ, Đống Đa';
@@ -38,7 +46,7 @@ const WINDOWS = [1, 2, 3, 4, 5, 6, 7].flatMap(weekday => [
 ]);
 const actors = Object.fromEntries(['CUSTOMER', 'CUSTOMER2', 'STAFF', 'PET_SITTER', 'ADMIN'].map(role =>
   [role, { userId: String(oid()), roles: [role === 'CUSTOMER2' ? 'CUSTOMER' : role], state: 'ACTIVE' }]));
-let replica, connection, server, base, db, services, pets, repository, payroll, scheduling, product;
+let replica, connection, server, base, db, services, pets, repository, payroll, scheduling, product, counterGrooming;
 const sid = code => String(services[code]);
 const call = (method, path, role = 'CUSTOMER', csrf = true) => {
   const req = request(base)[method](`/api/v1/grooming${path}`);
@@ -82,6 +90,8 @@ beforeAll(async () => {
   for (const model of [...Object.values(payroll), ...Object.values(scheduling)]) { await model.createCollection(); await model.createIndexes(); }
   for (const name of ['users', 'bookings', 'payments', 'productorders', 'sitterstatuses', 'aisitterprofiles', 'visits']) await db.createCollection(name).catch(() => {});
   await provisionCustomerTierStorage(connection); await provisionGroomingStorage(connection);
+  await provisionFinanceSources(connection);
+  for (const model of Object.values(notificationModels(connection))) { await model.createCollection(); await model.createIndexes(); }
   await db.collection('customer_tier_policies').updateOne({ _id: 'current' }, { $set: {
     state: 'APPROVED', approvedAt: new Date(0), approvedBy: 'synthetic-reviewer', approvalReference: 'synthetic-fixture-only' } });
   const rows = await serviceModel(connection).find({}).select('code').lean();
@@ -91,8 +101,9 @@ beforeAll(async () => {
   const session = { authenticate: async req => actors[req.get('x-test-role')] ? { ...actors[req.get('x-test-role')], expiresAt: NOW + HOUR } : null,
     verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   const app = express(); app.use(express.json(), requestId);
-  registerModules(app, [groomingRuntimeModule({ connection, sessionService: session, clock: () => NOW,
-    env: { GROOMING_BOOKING_ENABLED: 'true', BOOKING_FACILITY_ADDRESS: ADDRESS }, config: { auth: { enabled: true } } })]);
+  counterGrooming = groomingRuntimeModule({ connection, sessionService: session, clock: () => NOW,
+    env: { GROOMING_BOOKING_ENABLED: 'true', BOOKING_FACILITY_ADDRESS: ADDRESS }, config: { auth: { enabled: true } } });
+  registerModules(app, [counterGrooming]);
   app.use(errorHandler(() => {}));
   server = createServer(app); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -110,6 +121,179 @@ beforeEach(async () => {
   const owner = actors.CUSTOMER.userId;
   const make = (name, species, breedCode, weightKg, more = {}) => repository.models.Pet.create({ ownerId: owner, name, species, breedCode, weightKg, traits: [], careNeedsConfirmed: true, ...more });
   pets = { Milo: await make('Milo', 'DOG', 'dog-mixed', 12), Bo: await make('Bơ', 'DOG', 'dog-mixed', 4), Muop: await make('Mướp', 'CAT', 'cat-mixed', 4) };
+});
+
+test('counter mixed cash checkout commits one booking and one spa appointment, and replays without duplicate receipts', async () => {
+  await sitter();
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const input = { customerId: actors.CUSTOMER.userId, date, slot: '09:00', paymentMethod: 'COUNTER_CASH',
+    lines: [
+      { serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('nail-trimming'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId], visitCount: 1, starts: [at(date, '14:00').toISOString()] }
+    ], pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'YES', skinCondition: 'NO' }] };
+  const quote = await counter.preview(actors.ADMIN, input);
+  expect(quote.totalVnd).toBeGreaterThan(0);
+  expect(await db.collection('bookings').countDocuments()).toBe(0);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(0);
+  const result = await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-cash-test');
+  expect(result).toMatchObject({ paid: true, status: 'PAID', totalVnd: quote.totalVnd });
+  expect(result.bookingAmountVnd + result.groomingAmountVnd).toBe(quote.totalVnd);
+  expect(await db.collection('bookings').countDocuments()).toBe(1);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: result.receiptId })).toBe(1);
+  const savedBooking = await db.collection('bookings').findOne({ counterCheckoutId: result.receiptId });
+  const savedSpa = await db.collection('groomingappointments').findOne({ counterCheckoutId: result.receiptId });
+  const receipt = await db.collection('payments').findOne({ counterReceiptId: result.receiptId });
+  expect(savedBooking).toMatchObject({ createdChannel: 'COUNTER', state: 'DISPATCH_PENDING', paymentState: 'PAID' });
+  expect(savedSpa).toMatchObject({ createdChannel: 'COUNTER', counterPaymentState: 'PAID',
+    payment: { method: 'CASH', amountVnd: result.groomingAmountVnd } });
+  expect(receipt.receiptMoney.amountVnd).toBe(result.bookingAmountVnd);
+  expect(receipt.counterTotalVnd).toBe(quote.totalVnd);
+  await db.collection('groomingappointments').updateOne({ _id: savedSpa._id }, { $set: { handedBackAt: new Date(NOW) } });
+  expect(await hasUnpaidGrooming(connection, actors.CUSTOMER.userId)).toBe(false);
+  await db.collection('groomingappointments').updateOne({ _id: savedSpa._id }, { $set: {
+    'pets.0.surchargeConsent': true, 'pets.0.surchargeVnd': 30000 } });
+  expect(await hasUnpaidGrooming(connection, actors.CUSTOMER.userId)).toBe(true);
+  await db.collection('groomingappointments').updateOne({ _id: savedSpa._id },
+    { $set: { 'payment.amountVnd': result.groomingAmountVnd + 30000 } });
+  expect(await hasUnpaidGrooming(connection, actors.CUSTOMER.userId)).toBe(false);
+  expect(await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-cash-test')).toEqual(result);
+  await expect(counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-cash-other')).rejects.toMatchObject({ code: 'QUOTE_ALREADY_USED' });
+});
+
+test('counter VietQR reserves two linked orders for 15 minutes, then verified webhook pays both without creating duplicates', async () => {
+  await sitter();
+  const provider = { createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
+    checkoutUrl: 'https://pay.payos.vn/web/synthetic-counter', paymentLinkId: 'synthetic' }), verifyWebhook: async body => body };
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider, webOrigin: 'http://localhost:5173' });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const input = { customerId: actors.CUSTOMER.userId, date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId], visitCount: 1, starts: [at(date, '14:00').toISOString()] }],
+    pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] };
+  const quote = await counter.preview(actors.ADMIN, input);
+  const pending = await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'mixed-qr-test');
+  expect(pending).toMatchObject({ status: 'PENDING', paid: false, checkoutUrl: 'https://pay.payos.vn/web/synthetic-counter' });
+  expect(await db.collection('bookings').countDocuments()).toBe(1);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
+  expect(await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', createdChannel: 'COUNTER' });
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'BOOKED', counterPaymentState: 'AWAITING_PAYMENT', createdChannel: 'COUNTER' });
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(0);
+  const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+  const webhook = createPayosPaymentWebhookService({ provider, clock: () => new Date(NOW),
+    repository: createMongoPaymentWebhookRepository({ connection, getCounterCheckout: () => counter }) });
+  const payload = { orderCode: Number(intent.providerReference), reference: 'synthetic-counter-bank-reference', amount: quote.totalVnd,
+    currency: 'VND', code: '00', paymentLinkId: 'synthetic', transactionDateTime: new Date(NOW).toISOString() };
+  expect(await webhook.handleWebhook(payload)).toEqual({ status: 'PAYMENT_VERIFIED' });
+  expect(await webhook.handleWebhook(payload)).toEqual({ status: 'DUPLICATE' });
+  expect(await counter.status(actors.ADMIN, pending.receiptId)).toMatchObject({ status: 'PAID', totalVnd: quote.totalVnd });
+  expect(await db.collection('bookings').countDocuments()).toBe(1);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(1);
+  expect(await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ state: 'DISPATCH_PENDING', paymentState: 'PAID' });
+  const booking = await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId });
+  const receipt = await db.collection('payments').findOne({ counterReceiptId: pending.receiptId });
+  expect(receipt.receiptMoney.amountVnd).toBe(booking.paymentSnapshot.amountVnd);
+  expect(receipt.counterTotalVnd).toBe(quote.totalVnd);
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ counterPaymentState: 'PAID', payment: { method: 'VIETQR', amountVnd: pending.totalVnd -
+      (await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId })).paymentSnapshot.amountVnd } });
+});
+
+test('counter VietQR expiry releases booking and spa reservations together, preserving the historical records', async () => {
+  await sitter();
+  let tick = NOW;
+  const provider = { createPaymentLink: async body => ({ orderCode: body.orderCode, amount: body.amount,
+    checkoutUrl: 'https://pay.payos.vn/web/synthetic-expiry', paymentLinkId: 'synthetic' }),
+  getPaymentLink: async orderCode => ({ orderCode, amount: intent.amountVnd, amountPaid: 0, providerStatus: 'EXPIRED' }) };
+  const counter = createCounterCheckout({ connection, clock: () => tick,
+    pricing: createPricingService({ repository, clock: () => tick }),
+    checkout: createBookingCheckoutService({ connection, clock: () => tick, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider, webOrigin: 'http://localhost:5173' });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const preview = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+    date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId], visitCount: 1,
+        starts: [at(date, '14:00').toISOString()] }], pickup: { enabled: false },
+    answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+  const pending = await counter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'mixed-expiry-test');
+  const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+  tick += 16 * 60000;
+  expect(await counter.expireBatch()).toMatchObject({ expired: 1 });
+  expect(await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ state: 'CANCELLED' });
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED' });
+  expect(await db.collection('visits').countDocuments({ bookingId: new mongoose.Types.ObjectId(pending.bookingId),
+    state: { $ne: 'CANCELLED' } })).toBe(0);
+  expect(await counter.status(actors.ADMIN, pending.receiptId)).toMatchObject({ status: 'EXPIRED' });
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(0);
+  expect(intent.amountVnd).toBe(preview.totalVnd);
+});
+
+test('counter VietQR cancellation confirms payOS is unpaid before freeing a spa-only held slot', async () => {
+  await sitter();
+  let requestAmount = null;
+  const provider = { createPaymentLink: async payload => {
+    requestAmount = payload.amount;
+    return { orderCode: payload.orderCode, amount: payload.amount,
+      checkoutUrl: 'https://pay.payos.vn/web/synthetic-cancel', paymentLinkId: 'synthetic' };
+  }, getPaymentLink: async orderCode => ({ orderCode, amount: requestAmount, amountPaid: 0, providerStatus: 'PENDING' }),
+  cancelPaymentLink: async orderCode => ({ orderCode, amount: requestAmount, amountPaid: 0, providerStatus: 'CANCELLED' }) };
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider, webOrigin: 'http://localhost:5173' });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const quote = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+    date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+    pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+  const pending = await counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'cancel-spa-only');
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'BOOKED', counterPaymentState: 'AWAITING_PAYMENT' });
+  expect(await counter.cancel(actors.ADMIN, pending.receiptId)).toMatchObject({ status: 'CANCELLED' });
+  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+    .toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED' });
+  expect(await db.collection('bookings').countDocuments({ counterCheckoutId: pending.receiptId })).toBe(0);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: pending.receiptId })).toBe(0);
+});
+
+test('counter mixed checkout rolls back both orders if grooming slot becomes unavailable after preview', async () => {
+  await sitter();
+  const counter = createCounterCheckout({ connection, clock: () => NOW,
+    pricing: createPricingService({ repository, clock: () => NOW }),
+    checkout: createBookingCheckoutService({ connection, clock: () => NOW, facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming });
+  const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+  const quote = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+    date, slot: '09:00', paymentMethod: 'COUNTER_CASH',
+    lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] },
+      { serviceId: sid('basic-health-check'), location: 'FACILITY', petIds: [petId],
+        visitCount: 1, starts: [at(date, '14:00').toISOString()] }],
+    pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+  const start = at(date, '09:00');
+  await db.collection('groomingappointments').insertOne({ code: 'SYNTHETIC-SLOT-TAKEN',
+    status: 'BOOKED', slot: { startAt: start, endAt: new Date(+start + HOUR) },
+    pets: [{ petId: pets.Bo._id, slotKeys: [`${date}T09:00+07:00`], status: 'BOOKED' }] });
+  const receiptsBefore = await db.collection('payments').countDocuments({ counterReceiptId: { $exists: true } });
+  await expect(counter.checkout(actors.ADMIN, { previewId: quote.previewId }, 'rollback-on-spa-conflict'))
+    .rejects.toMatchObject({ code: 'GROOMING_PET_ALREADY_BOOKED' });
+  expect(await db.collection('bookings').countDocuments()).toBe(0);
+  expect(await db.collection('payments').countDocuments({ counterReceiptId: { $exists: true } })).toBe(receiptsBefore);
+  expect(await db.collection('groomingappointments').countDocuments()).toBe(1);
 });
 
 describe('options and access', () => {
@@ -469,6 +653,294 @@ describe('discount hold rule', () => {
     await refusals(3);
     await db.collection('bookings').insertOne({ customerId: customerId(), paymentState: 'OVERDUE' });
     expect(await hold('2').read(actors.CUSTOMER.userId)).toBe('PREPAID_ONLY');
+  });
+});
+
+describe('VietQR link recovery and expiry regression', () => {
+  const makeCounter = (tick, prov) => createCounterCheckout({
+    connection, clock: () => tick(),
+    pricing: createPricingService({ repository, clock: () => tick() }),
+    checkout: createBookingCheckoutService({ connection, clock: () => tick(), facilityAddress: ADDRESS, facilityCoordinates: [105.81, 21.02] }),
+    grooming: counterGrooming, provider: prov, webOrigin: 'http://localhost:5173'
+  });
+  // Minimal stub that lets checkout succeed but whose qrView call will not cache a URL,
+  // so we can inject crash state before calling status() with the real recovery provider.
+  const checkoutStub = {
+    createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
+      checkoutUrl: 'https://pay.payos.vn/web/stub-initial', paymentLinkId: 'stub-initial' })
+  };
+
+  test('JOB-CT-01: process crashes before payOS responds — qrView retries creation after recovery delay', async () => {
+    // Checkout succeeds normally (stub provider), then we simulate a crash by wiping
+    // checkoutUrl/paymentLinkId and setting linkState: CREATING with an old enough timestamp.
+    await sitter();
+    let tick = NOW;
+    const stubCounter = makeCounter(() => tick, checkoutStub);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await stubCounter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await stubCounter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'crash-recovery-test');
+    expect(pending.status).toBe('PENDING');
+
+    // Simulate crash: wipe saved link, set CREATING with old timestamp (> RECOVERY_DELAY_MS=60s)
+    const crashedAt = new Date(tick - 70000);
+    await db.collection('paymentintents').updateOne(
+      { _id: new mongoose.Types.ObjectId(pending.intentId) },
+      { $set: { linkState: 'CREATING', linkRequestedAt: crashedAt },
+        $unset: { checkoutUrl: '', paymentLinkId: '' } }
+    );
+
+    // Recovery provider: getPaymentLink is called FIRST → PAYOS_LINK_NOT_FOUND, then createPaymentLink succeeds
+    const calls = [];
+    const recoveryProvider = {
+      createPaymentLink: async input => {
+        calls.push('create');
+        return { orderCode: input.orderCode, amount: input.amount,
+          checkoutUrl: 'https://pay.payos.vn/web/recovered-link', paymentLinkId: 'recovered' };
+      },
+      getPaymentLink: async () => {
+        calls.push('lookup');
+        throw Object.assign(new Error('not found'), { code: 'PAYOS_LINK_NOT_FOUND' });
+      }
+    };
+    const counter = makeCounter(() => tick, recoveryProvider);
+    const status = await counter.status(actors.ADMIN, pending.receiptId);
+    expect(status.checkoutUrl).toBe('https://pay.payos.vn/web/recovered-link');
+    expect(calls).toEqual(['lookup', 'create']);
+    const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(intent.linkState).toBe('READY');
+  });
+
+  test('JOB-CT-02: link created at payOS but response lost — status restores old link via lookup without calling create again', async () => {
+    // 1. Timeout/lost response leaves intent in RECONCILIATION_REQUIRED (link exists remotely at payOS).
+    // 2. Subsequent status() call (even after recovery delay) looks up payOS first, restores old link,
+    //    and does NOT send another createPaymentLink call (which would be rejected for duplicate orderCode).
+    await sitter();
+    let tick = NOW;
+    let createCalls = 0, lookupCalls = 0;
+    const lostResponseProvider = {
+      createPaymentLink: async () => {
+        createCalls++;
+        throw Object.assign(new Error('timeout after payOS created link'), { code: 'PAYOS_TIMEOUT', details: { uncertain: true } });
+      }
+    };
+    const stubCounter = makeCounter(() => tick, lostResponseProvider);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await stubCounter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await stubCounter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'response-lost-test');
+    expect(pending.checkoutUrl).toBeUndefined();
+    expect(createCalls).toBe(1);
+    const during = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(during.linkState).toBe('RECONCILIATION_REQUIRED');
+
+    // Advance past recovery delay and also test stale CREATING crash state -> lookup must run first either way
+    tick += 70000;
+    const existingUrl = 'https://pay.payos.vn/web/existing-order-link';
+    const counter = makeCounter(() => tick, {
+      getPaymentLink: async orderCode => {
+        lookupCalls++;
+        expect(orderCode).toBe(Number(during.providerReference));
+        return { orderCode, amount: pending.totalVnd, amountPaid: 0, providerStatus: 'PENDING',
+          checkoutUrl: existingUrl, paymentLinkId: 'existing-link-id' };
+      },
+      createPaymentLink: async () => {
+        createCalls++;
+        throw Object.assign(new Error('Đơn hàng đã tồn tại'), { code: 'PAYOS_REQUEST_REJECTED', details: { uncertain: false } });
+      }
+    });
+    const status = await counter.status(actors.ADMIN, pending.receiptId);
+    expect(status.checkoutUrl).toBe(existingUrl);
+    expect(lookupCalls).toBe(1);
+    expect(createCalls).toBe(1); // No extra create call sent on recovery!
+    const after = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(after).toMatchObject({ linkState: 'READY', checkoutUrl: existingUrl, paymentLinkId: 'existing-link-id' });
+
+    // Same guarantee when process crashed mid-flight leaving stale linkState: 'CREATING' > 60s old
+    await db.collection('paymentintents').updateOne(
+      { _id: after._id },
+      { $set: { linkState: 'CREATING', linkRequestedAt: new Date(tick - 70000) },
+        $unset: { checkoutUrl: '', paymentLinkId: '' } }
+    );
+    const crashedStatus = await counter.status(actors.ADMIN, pending.receiptId);
+    expect(crashedStatus.checkoutUrl).toBe(existingUrl);
+    expect(lookupCalls).toBe(2);
+    expect(createCalls).toBe(1);
+
+    // PAYOS_REQUEST_REJECTED from createPaymentLink must classify as RECONCILIATION_REQUIRED, not FAILED.
+    // payOS responded with a business-level rejection (e.g. duplicate orderCode) so the POST reached payOS
+    // and a link may already exist. The next status() must do lookup-first and restore the link without
+    // sending another POST.
+    await db.collection('paymentintents').updateOne(
+      { _id: after._id },
+      { $unset: { linkState: '', linkRequestedAt: '', checkoutUrl: '', paymentLinkId: '' } }
+    );
+    let rejectedCreateCalls = 0, rejectedLookupCalls = 0;
+    const rejectedUrl = 'https://pay.payos.vn/web/rejected-duplicate-link';
+    const rejectedProvider = {
+      createPaymentLink: async () => {
+        rejectedCreateCalls++;
+        throw Object.assign(new Error('Mã đơn hàng đã tồn tại'), { code: 'PAYOS_REQUEST_REJECTED', details: { uncertain: false } });
+      },
+      getPaymentLink: async orderCode => {
+        rejectedLookupCalls++;
+        return { orderCode, amount: pending.totalVnd, amountPaid: 0, providerStatus: 'PENDING',
+          checkoutUrl: rejectedUrl, paymentLinkId: 'rejected-link-id' };
+      },
+    };
+    // First status(): createPaymentLink called; payOS rejects with PAYOS_REQUEST_REJECTED.
+    // Intent must land on RECONCILIATION_REQUIRED (lookup can still recover the link).
+    const rejectedCounter = makeCounter(() => tick, rejectedProvider);
+    await rejectedCounter.status(actors.ADMIN, pending.receiptId);
+    expect(rejectedCreateCalls).toBe(1);
+    const rejectedIntent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(rejectedIntent.linkState).toBe('RECONCILIATION_REQUIRED'); // must NOT be 'FAILED'
+
+    // Second status(): lookup runs first, link found at payOS, restored — no additional POST.
+    const rejectedStatus2 = await rejectedCounter.status(actors.ADMIN, pending.receiptId);
+    expect(rejectedStatus2.checkoutUrl).toBe(rejectedUrl);
+    expect(rejectedLookupCalls).toBe(1);
+    expect(rejectedCreateCalls).toBe(1); // no extra create after rejection
+    const recoveredIntent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(recoveredIntent).toMatchObject({ linkState: 'READY', checkoutUrl: rejectedUrl, paymentLinkId: 'rejected-link-id' });
+  });
+
+  test('JOB-CT-03: expiry with no link ever requested — expireBatch releases booking and spa without calling payOS', async () => {
+    // Checkout with stub, wipe link state so intent looks like "never submitted", then expire.
+    await db.collection('paymentintents').deleteMany({}); // isolate from earlier tests' intents
+    await sitter();
+    let tick = NOW;
+    let getPaymentLinkCalls = 0;
+    const stubCounter = makeCounter(() => tick, checkoutStub);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await stubCounter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await stubCounter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'no-link-expiry-test');
+    // Wipe link fields to simulate "never submitted"
+    await db.collection('paymentintents').updateOne(
+      { _id: new mongoose.Types.ObjectId(pending.intentId) },
+      { $unset: { linkState: '', linkRequestedAt: '', checkoutUrl: '', paymentLinkId: '' } }
+    );
+    // Advance clock past the 15-min expiry
+    tick += 16 * 60000;
+    const counter = makeCounter(() => tick, {
+      getPaymentLink: async () => { getPaymentLinkCalls++; return null; }
+    });
+    // expireBatch must expire without asking payOS (no linkRequestedAt)
+    const result = await counter.expireBatch();
+    expect(result).toMatchObject({ expired: 1 });
+    expect(getPaymentLinkCalls).toBe(0);
+    expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
+      .toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED' });
+  });
+
+  test('JOB-CT-04: expireBatch paginates past 50 unreconciled intents — deferred ones do not block later intents', async () => {
+    await sitter();
+    let tick = NOW;
+    const expiredAt = new Date(tick - 60000); // already overdue
+
+    // Insert 51 synthetic counter intents: first 50 have linkState CREATING (unverifiable),
+    // last 1 has no linkState (never submitted — safe to expire directly).
+    const intentsCol = db.collection('paymentintents');
+    const deferredIds = [];
+    for (let i = 0; i < 50; i++) {
+      const _id = new mongoose.Types.ObjectId();
+      deferredIds.push(_id);
+      const receiptId = 'synthetic-deferred-receipt-' + i;
+      await db.collection('financesourcecommands').insertOne({
+        _id: receiptId, fingerprint: 'x', result: { status: 'PENDING', totalVnd: 100000, receivedBy: actors.ADMIN.userId },
+        createdAt: new Date(tick - 120000)
+      });
+      await intentsCol.insertOne({ _id, kind: 'COUNTER_BOOKING', provider: 'PAYOS',
+        providerReference: String(1000000000 + i), state: 'PENDING', version: 0,
+        amountVnd: 100000, currency: 'VND', expiresAt: expiredAt,
+        customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId),
+        counterReceiptId: receiptId, counterStaffId: actors.ADMIN.userId,
+        // linkState CREATING with very recent timestamp — canRecoverUnpublishedAttempt returns false
+        linkState: 'CREATING', linkRequestedAt: new Date(tick - 5000),
+        counterPreview: { input: {}, totals: { totalVnd: 100000 } },
+        createdAt: new Date(tick - 120000) });
+    }
+
+    // Last intent: never submitted (no linkState, no linkRequestedAt)
+    const lastId = new mongoose.Types.ObjectId();
+    const lastReceiptId = 'synthetic-last-receipt';
+    await db.collection('financesourcecommands').insertOne({
+      _id: lastReceiptId, fingerprint: 'y', result: { status: 'PENDING', totalVnd: 50000, receivedBy: actors.ADMIN.userId },
+      createdAt: new Date(tick - 120000)
+    });
+    await intentsCol.insertOne({ _id: lastId, kind: 'COUNTER_BOOKING', provider: 'PAYOS',
+      providerReference: String(2000000000), state: 'PENDING', version: 0,
+      amountVnd: 50000, currency: 'VND', expiresAt: expiredAt,
+      customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId),
+      counterReceiptId: lastReceiptId, counterStaffId: actors.ADMIN.userId,
+      counterPreview: { input: {}, totals: { totalVnd: 50000 } },
+      createdAt: new Date(tick - 110000) });
+
+    // Provider cannot verify any of the deferred ones (throws network error)
+    const unverifiableProvider = {
+      getPaymentLink: async () => { throw new Error('network error'); }
+    };
+    const counter = makeCounter(() => tick, unverifiableProvider);
+
+    // First expireBatch: fetches first 50 (by _id), all deferred — cursor advances
+    const r1 = await counter.expireBatch();
+    expect(r1.expired).toBe(0);
+    expect(r1.deferred).toBe(50);
+
+    // Second expireBatch: cursor points after the 50th, so fetches the last one (no linkState → safe to expire)
+    const r2 = await counter.expireBatch();
+    expect(r2.expired).toBe(1);
+
+    expect(await intentsCol.findOne({ _id: lastId })).toMatchObject({ state: 'EXPIRED' });
+    // The 50 deferred ones are still PENDING
+    expect(await intentsCol.countDocuments({ _id: { $in: deferredIds }, state: 'PENDING' })).toBe(50);
+  });
+
+  test('JOB-CT-05: spa notification timing — only "awaiting payment" before webhook, "paid" after', async () => {
+    await db.collection('notifications').deleteMany({});
+    await sitter();
+    let tick = NOW;
+    const provider = {
+      createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
+        checkoutUrl: 'https://pay.payos.vn/web/spa-notif', paymentLinkId: 'spa-notif' }),
+      verifyWebhook: async body => body
+    };
+    const counter = makeCounter(() => tick, provider);
+    const { Notification } = notificationModels(connection);
+    const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
+    const preview = await counter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
+      date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
+      lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
+      pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
+    const pending = await counter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'spa-notif-test');
+    expect(pending.status).toBe('PENDING');
+
+    // Before webhook: notification must say "chờ thanh toán", NOT the paid confirmation
+    const notifBefore = await Notification.findOne({ recipientId: actors.CUSTOMER.userId, eventType: 'BOOKING_CREATED' }).lean();
+    expect(notifBefore).not.toBeNull();
+    expect(notifBefore.message).toMatch(/chờ thanh toán/);
+    expect(notifBefore.message).not.toMatch(/và thanh toán\./);
+
+    // Send payment webhook
+    const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    const webhook = createPayosPaymentWebhookService({ provider, clock: () => new Date(tick),
+      repository: createMongoPaymentWebhookRepository({ connection, getCounterCheckout: () => counter }) });
+    const payload = { orderCode: Number(intent.providerReference), reference: 'spa-notif-bank-ref',
+      amount: pending.totalVnd, currency: 'VND', code: '00', paymentLinkId: 'spa-notif',
+      transactionDateTime: new Date(tick).toISOString() };
+    expect(await webhook.handleWebhook(payload)).toEqual({ status: 'PAYMENT_VERIFIED' });
+
+    // After webhook: notification message must be updated to "đã...thanh toán" (not "chờ thanh toán")
+    const notifAfter = await Notification.findOne({ recipientId: actors.CUSTOMER.userId, eventType: 'BOOKING_CREATED' }).lean();
+    expect(notifAfter.message).not.toMatch(/chờ thanh toán/);
+    expect(notifAfter.message).toMatch(/và thanh toán\./);
   });
 });
 

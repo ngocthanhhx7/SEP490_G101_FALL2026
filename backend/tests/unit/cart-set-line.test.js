@@ -8,8 +8,8 @@ describe('CART-IN-02 parseSetCartLine', () => {
   test('accepts a valid path product id and quantity one', () => {
     expect(parseSetCartLine(id, { quantity: 1 })).toEqual({ productId: id, quantity: 1 });
   });
-  test('accepts the quantity upper boundary 99', () => {
-    expect(parseSetCartLine(id, { quantity: 99 })).toEqual({ productId: id, quantity: 99 });
+  test.each([100, 150, Number.MAX_SAFE_INTEGER])('CART-IN-02-UTCID07 accepts safe integer quantity %p', (quantity) => {
+    expect(parseSetCartLine(id, { quantity })).toEqual({ productId: id, quantity });
   });
   test.each([undefined, null, '', 'bad', 1])('rejects missing or malformed path productId %p', (productId) => {
     expect(code(() => parseSetCartLine(productId, { quantity: 1 }))).toBe('VALIDATION_FAILED');
@@ -23,8 +23,9 @@ describe('CART-IN-02 parseSetCartLine', () => {
   test.each([1.5, '2'])('rejects fractional or string quantity %p', (quantity) => {
     expect(code(() => parseSetCartLine(id, { quantity }))).toBe('VALIDATION_FAILED');
   });
-  test('rejects quantity 100 above the line limit', () => {
-    expect(code(() => parseSetCartLine(id, { quantity: 100 }))).toBe('VALIDATION_FAILED');
+  test('rejects an unsafe integer', () => {
+    const quantity = Number.MAX_SAFE_INTEGER + 1;
+    expect(code(() => parseSetCartLine(id, { quantity }))).toBe('VALIDATION_FAILED');
   });
   test('rejects unknown body fields', () => {
     expect(code(() => parseSetCartLine(id, { quantity: 1, price: 1 }))).toBe('VALIDATION_FAILED');

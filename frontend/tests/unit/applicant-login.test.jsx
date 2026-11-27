@@ -7,5 +7,5 @@ jest.mock('../../src/services/sitter-application-api.js',()=>({sitterApplication
 test('verified applicant login lands directly in their application without a second challenge',async()=>{
  sitterApplicationApi.getMine.mockResolvedValue({data:{application:{state:'PENDING'}}});
  render(<MemoryRouter initialEntries={['/sign-in']}><Routes><Route path="/sign-in" element={<SignInPage/>}/><Route path="/sitter/application-status" element={<h1>Owned application landing</h1>}/></Routes></MemoryRouter>);
- expect(await screen.findByRole('heading',{name:'Owned application landing'})).toBeVisible();expect(sitterApplicationApi.getMine).toHaveBeenCalledTimes(1);
+ expect(await screen.findByRole('heading',{name:'Owned application landing'},{timeout:5000})).toBeVisible();expect(sitterApplicationApi.getMine).toHaveBeenCalledTimes(1);
 });

@@ -41,7 +41,7 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferre
       employeeId: employeeId ?? data.get('employeeId'),
       expectedVersion: employeeId || loadEmployee ? version : Number(data.get('expectedVersion')),
       employmentType, salaryBasis: 'GROSS', monthlyBaseVnd: employmentType === 'FULL_TIME' ? 10000000 : 3000000,
-      payCycle: employmentType === 'FULL_TIME' ? 'MONTHLY' : data.get('payCycle'), weeklyMinutes: Number(data.get('weeklyMinutes')),
+      payCycle: 'MONTHLY', weeklyMinutes: Number(data.get('weeklyMinutes')),
       signedAt: `${data.get('signedAt')}T00:00:00+07:00`, effectiveAt: `${effectiveAtValue}T00:00:00+07:00`,
       contractReference: data.get('contractReference'), workplaceRegion: Number(data.get('workplaceRegion')),
       workplaceReference: data.get('workplaceReference'),
@@ -64,7 +64,7 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferre
       </select></label>
       <PayrollField label="Lương gross/tháng (VND)" name="monthlyBaseVnd" value={employmentType === 'FULL_TIME' ? 10000000 : 3000000} readOnly />
       <PayrollField key={employmentType} label="Phút làm việc mỗi tuần" name="weeklyMinutes" type="number" min="1" max="2880" step="1" defaultValue={employmentType === 'PART_TIME' ? 1200 : ''} readOnly={employmentType === 'PART_TIME'} />
-      {employmentType === 'PART_TIME' && <label className="payroll-field"><span>Kỳ trả theo hợp đồng</span><select name="payCycle"><option value="WEEKLY">Theo tuần</option><option value="MONTHLY">Theo tháng</option></select></label>}
+      <PayrollField label="Kỳ trả theo hợp đồng" value="Hàng tháng" readOnly />
       <PayrollField label="Ngày ký" name="signedAt" type="date" />
       <PayrollField label="Ngày hiệu lực" name="effectiveAt" type="date" onChange={clearEndsAtError} />
       <label className="payroll-field"><span>Ngày hết hiệu lực</span>

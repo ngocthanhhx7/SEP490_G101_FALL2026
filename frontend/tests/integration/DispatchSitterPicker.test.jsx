@@ -11,16 +11,16 @@ function fixture(items = [{ sitterId: id, displayName: 'Sitter mới' }]) {
 }
 test('shows a newcomer, explains blocked profiles and sends an invitation only after selection', async () => {
   const { api } = fixture();
-  const invite = screen.getByRole('button', { name: 'Gửi lời mời cho người đã chọn' }); expect(invite).toBeDisabled();
+  const invite = screen.getByRole('button', { name: 'Gửi lời mời' }); expect(invite).toBeDisabled();
   fireEvent.click(await screen.findByRole('radio', { name: /Sitter mới/ }));
   expect(api.candidates).toHaveBeenCalledWith(row.id, { startAt: row.startAt, mode: 'MANUAL' });
   expect(screen.getByText('Chưa có năng lực dịch vụ đã xác minh')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Mở hồ sơ để xử lý' })).toHaveAttribute('href', '/admin/sitters/' + blocked + '?tab=capability');
-  fireEvent.click(invite); await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, row.version, 'stable-operation-key', id));
+  fireEvent.click(invite); await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, row.version, 'stable-operation-key', id, 'INVITE'));
 });
 test('empty eligible pool keeps invitation disabled and offers a management action', async () => {
   fixture([]); await screen.findByText(/Chưa thể gửi lời mời/);
-  expect(screen.getByRole('button', { name: 'Gửi lời mời cho người đã chọn' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toBeDisabled();
 });
 
 test('a replacement sends a customer proposal and never directly invites the alternate sitter', async () => {
@@ -34,4 +34,63 @@ test('a replacement sends a customer proposal and never directly invites the alt
     { expectedVersion: row.version, startAt: row.startAt, sitterId: id }, 'replacement-operation-key'));
   expect(api.invite).not.toHaveBeenCalled();
   expect(onProposed).toHaveBeenCalledWith({ id: 'proposal' });
+});
+
+test('manual full-time candidate shows contract type and direct-assignment button', async () => {
+  const { api } = fixture([{ sitterId: id, displayName: 'Full-time sitter', employmentType: 'FULL_TIME', canAssignDirectly: true }]);
+  fireEvent.click(await screen.findByRole('radio', { name: /Full-time sitter/ }));
+  expect(screen.getByText(/Toàn thời gian · Giao buổi trực tiếp/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Giao buổi' }));
+  await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, row.version, 'stable-operation-key', id, 'DIRECT_ASSIGN'));
+});
+
+test('manual part-time and outside-hours candidates retain invitation action', async () => {
+  fixture([{ sitterId: id, displayName: 'Part-time sitter', employmentType: 'PART_TIME', canAssignDirectly: false },
+    { sitterId: blocked, displayName: 'Full-time outside', employmentType: 'FULL_TIME', canAssignDirectly: false }]);
+  fireEvent.click(await screen.findByRole('radio', { name: /Part-time sitter/ }));
+  expect(screen.getByText(/Bán thời gian · Gửi lời mời/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('radio', { name: /Full-time outside/ }));
+  expect(screen.getByText(/Toàn thời gian · Gửi lời mời/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toBeEnabled();
+});
+
+test('requestedSitterId separates designatedSitter actions from replacement customer proposals', async () => {
+  const designatedId = blocked, replacementId = id;
+  const api = {
+    candidates: jest.fn().mockResolvedValue({ data: {
+      designatedSitter: { sitterId: designatedId, displayName: 'Người được chỉ định', employmentType: 'FULL_TIME', canAssignDirectly: true },
+      items: [{ sitterId: replacementId, displayName: 'Người thay thế', canAssignDirectly: false }]
+    } }),
+    propose: jest.fn().mockResolvedValue({ data: { id: 'proposal' } }),
+    invite: jest.fn().mockResolvedValue({ data: { state: 'ASSIGNED' } })
+  };
+  const command = { execute: jest.fn(fn => fn('directed-action-key')) }, onProposed = jest.fn();
+  render(<MemoryRouter><DispatchSitterPicker row={{ ...row, requestedSitterId: designatedId }} api={api} command={command} onProposed={onProposed} /></MemoryRouter>);
+  expect(await screen.findByText(/Toàn thời gian · Giao buổi trực tiếp/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Giao buổi' }));
+  await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, row.version, 'directed-action-key', designatedId, 'DIRECT_ASSIGN'));
+
+  fireEvent.click(screen.getByRole('radio', { name: /Người thay thế/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi đề xuất đổi người cho khách' }));
+  await waitFor(() => expect(api.propose).toHaveBeenCalledWith(row.id,
+    { expectedVersion: row.version, startAt: row.startAt, sitterId: replacementId }, 'directed-action-key'));
+  expect(onProposed).toHaveBeenCalledWith({ id: 'proposal' });
+});
+
+test('requestedSitterId outside hours shows Gửi lời mời for designatedSitter and reloads after ACTION_CHANGED', async () => {
+  const designatedId = blocked;
+  const api = {
+    candidates: jest.fn()
+      .mockResolvedValueOnce({ data: { designatedSitter: { sitterId: designatedId, displayName: 'Chỉ định ngoài giờ', employmentType: 'FULL_TIME', canAssignDirectly: false }, items: [] } })
+      .mockResolvedValueOnce({ data: { designatedSitter: { sitterId: designatedId, displayName: 'Chỉ định ngoài giờ', employmentType: 'FULL_TIME', canAssignDirectly: true }, items: [] } }),
+    invite: jest.fn().mockRejectedValueOnce({ status: 409, code: 'ACTION_CHANGED' })
+  };
+  const command = { execute: jest.fn(fn => Promise.resolve().then(() => fn('key')).catch(() => {})) };
+  render(<MemoryRouter><DispatchSitterPicker row={{ ...row, requestedSitterId: designatedId }} api={api} command={command} /></MemoryRouter>);
+  const btn = await screen.findByRole('button', { name: 'Gửi lời mời' });
+  fireEvent.click(btn);
+  await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, row.version, 'key', designatedId, 'INVITE'));
+  await waitFor(() => expect(api.candidates).toHaveBeenCalledTimes(2));
+  expect(await screen.findByRole('button', { name: 'Giao buổi' })).toBeInTheDocument();
 });

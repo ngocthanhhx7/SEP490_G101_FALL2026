@@ -44,7 +44,6 @@ export const PRODUCT_PAYMENT_LINK_STATES = Object.freeze(['CREATING', 'READY', '
 export const PRODUCT_PAYMENT_RECEIPT_STATES = Object.freeze(['VERIFIED', 'RECONCILIATION_REQUIRED']);
 
 export const PRODUCT_LIMITS = Object.freeze({
-  maxLineQuantity: 99,
   maxCartLines: 30,
   maxSearchLength: 100,
   defaultPageSize: 20,

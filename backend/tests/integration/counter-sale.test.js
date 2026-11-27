@@ -97,7 +97,7 @@ test.each(['AWAITING_PAYMENT', 'PAID', 'COMPLETED', 'CANCELLED'])('AC-28 rejects
   expect(await models.ProductOrder.countDocuments()).toBe(1);
 });
 
-test('AC-26 exposes counter prices and backend availability while excluding hidden and deleted products', async () => {
+test('IT-FE24-UC68-01 exposes counter prices and backend availability while excluding hidden and deleted products', async () => {
   const p = await product('SP-0031', { name: 'Dây dắt cho chó', stockOnHand: 9 });
   await online(p, 3);
   await product('SP-0032', { stockOnHand: 0 }); await product('SP-0033', { visible: false });
@@ -156,7 +156,7 @@ test('AC-27 D-268 looks up exact current verified mobile/email contacts and retu
   expect((await call('post', `${ROOT}/customer-lookups`).send({ contact: 'synthetic@example.test' }).expect(200)).body.data.customer).toBeNull();
 });
 
-test('AC-28 GBR-35 creates an anonymous counter order with immutable prices and leaves all carts and real stock alone', async () => {
+test('IT-FE24-UC68-02 creates a counter order, holds stock and leaves real stock unchanged', async () => {
   const p = await product();
   const order = (await save(body(p)).expect(201)).body.data;
   expect(order).toMatchObject({ code: 'DH-0001', channel: 'COUNTER', status: 'AWAITING_PAYMENT', paid: false,
@@ -179,6 +179,14 @@ test('AC-27 rechecks an optional selected customer before creating and keeps the
   expect((await get(`${ROOT}/${order.id}`).expect(200)).body.data.customer.displayName).toBe('Synthetic CUSTOMER');
 });
 
+test('IT-FE24-UC68-04 creates an undiscounted anonymous order when customer lookup finds no match', async () => {
+  const p = await product();
+  const lookup = (await call('post', `${ROOT}/customer-lookups`).send({ contact: 'nobody@example.test' }).expect(200)).body.data;
+  expect(lookup.customer).toBeNull();
+  const order = (await save(body(p)).expect(201)).body.data;
+  expect(order).toMatchObject({ customer: null, tierCode: null, tierDiscount: 0, subtotal: 250000, total: 250000 });
+});
+
 test('validates line limits, unique products and caller-owned fields before creating any hold', async () => {
   const p = await product();
   for (const quantity of [0, -1, 1.2, '2', 100]) await save(body(p, quantity)).expect(422);
@@ -188,7 +196,7 @@ test('validates line limits, unique products and caller-owned fields before crea
   expect((await models.Product.findById(p.id)).quantityHeld).toBe(0);
 });
 
-test('GBR-35 checks the current available stock including actual online holds and permits the exact remaining quantity', async () => {
+test('IT-FE24-UC68-05 rejects quantity above available stock with MSG58 data', async () => {
   const p = await product('SP-0001', { stockOnHand: 9 }); await online(p, 3);
   const exceeded = await save(body(p, 7)).expect(409);
   expect(exceeded.body.error).toMatchObject({ code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', productId: p.id, available: 6 });
@@ -209,7 +217,7 @@ test('GBR-35 rolls back every line when another product is unavailable and never
   expect(await models.ProductOrder.countDocuments()).toBe(0);
 });
 
-test('GBR-35 serializes two counter sales competing for the last sellable units', async () => {
+test('IT-FE24-UC68-12 prevents concurrent counter holds from exceeding real stock', async () => {
   const p = await product('SP-0001', { stockOnHand: 9 });
   const replies = await Promise.all([save(body(p, 6)), save(body(p, 6), key(), 'ADMIN2')]);
   expect(replies.map(x => x.status).sort()).toEqual([201, 409]);
@@ -262,7 +270,7 @@ test('D-268 shares DH numbering with online orders and preserves legacy orders w
   await call('post', `/api/v1/admin/product-orders/${first.id}/hand-to-customer`).send({}).expect(200);
 });
 
-test('AC-28 GBR-38 records full cash only once, retaining the first amount, recorder and time on retries', async () => {
+test('IT-FE24-UC68-06 records cash once and moves the order to Paid', async () => {
   const p = await product(), order = (await save(body(p)).expect(201)).body.data;
   const replies = await Promise.all([act(order, 'record-cash'), act(order, 'record-cash', 'ADMIN2')]);
   expect(replies.map(x => x.status)).toEqual([200, 200]);
@@ -288,7 +296,7 @@ test('IT-FE25-UC71-15 shows reduced stock after UC-68 completes a counter sale',
   expect((await get().expect(200)).body.data.total).toBe(0);
 });
 
-test('AC-28 GBR-38 cancels only an unpaid sale and releases just its hold on repeat requests', async () => {
+test('IT-FE24-UC68-11 cancels an unpaid order, releases its hold and preserves real stock', async () => {
   const p = await product(), order = (await save(body(p)).expect(201)).body.data;
   const replies = await Promise.all([act(order, 'cancel'), act(order, 'cancel', 'ADMIN2')]);
   expect(replies.map(x => x.status)).toEqual([200, 200]);

@@ -100,6 +100,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
       if (!row || row.state !== 'SIGNED' || row.applicationVersion !== application.version) fail('SIGNED_CONTRACT_REQUIRED', 'Prepare, print and verify signed contract before approval', 409);
       const terms = view(row).terms;
       if (await Contract.exists({ employeeId }).session(session)) fail('VERSION_CONFLICT', 'Employee already has a contract', 409);
+      if (terms.payCycle !== 'MONTHLY') fail('PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED', 'Verify a signed monthly-pay contract before activating employment', 409);
       await Contract.create([{ employeeId, version: 1, employmentType: terms.employmentType, salaryBasis: 'GROSS', monthlyBaseVnd: terms.monthlyBaseVnd,
         monthlyAllowanceVnd: terms.monthlyAllowanceVnd, payCycle: terms.payCycle, weeklyMinutes: terms.weeklyMinutes, effectiveAt: contractDate(terms.effectiveOn),
         ...(terms.endsOn ? { endsAt: contractDate(terms.endsOn) } : {}), signedAt: row.signedAt, contractReference: row.reference,

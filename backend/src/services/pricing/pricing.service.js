@@ -8,7 +8,7 @@ import {
 import { validatePricingSelection } from '../../validators/pricing-selection.validator.js';
 import { calculateQuote } from './pricing-calculation.service.js';
 export function createPricingService({ repository, clock = Date.now }) {
-  async function save(ownerId, kind, input, snapshot, ttl) {
+  async function save(ownerId, kind, input, snapshot, ttl, session = null) {
     const [decision] = await repository.models.DecisionSnapshot.create([
       {
         ownerId,
@@ -17,20 +17,20 @@ export function createPricingService({ repository, clock = Date.now }) {
         expiresAt: new Date(clock() + ttl),
         snapshot
       }
-    ]);
+    ], session ? { session } : {});
     return {
       id: String(decision._id),
       expiresAt: decision.expiresAt.toISOString()
     };
   }
-  async function calculate(ownerId, body, deferOrderAdjustments = false) {
+  async function calculate(ownerId, body, deferOrderAdjustments = false, session = null) {
     const input = validatePricingSelection(body),
-      context = await repository.context(ownerId, input);
+      context = await repository.context(ownerId, input, ...(session ? [{ session }] : []));
     const missing = [...new Set(context.pets.flatMap(p => p.traits.filter(code =>
       !context.policy.rules.some(rule => rule.when?.traitCode === code))))];
     if (missing.length) {
       const traits = await repository.models.PetTrait.find({ code: { $in: missing } })
-        .select('code label -_id').limit(100).lean();
+        .select('code label -_id').limit(100).session(session).lean();
       const names = missing.map(code => traits.find(t => t.code === code)?.label ?? code);
       throw new AppError(409, 'PRICING_REVIEW_REQUIRED', 'Special-care trait has no approved price rule', {
         fieldErrors: { petTraits: `Đặc điểm chưa có quy tắc giá được duyệt: ${names.join(', ')}. PawWorld cần rà soát chính sách trước khi báo giá.`.slice(0, 1000) }
@@ -74,12 +74,12 @@ export function createPricingService({ repository, clock = Date.now }) {
         'Báo giá dự kiến theo bảng giá đã duyệt; chưa tạo booking, chưa thu tiền. Cần xác nhận lại phiên bản và điều kiện khi đặt lịch.'
     };
   }
-  async function basket(ownerId, body) {
+  async function basket(ownerId, body, { session = null } = {}) {
     exact(body, ['items'], ['items']);
     if (!Array.isArray(body.items) || !body.items.length || body.items.length > 20)
       fail('VALIDATION_FAILED', 'One to twenty service items required');
     const computed = [];
-    for (const item of body.items) computed.push(await calculate(ownerId, item, true));
+    for (const item of body.items) computed.push(await calculate(ownerId, item, true, session));
     const policies = computed.map(item => item.context.policy), policy = policies[0];
     const common = ['comboPerVisitBps', 'comboMaxBps'];
     if (policies.some(p => common.some(key => (p[key] ?? 0) !== (policy[key] ?? 0))))
@@ -92,7 +92,7 @@ export function createPricingService({ repository, clock = Date.now }) {
     const gross = safe(computed.reduce((sum, item) => sum + BigInt(item.result.subtotalVnd), 0n));
     const comboBps = Math.min(visits * (policy.comboPerVisitBps ?? 0), policy.comboMaxBps ?? 0);
     const discountVnd = fee(base, comboBps), subtotalVnd = gross - discountVnd;
-    const tier = await repository.readTier(ownerId);
+    const tier = await repository.readTier(ownerId, { session });
     const tierDiscountVnd = safe(BigInt(subtotalVnd) * BigInt(tier.discountBps) / 10000n);
     const result = { currency: 'VND', kind: 'ESTIMATE', baseVnd: base, surchargeVnd: gross - base, discountVnd, comboBps,
       subtotalVnd, tierDiscountVnd, orderFeeVnd: 0, totalVnd: subtotalVnd - tierDiscountVnd, visitCount: visits,
@@ -103,7 +103,7 @@ export function createPricingService({ repository, clock = Date.now }) {
         serviceVersion: context.version.version, servicePolicyVersion: context.servicePolicy.version,
         servicePolicy: { title: context.servicePolicy.title, body: context.servicePolicy.body },
         petVersions: context.pets.map(p => ({ id: String(p._id), version: p.version })) })) };
-    const decision = await save(ownerId, 'QUOTE', body, { input: body, result }, 10 * 60000);
+    const decision = await save(ownerId, 'QUOTE', body, { input: body, result }, 10 * 60000, session);
     return { ...result, quoteId: decision.id, expiresAt: decision.expiresAt };
   }
   async function readDecision(ownerId, decisionId) {

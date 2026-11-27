@@ -29,6 +29,7 @@ export const productSalesErrors = Object.freeze({
   prepayRequired: () => new AppError(409, 'PRODUCT_ORDER_PREPAY_REQUIRED', 'For this order you can only pay in advance.'),
   // MSG100
   cartEmpty: () => new AppError(409, 'CART_EMPTY', 'Your cart is empty. Please choose a product first.'),
+  amountOutOfRange: () => new AppError(422, 'PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE', 'The order amount is too large. Lower the quantity.'),
   cartFull: () => new AppError(409, 'CART_FULL', 'The cart has too many different products.'),
   cartLineNotFound: () => new AppError(404, 'CART_LINE_NOT_FOUND', 'The product is not in your cart.'),
   // MSG18

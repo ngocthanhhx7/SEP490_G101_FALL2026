@@ -181,6 +181,25 @@ describe('payOS provider adapter', () => {
     expect(JSON.stringify(reconciliationSnapshot)).not.toContain('private');
   });
 
+  test('counter cancellation releases a link only after a signed cancelled and unpaid payOS response', async () => {
+    const cancelled = { orderCode: paymentRequest.orderCode, amount: paymentRequest.amount,
+      amountPaid: 0, amountRemaining: paymentRequest.amount, status: 'CANCELLED' };
+    const fetchImpl = jest.fn(async () => responseFor(cancelled));
+    const provider = createPayosProvider({ ...config, fetchImpl });
+    expect(await provider.cancelPaymentLink(paymentRequest.orderCode, 'Counter order cancelled'))
+      .toEqual({ orderCode: paymentRequest.orderCode, amount: paymentRequest.amount,
+        amountPaid: 0, providerStatus: 'CANCELLED' });
+    const [url, options] = fetchImpl.mock.calls[0];
+    expect(url).toBe(`https://api-merchant.payos.vn/v2/payment-requests/${paymentRequest.orderCode}/cancel`);
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ cancellationReason: 'Counter order cancelled' });
+    const paid = { ...cancelled, amountPaid: 1 };
+    const unsafe = createPayosProvider({ ...config, fetchImpl: async () => responseFor(paid) });
+    await expect(unsafe.cancelPaymentLink(paymentRequest.orderCode)).rejects.toMatchObject({
+      code: 'PAYOS_CANCEL_NOT_CONFIRMED'
+    });
+  });
+
   test.each(['PENDING', 'PAID', 'CANCELLED'])('recovers the hosted URL only for a signed pending lookup (%s)', async status => {
     const id = '124c33293c934a85be5b7f8761a27a07';
     const data = { id, orderCode: paymentRequest.orderCode, amount: paymentRequest.amount,

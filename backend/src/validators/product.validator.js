@@ -11,8 +11,8 @@ export function parseObjectId(value, field = 'id') {
   return value;
 }
 
-export function parseQuantity(value) {
-  if (!Number.isSafeInteger(value) || value < 1 || value > PRODUCT_LIMITS.maxLineQuantity) {
+export function parseQuantity(value, max = Number.MAX_SAFE_INTEGER) {
+  if (!Number.isSafeInteger(value) || value < 1 || value > max) {
     throw invalid('quantity is invalid');
   }
   return value;

@@ -17,7 +17,9 @@ export function createPayrollDraftService({ connection, clock = Date.now }) {
       if (contracts.length > 200) fail('PAYROLL_REVIEW_REQUIRED', 'Employee directory requires paged review', 409);
       const users = await connection.collection('users').find({ _id: { $in: contracts.map(row => row._id) }, roles: 'PET_SITTER' }, { projection: { displayName: 1 } }).toArray();
       return { items: users.map(user => { const c = contracts.find(row => String(row._id) === String(user._id)).contract;
-        return { id: String(user._id), displayName: user.displayName, employeeCode: c.employeeCode ?? null, automaticReady: c.workScheduleMode === 'SELF_REGISTERED' || Boolean(c.schedule?.weekdays?.length), monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle }; }) };
+        return { id: String(user._id), displayName: user.displayName, employeeCode: c.employeeCode ?? null,
+          automaticReady: c.payCycle === 'MONTHLY' && (c.workScheduleMode === 'SELF_REGISTERED' || Boolean(c.schedule?.weekdays?.length)),
+          monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle }; }) };
     },
     async preview(actor, input, session) {
       admin(actor); exact(input, ['employeeId','periodStart','periodEnd','dueAt','unpaidMinutes','attendanceReference','attendanceConfirmed',
@@ -27,6 +29,7 @@ export function createPayrollDraftService({ connection, clock = Date.now }) {
       const start = contractDate(input.periodStart), end = contractDate(input.periodEnd), due = contractDate(input.dueAt);
       if (end <= start || end > new Date(clock()) || due < end || end - start > 31 * DAY || input.periodStart.slice(0,7) !== new Date(end.getTime() - 1 + 7 * 3600000).toISOString().slice(0,7)) fail('VALIDATION_FAILED', 'Completed single-month period required');
       const contract = await Contract.findOne({ employeeId: input.employeeId, supersededAt: null, effectiveAt: { $lte: start } }).sort({ version: -1 }).session(session ?? null).lean();
+      if (contract && contract.payCycle !== 'MONTHLY') fail('PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED', 'Verify a signed monthly-pay contract before preparing payroll', 409);
       const selfRegistered = contract?.workScheduleMode === 'SELF_REGISTERED';
       if (selfRegistered && ![1200,2400].includes(contract.minimumWeeklyMinutes)) fail('CONTRACT_SCHEDULE_REQUIRED','Verified minimum weekly commitment required',409);
       if (!(selfRegistered || contract?.schedule?.weekdays?.length) || contract.endsAt && contract.endsAt < end || await Contract.exists({ employeeId: input.employeeId, supersededAt: null, effectiveAt: { $gt: start, $lt: end } }).session(session ?? null)) fail('CONTRACT_SCHEDULE_REQUIRED', 'Signed contract schedule must cover period; split contract changes', 409);
