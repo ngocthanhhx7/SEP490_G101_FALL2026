@@ -34,6 +34,18 @@ and contact lookup stay separate. Dispatch detail is addressed by visit ID rathe
 than relying on the first queue page. UC-41 adds the pending handover deadline to
 Needs action and uses an exact visit filter on the All tab for the Staff notification.
 
+`late-check-in-alert.service.js` implements JOB-07 / GBR-29. Runtime runs it every
+5 minutes: each assigned visit of the Vietnam day without check-in 15 minutes after
+its start sends one in-app notification to Staff, linking to that visit. The
+`lateCheckInAlert.alertedAt` marker is saved on the visit in the same transaction
+as the notification. The bounded scan rotates by start time and visit ID, so a
+failing visit cannot block later ones and is retried after the scan wraps. The
+marker and notification key follow the visit ID across reschedules.
+
+A visit released by withdrawal or suspension ends with new offers or a Needs action
+entry: when automatic dispatch is off, and when an offer to a released visit is
+refused for any reason other than a concurrent change, `dispatchReview` records it.
+
 `withdrawal-review.service.js` handles pending late withdrawals. Staff/Admin must
 provide a reason to reject or release. A release serializes with employee/visit
 writers, preserves price and customer-directed selection, revokes stale offers,

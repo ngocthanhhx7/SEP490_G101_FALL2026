@@ -5,7 +5,7 @@ export function startBookingNotificationsWorker({ service, intervalMs, logger = 
   const tick = () => {
     if (running || stopping) return;
     running = Promise.resolve().then(() => service.runBatch())
-      .then(result => { if (result.failed || result.expired || result.paid || result.reminded) logger({ event, ...result }); })
+      .then(result => { if (result.failed || result.expired || result.paid || result.reminded || result.alerted) logger({ event, ...result }); })
       .catch(() => logger({ event: `${event}_failed` })).finally(() => { running = null; });
   };
   const timer = globalThis.setInterval(tick, intervalMs); timer.unref(); tick();

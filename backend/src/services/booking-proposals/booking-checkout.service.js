@@ -29,6 +29,7 @@ import { createBookingDetailsService } from './booking-details.service.js';
 import { createProductPricingEligibility } from '../product-sales/product-pricing-eligibility.service.js';
 import { assertNoUnpaidGrooming, hasUnpaidGrooming } from '../grooming/grooming-unpaid.service.js';
 import { assertBookingSpan } from './booking-span-policy.js';
+import { bookingEndedAt, RATING_WINDOW_MS } from '../reviews/booking-rating-window.js';
 
 export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
@@ -67,7 +68,11 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       customerId: String(booking.customerId), sitterId: { $in: sitterIds },
       $or: [{ bookingId: String(booking._id) }, { visitId: { $in: (booking.visitIds ?? []).map(String) } }] },
     { session, projection: { sitterId: 1 } }).limit(200).toArray() : [];
+    const endedAt = bookingEndedAt(booking);
+    const unfinished = endedAt && await col('visits').countDocuments({ _id: { $in: booking.visitIds ?? [] },
+      state: { $nin: ['COMPLETED', 'CANCELLED'] } }, { session });
     return { id: String(booking._id), state: booking.state, version: booking.version,
+      ratingDeadlineAt: endedAt && !unfinished ? new Date(endedAt.getTime() + RATING_WINDOW_MS) : null,
       paymentState: booking.paymentState, paymentMode: booking.paymentMode, totalVnd: booking.paymentSnapshot.amountVnd,
       currency: 'VND', createdAt: booking.createdAt ?? null, completedAt: booking.completedAt ?? null,
       ratedSitterIds: [...new Set(existingRatings.map(row => row.sitterId))],

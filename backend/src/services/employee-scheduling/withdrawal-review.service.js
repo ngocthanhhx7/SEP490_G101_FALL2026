@@ -4,7 +4,7 @@ import { payrollModels } from '../../models/payroll.model.js';
 import { fail, id, digest } from '../../validators/pet-care.validator.js';
 import { schedulingKey } from '../../validators/employee-scheduling.validator.js';
 import { withdrawalReviewInput } from '../../validators/withdrawal-review.validator.js';
-import { hasPendingWithdrawal } from './visit-withdrawal.service.js';
+import { hasPendingWithdrawal, publishDispatchReviewRequired, STAFF_REVIEW_REQUIRED } from './visit-withdrawal.service.js';
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 
 const oid = value => new Types.ObjectId(value);
@@ -54,11 +54,15 @@ export function createWithdrawalReviewService({ repository, clock = Date.now, re
             await col('sitterstatuses').updateOne({ userId: row.sitterId }, { $inc: { schedulingGuardVersion: 1 } }, { session });
             const at = new Date(clock()), release = input.decision === 'RELEASE';
             const handover = release ? flagVisitHandover(row.sitterId, at, { reasonText: input.reason }) : null;
+            // Without automatic dispatch nobody re-offers the visit, so Staff must see it at once.
+            const needsStaffReview = release && !requeue;
             const saved = await col('visits').findOneAndUpdate({ _id: row._id, version: row.version, state: 'ASSIGNED', checkInAt: null }, {
               $set: { withdrawalDecision: { decision: input.decision, reason: input.reason, at, byUserId: actor.userId },
                 ...(release ? { state: 'SCHEDULED', sitterId: null, ...handover.set,
-                  withdrawalDispatch: { sitterId: row.sitterId } } : {}) },
-              $unset: { withdrawalRequest: '', ...(release ? { assignedAt: '', assignedFeatureSnapshot: '', ...handover.unset, dispatchReview: '' } : {}) },
+                  withdrawalDispatch: { sitterId: row.sitterId } } : {}),
+                ...(needsStaffReview ? { dispatchReview: { code: STAFF_REVIEW_REQUIRED, at } } : {}) },
+              $unset: { withdrawalRequest: '', ...(release ? { assignedAt: '', assignedFeatureSnapshot: '', ...handover.unset,
+                ...(needsStaffReview ? {} : { dispatchReview: '' }) } : {}) },
               $inc: { version: 1 }
             }, { session, returnDocument: 'after' });
             if (!saved) fail('VERSION_CONFLICT', 'Visit changed', 409);
@@ -72,6 +76,8 @@ export function createWithdrawalReviewService({ repository, clock = Date.now, re
               sitterId, visitId, at, detail: { version: saved.version, reason: input.reason } };
             await models.EmployeeScheduleEvent.create([event], { session });
             await notifications.publish(event, session);
+            if (needsStaffReview) await publishDispatchReviewRequired({ events: models.EmployeeScheduleEvent, notifications,
+              actorId: actor.userId, visitId, version: saved.version, at, session });
             const response = { visitId, version: saved.version, decision: input.decision, state: saved.state };
             await models.EmployeeScheduleCommand.create([{ _id: commandId, fingerprint, result: response, createdAt: at }], { session });
             return response;

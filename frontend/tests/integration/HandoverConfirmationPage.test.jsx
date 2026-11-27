@@ -36,6 +36,15 @@ test('UC-41 shows the handover data and requires the checkbox before submitting 
   expect(api.confirmHandover).toHaveBeenCalledWith(visitId, { expectedVersion: 3, careVersion: row.care.version, acknowledged: true }, expect.any(String));
 });
 
+test('UC-19 a replacement after a suspension reads why the previous sitter left', async () => {
+  const api = apiFor();
+  api.handover.mockResolvedValue({ data: { ...row,
+    note: { reasonCode: 'SITTER_SUSPENDED', reasonText: null, previousSitterName: 'Lê Văn Minh', previousVisitCount: 0 } } });
+  show(api);
+  expect(await screen.findByText('Người chăm sóc trước tạm ngưng nhận việc')).toBeInTheDocument();
+  expect(screen.queryByText('Chưa ghi nhận')).not.toBeInTheDocument();
+});
+
 test('shows the replacement sitter the customer’s additional tasks before confirmation', async () => {
   const api = apiFor();
   api.handover.mockResolvedValue({ data: { ...row, care: { ...row.care,

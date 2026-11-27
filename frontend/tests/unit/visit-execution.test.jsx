@@ -43,11 +43,11 @@ test('proposal route identity changes discard prior selection and confirmation o
   const api = { confirmProposal: jest.fn().mockRejectedValue({ code: 'TIMEOUT' }) };
   const { rerender } = render(<MemoryRouter><DirectedBookingProposalPage api={api} proposal={proposal('one')} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('radio'));
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi lời mời' }));
   await screen.findByRole('button', { name: 'Kiểm tra lại xác nhận lịch' });
   rerender(<MemoryRouter><DirectedBookingProposalPage api={api} proposal={proposal('two')} /></MemoryRouter>);
   expect(await screen.findByRole('radio')).not.toBeChecked();
-  expect(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Xác nhận lịch và gửi lời mời' })).toBeDisabled();
 });
 
 test('transport does not report success for partial visit or proposal acknowledgements', async () => {
@@ -63,10 +63,10 @@ test('confirmed proposal preserves its loaded sitter name and summary', async ()
   const api = { confirmProposal: jest.fn().mockResolvedValue({ data: { proposal: { id: 'one', state: 'CONFIRMED' } } }) };
   render(<MemoryRouter><DirectedBookingProposalPage api={api} proposal={proposal} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('radio'));
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi lời mời' }));
   await screen.findByRole('heading', { name: 'Đã gửi lời mời nhận ca' });
   expect(screen.getByText('Sitter đã chọn')).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Xác nhận lịch và gửi offer' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Xác nhận lịch và gửi lời mời' })).not.toBeInTheDocument();
 });
 
 test('leaving the visit during upload prevents a later care command', async () => {

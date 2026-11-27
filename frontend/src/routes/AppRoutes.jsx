@@ -557,7 +557,9 @@ function ServiceEntry({ booking = false }) {
   if (query.getAll('booking').length !== 1 || !/^[a-f\d]{24}$/i.test(bookingId)) {
     return <section><h1>Liên kết đơn chăm sóc không hợp lệ</h1><Link to="/account/bookings">Xem lịch hẹn</Link></section>;
   }
-  return <Navigate replace to={`/account/bookings/${bookingId}`} />;
+  const payment = query.get('payment');
+  const suffix = payment === 'returned' || payment === 'cancelled' ? `?payment=${payment}` : '';
+  return <Navigate replace to={`/account/bookings/${bookingId}${suffix}`} />;
 }
 
 function CustomerBookingsEntry({ mobile }) {

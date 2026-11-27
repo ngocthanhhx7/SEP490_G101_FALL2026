@@ -12,6 +12,11 @@ const interval = row => `${time(row.startAt)} – ${time(row.endAt)}`;
 const careLabels = { feeding: 'Cho ăn', handling: 'Hành vi', health: 'Sức khỏe', allergies: 'Dị ứng',
   medication: 'Thuốc theo hướng dẫn thú y', vaccination: 'Vaccine', emergencyContact: 'Liên hệ khẩn cấp', veterinaryContact: 'Phòng khám thú y' };
 const reportHeadings = ['Ngày', 'Giờ', 'Người chăm sóc', 'Tóm tắt'];
+// Reasons the system sets itself. A suspension never shows what the Admin wrote.
+const systemReasons = {
+  BOOKING_RESCHEDULED: 'Khách đổi lịch, người chăm sóc trước không thể nhận giờ mới.',
+  SITTER_SUSPENDED: 'Người chăm sóc trước tạm ngưng nhận việc'
+};
 
 // A time that has already passed (an urgent handover, or a replacement after the start) is not shown as "from 07:00".
 function afterConfirm(visit, now = Date.now()) {
@@ -27,9 +32,7 @@ function Detail({ label, children }) {
 }
 
 function HandoverNote({ note, assignedAt }) {
-  const reason = note.reasonText || (note.reasonCode === 'BOOKING_RESCHEDULED'
-    ? 'Khách đổi lịch, người chăm sóc trước không thể nhận giờ mới.'
-    : VISIT_WITHDRAWAL_REASON_LABELS[note.reasonCode]);
+  const reason = note.reasonText || systemReasons[note.reasonCode] || VISIT_WITHDRAWAL_REASON_LABELS[note.reasonCode];
   return <section className="handover-confirmation__card handover-confirmation__note">
     <h2>Ghi chú bàn giao</h2>
     <dl className="handover-confirmation__details">
