@@ -16,6 +16,8 @@ import { RecurringSchedule } from '../../components/calendar/RecurringSchedule.j
 import { BookingDateTime } from '../../components/calendar/BookingDateTime.jsx';
 import { vietnamDate, vietnamDateTime } from '../../utils/calendar-date.js';
 import { BookingConfirmation } from './BookingCheckout.jsx';
+import { QuotePriceSummary } from '../../components/common/QuotePriceSummary.jsx';
+import { ADDRESS_NOT_SERVED, GROOMING_DEBT_BLOCKS_BOOKING } from '../../constants/booking-messages.js';
 import './service-booking.css';
 
 const homeNoticeMs = 2 * 60 * 60 * 1000;
@@ -54,6 +56,7 @@ function errorText(error) {
     MATCH_ALREADY_USED: 'Yêu cầu này đã tạo đơn. Vui lòng kiểm tra đơn của bạn.',
     VISIT_SCHEDULE_OVERLAP: 'Các buổi của cùng thú cưng bị trùng giờ.',
     MSG20: 'Một lịch đặt kéo dài tối đa 30 ngày.',
+    ADDRESS_OUT_OF_SERVICE_AREA: ADDRESS_NOT_SERVED,
     VALIDATION_FAILED: 'Kiểm tra thời lượng, ngày giờ, địa chỉ và số buổi trước khi tiếp tục.' })[error.code]
     || apiErrorFeedback(error, 'Chưa hoàn tất được thao tác. Vui lòng thử lại.');
 }
@@ -75,6 +78,7 @@ export function BookingFlow({ service, api, onBooked }) {
   const [available, setAvailable] = useState(null), [selected, setSelected] = useState(''), [consent, setConsent] = useState(false);
   const [msg162Dialog, setMsg162Dialog] = useState(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [uncertain, setUncertain] = useState(false);
+  const [debtReported, setDebtReported] = useState(false);
   const generation = useRef(0), command = useRef(null), locked = useRef(false);
   const durationMinutes = unit === 'tiếng' ? Number(units) * 60 : unit === '30 phút' ? Number(units) * 30 : service.details?.durationMinutes ?? 60;
   const quoteAlive = quote && Date.parse(quote.expiresAt) > Date.now();
@@ -243,6 +247,7 @@ export function BookingFlow({ service, api, onBooked }) {
           return;
         }
       }
+      if (failure.code === 'GROOMING_PAYMENT_OUTSTANDING') { setUncertain(false); setDebtReported(true); return; }
       const pending = uncertainResponse(failure);
       setUncertain(pending);
       setError(pending ? 'Chưa xác định đơn đã được tạo hay chưa. Kiểm tra lại bằng cùng yêu cầu trước khi đặt mới.' : errorText(failure));
@@ -273,8 +278,12 @@ export function BookingFlow({ service, api, onBooked }) {
   if (setup.status !== 'success') return <div role="alert"><p>Chưa tải được thông tin đặt lịch.</p><button onClick={setup.retry}><RefreshCw size={16} />Tải lại</button></div>;
   const needsAddress = location !== 'FACILITY';
   const previousSitters = available?.sitters ?? [];
+  const groomingDebt = debtReported || Boolean(setup.data.options.groomingPaymentOutstanding);
+  const outOfArea = addresses.filter(address => address.served === false && address.pointConfirmedAt);
+  const addressBlocked = needsAddress && addresses.some(address => (address.id || address._id) === addressId && address.served === false);
 
   return <div className="booking-flow">
+    {groomingDebt && <p role="alert" className="booking-error">{GROOMING_DEBT_BLOCKS_BOOKING}</p>}
     <ol className="booking-steps" aria-label="Tiến trình đặt dịch vụ">{['Thú cưng và lịch', 'Người chăm sóc', 'Xác nhận'].map((label, index) => <li key={label} aria-current={step === index ? 'step' : undefined}><span>{index < step ? <Check size={16} /> : index + 1}</span>{label}</li>)}</ol>
     {step === 0 && <form onSubmit={price}>
       <h2>Thú cưng và lịch chăm sóc</h2>
@@ -333,12 +342,13 @@ export function BookingFlow({ service, api, onBooked }) {
               }
             }} /></label>
             <label>Địa điểm<select value={location} onChange={event => { invalidate(); setLocation(event.target.value); }}>{homeLocations(service).map(value => <option key={value} value={value}>{locations[value]}</option>)}</select></label>
-            {needsAddress ? <label>Địa chỉ đã xác nhận<select value={addressId} required onChange={event => { invalidate(); setAddressId(event.target.value); }}><option value="">Chọn địa chỉ</option>{addresses.map(address => <option key={address.id || address._id} value={address.id || address._id}>{address.label}</option>)}</select></label> : <p>{setup.data.options.facilityAddress ?? 'Địa chỉ cơ sở chưa được cấu hình.'}</p>}
+            {needsAddress ? <label>Địa chỉ đã xác nhận<select value={addressId} required onChange={event => { invalidate(); setAddressId(event.target.value); }}><option value="">Chọn địa chỉ</option>{addresses.map(address => <option key={address.id || address._id} value={address.id || address._id} disabled={address.served === false}>{address.label}{address.served === false ? address.pointConfirmedAt ? ' — Chưa phục vụ' : ' — Chưa xác nhận vị trí' : ''}</option>)}</select></label> : <p>{setup.data.options.facilityAddress ?? 'Địa chỉ cơ sở chưa được cấu hình.'}</p>}
+            {needsAddress && outOfArea.map(address => <p key={address.id || address._id} className="booking-error">{address.label}: {ADDRESS_NOT_SERVED}</p>)}
           </fieldset>
           {needsAddress && <p><Link to="/account/addresses" target="_blank">Thêm hoặc sửa địa chỉ trên bản đồ</Link><button type="button" className="booking-refresh" onClick={setup.retry}><RefreshCw size={16} />Tải lại địa chỉ</button></p>}
         </div>
       </div>
-      <div className="booking-actions"><button className="pwc-button pwc-button-primary" disabled={busy || editingRepeat || !pets.length || needsAddress && !addresses.length || !needsAddress && !setup.data.options.facilityAddress}>{busy ? 'Đang lấy báo giá…' : 'Xem báo giá'}<ArrowRight size={17} /></button></div>
+      <div className="booking-actions"><button className="pwc-button pwc-button-primary" disabled={busy || editingRepeat || !pets.length || addressBlocked || needsAddress && !addresses.length || !needsAddress && !setup.data.options.facilityAddress}>{busy ? 'Đang lấy báo giá…' : 'Xem báo giá'}<ArrowRight size={17} /></button></div>
     </form>}
     {step === 1 && <section><h2>Sắp xếp người chăm sóc</h2>
       <section className="booking-schedule-review" aria-label="Lịch đã chọn">
@@ -391,12 +401,12 @@ export function BookingFlow({ service, api, onBooked }) {
         <div><dt>Địa điểm</dt><dd>{locations[location]} · {needsAddress ? addresses.find(address => (address.id || address._id) === addressId)?.label : setup.data.options.facilityAddress}</dd></div>
       </dl>
       <ul>{starts.map((value, index) => <li key={index}>Buổi {index + 1}: {scheduleLabel(value)}</li>)}</ul>
-      <dl className="booking-review">{[['Dịch vụ', quote.baseVnd], ['Phụ phí', quote.surchargeVnd], ['Giảm combo', -quote.discountVnd], ['Phí bậc giá', quote.orderFeeVnd], ['Tổng thanh toán', quote.totalVnd]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
+      <QuotePriceSummary quote={quote} services={[service]} className="booking-review" />
       <p>{quote.paymentMode === 'PREPAY' ? 'Đơn nhiều buổi cần thanh toán đủ trong 15 phút trước khi gửi lời mời.' : 'Thanh toán sau khi hoàn tất dịch vụ.'}</p>
       <p>Hệ thống tìm người chăm sóc sau khi đơn đủ điều kiện. Ca được xác nhận khi người chăm sóc nhận lời mời.</p>
       {quote.items.map((item, index) => <details key={index}><summary>{item.servicePolicy?.title ?? 'Điều kiện dịch vụ'}</summary><p className="pwc-checkout-policy">{item.servicePolicy?.body}</p></details>)}
       <label className="booking-check"><input type="checkbox" required checked={consent} onChange={event => setConsent(event.target.checked)} />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ.</label>
-    </fieldset><PolicyContextLinks context="booking" /><div className="booking-actions"><button type="button" disabled={busy || uncertain} onClick={() => { setStep(1); setError(''); }}><ArrowLeft size={17} />Quay lại</button><button className="pwc-button pwc-button-primary" disabled={busy || !consent}><CalendarCheck size={17} />{busy ? 'Đang xác nhận…' : uncertain ? 'Kiểm tra lại đơn' : 'Xác nhận đặt dịch vụ'}</button></div></form>}
+    </fieldset><PolicyContextLinks context="booking" /><div className="booking-actions"><button type="button" disabled={busy || uncertain} onClick={() => { setStep(1); setError(''); }}><ArrowLeft size={17} />Quay lại</button><button className="pwc-button pwc-button-primary" disabled={busy || !consent || groomingDebt}><CalendarCheck size={17} />{busy ? 'Đang xác nhận…' : uncertain ? 'Kiểm tra lại đơn' : 'Xác nhận đặt dịch vụ'}</button></div></form>}
     {quote && step > 0 && <p className="booking-expiry">Báo giá đến {new Date(quote.expiresAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short', timeStyle: 'short' })} (giờ Việt Nam) · {money(quote.totalVnd)}</p>}
     {error && <p role="alert" className="booking-error">{error}</p>}
     <Dialog
