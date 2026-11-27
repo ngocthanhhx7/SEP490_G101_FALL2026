@@ -24,6 +24,7 @@
 .counter-customer span { min-width: 0; overflow-wrap: anywhere; }
 .counter-empty { padding: 1.25rem 0; }
 .counter-line { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; padding: 1rem 0; border-bottom: 1px solid var(--shop-border); }
+.counter-line-error { flex: 1 0 100%; margin: .15rem 0 0; color: var(--shop-danger); font-size: .875rem; font-weight: 700; }
 .counter-line-name { flex: 1 1 35%; min-width: 0; overflow-wrap: anywhere; font-size: .9rem; }
 .counter-line-total { margin-left: auto; white-space: nowrap; }
 .counter-sale .pwc-shop-stepper button { width: 2rem; height: 2rem; }

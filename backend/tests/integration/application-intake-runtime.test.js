@@ -231,6 +231,21 @@ async function anotherVerifiedEmail(owner, email) {
   return { ...owner, email };
 }
 
+test('verified applicant gets pending details only for an application they own', async () => {
+  const owner = await register();
+  const original = application(owner, await upload(owner));
+  await submit(owner, original).expect(201);
+  const ownConflict = await submit(owner, original, 'synthetic-pending-owned').expect(409);
+  expect(ownConflict.body.error).toMatchObject({ code: 'APPLICATION_ALREADY_PENDING', conflictField: 'email' });
+
+  const other = await register('different-applicant@example.test');
+  const otherBody = application(other, await upload(other));
+  const foreignConflict = await submit(other, otherBody, 'synthetic-pending-foreign').expect(409);
+  expect(foreignConflict.body.error).toEqual({
+    code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time'
+  });
+});
+
 test('owner cooldown survives verified email and identity changes after rejection', async () => {
   const owner = await register();
   const documentId = await upload(owner);
@@ -252,7 +267,9 @@ test('owner cooldown survives verified email and identity changes after rejectio
   await identityModels(connection).Contact.updateOne({ userId: owner.id, channel: 'EMAIL', lookupKey: createContactCrypto({
     lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY }).lookup('EMAIL', owner.email).lookupKey }, { $set: { state: 'REPLACED' } });
   await submit(changed, { ...application(changed, documentId), identityNumber: 'DIFFERENT12345' }, 'synthetic-reapply-owner-01').expect(409)
-    .expect(res => expect(res.body.error.code).toBe('REAPPLY_NOT_AVAILABLE'));
+    .expect(res => expect(res.body.error).toMatchObject({
+      code: 'REAPPLY_NOT_AVAILABLE', reapplyAt: new Date(clockNow + 30 * 86400000).toISOString()
+    }));
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
 });
 

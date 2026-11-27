@@ -12,6 +12,7 @@ import { userModel } from '../../src/models/user.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { createVisitEvidenceQuota } from '../../src/services/care/visit-evidence-quota.service.js';
 import { createVisitWorkflowService } from '../../src/services/care/visit-workflow.service.js';
+import { createVisitHandoverService } from '../../src/services/care/visit-handover.service.js';
 import { workflowHash } from '../../src/services/care/workflow-snapshot.service.js';
 import { createNeedsActionService } from '../../src/services/employee-scheduling/needs-action.service.js';
 import { createEmployeeScheduleRepository } from '../../src/services/employee-scheduling/employee-schedule.repository.js';
@@ -193,6 +194,7 @@ function schedulingRuntime(staff, autoDispatch) {
   const app = express();
   app.use(module.mount, module.router);
   return {
+    repository: module.repository,
     requeueVisit: module.dispatch.requeueVisit,
     readBoard: async () => (await request(app).get(`${module.mount}/visit-board?tab=needs-action`).expect(200)).body.data
   };
@@ -406,6 +408,23 @@ describe('UC-19 / GBR-04 / ST-CAS-12 suspending a pet sitter', () => {
     expect(savedInProgress.state).toBe('IN_PROGRESS');
     expect(String(savedInProgress.sitterId)).toBe(String(sitterId));
     expect((await User.findById(sitterId).lean()).state).toBe('ACTIVE');
+  });
+
+  test('the replacement sitter reads that the previous sitter was suspended, never what the Admin wrote', async () => {
+    const { visit, suspended, admin, staff } = await seedScheduledVisit();
+    const visits = connection.db.collection('visits');
+    await visits.updateOne({ _id: visit._id }, { $set: { sitterId: suspended.sitterId, state: 'ASSIGNED', checkInAt: null,
+      assignedAt: new Date(NOW - 3600000) } });
+    await suspendSitter({ admin, suspended, requeueVisit: jest.fn(async () => {}) });
+    const replacement = await userModel(connection).create({ displayName: 'Sitter 07', roles: ['PET_SITTER'], state: 'ACTIVE', authEpoch: 0, version: 0 });
+    await visits.updateOne({ _id: visit._id }, { $set: { sitterId: replacement._id, state: 'ASSIGNED', assignedAt: new Date(NOW),
+      'snapshots.care': { schemaVersion: 1, pets: [] } } });
+
+    const handover = createVisitHandoverService({ repository: schedulingRuntime(staff, true).repository, clock: () => NOW });
+    const view = await handover.get({ userId: String(replacement._id), roles: ['PET_SITTER'], state: 'ACTIVE' }, String(visit._id));
+
+    expect(view.note).toMatchObject({ reasonCode: 'SITTER_SUSPENDED', reasonText: null, previousSitterName: 'Sitter 06' });
+    expect(JSON.stringify(view)).not.toContain('Tạm ngưng người chăm sóc.');
   });
 
   test('suspended sitter can upload photos and check out own IN_PROGRESS visit, but cannot check in or upload for another ASSIGNED visit or accept offers', async () => {

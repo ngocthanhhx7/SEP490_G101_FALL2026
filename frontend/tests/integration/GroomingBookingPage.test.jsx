@@ -182,6 +182,7 @@ test('a full slot is greyed out and cannot be chosen', async () => {
   pickServices('Milo', 'Cắt móng');
   const full = await screen.findByRole('radio', { name: '09:00 · đã kín' });
   expect(full).toBeDisabled();
+  expect(screen.queryByText(/đã có lịch tại cửa hàng vào giờ này/)).not.toBeInTheDocument();
   expect(screen.getByRole('radio', { name: '08:00' })).toBeEnabled();
   const calendar = within(screen.getByRole('group', { name: 'Ngày hẹn tại cửa hàng' }));
   expect(calendar.getByRole('button', { name: /5 tháng 11, 2026/ })).toHaveAttribute('aria-pressed', 'true');
@@ -200,6 +201,44 @@ test('choosing another day asks for that day and clears the chosen time', async 
   fireEvent.click(screen.getByRole('button', { name: /6 tháng 11, 2026/ }));
   await waitFor(() => expect(api.slots).toHaveBeenLastCalledWith(expect.objectContaining({ date: '2026-11-06' }), expect.anything()));
   expect(confirmButton()).toBeDisabled();
+});
+
+test('ST-GRM-05 attaches MSG152 directly under each conflicting time slot while keeping FULL slots without MSG152', async () => {
+  const api = fixture({
+    slots: jest.fn(async () => ({
+      date: '2026-11-05',
+      slots: [
+        { startAt: '2026-11-05T01:00:00.000Z', time: '08:00', state: 'AVAILABLE' },
+        { startAt: '2026-11-05T02:00:00.000Z', time: '09:00', state: 'PET_ALREADY_BOOKED', conflictPetName: 'Milo' },
+        { startAt: '2026-11-05T03:00:00.000Z', time: '10:00', state: 'FULL' },
+        { startAt: '2026-11-05T04:00:00.000Z', time: '11:00', state: 'PET_ALREADY_BOOKED', conflictPetName: 'Bơ' }
+      ]
+    }))
+  });
+  show(api);
+  await check(/Milo/);
+  pickServices('Milo', 'Cắt móng');
+  const miloSlot = await screen.findByRole('radio', { name: '09:00 · đã có lịch' });
+  const miloItem = miloSlot.closest('.grooming-slot-item');
+  expect(miloSlot).toBeDisabled();
+  expect(miloSlot).toHaveAccessibleDescription('Milo đã có lịch tại cửa hàng vào giờ này. Vui lòng chọn giờ khác.');
+  expect(within(miloItem).getByRole('alert')).toHaveTextContent('Milo đã có lịch tại cửa hàng vào giờ này. Vui lòng chọn giờ khác.');
+
+  const boSlot = screen.getByRole('radio', { name: '11:00 · đã có lịch' });
+  const boItem = boSlot.closest('.grooming-slot-item');
+  expect(boSlot).toBeDisabled();
+  expect(boSlot).toHaveAccessibleDescription('Bơ đã có lịch tại cửa hàng vào giờ này. Vui lòng chọn giờ khác.');
+  expect(within(boItem).getByRole('alert')).toHaveTextContent('Bơ đã có lịch tại cửa hàng vào giờ này. Vui lòng chọn giờ khác.');
+
+  const fullSlot = screen.getByRole('radio', { name: '10:00 · đã kín' });
+  const fullItem = fullSlot.closest('.grooming-slot-item');
+  expect(fullSlot).toBeDisabled();
+  expect(fullSlot).not.toHaveAttribute('aria-describedby');
+  expect(within(fullItem).queryByRole('alert')).not.toBeInTheDocument();
+
+  const openSlot = screen.getByRole('radio', { name: '08:00' });
+  expect(openSlot).toBeEnabled();
+  expect(within(openSlot.closest('.grooming-slot-item')).queryByRole('alert')).not.toBeInTheDocument();
 });
 
 describe('MSG63: a pet that bites or scratches', () => {

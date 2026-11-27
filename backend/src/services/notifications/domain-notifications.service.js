@@ -77,6 +77,15 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         approved ? 'Hồ sơ ứng tuyển đã được duyệt' : 'Đã có kết quả hồ sơ ứng tuyển',
         approved ? 'Hồ sơ của bạn đã được duyệt. Đăng nhập lại để cập nhật quyền người chăm sóc.' : 'Hồ sơ của bạn đã có kết quả. Vui lòng xem trạng thái hồ sơ.', session);
     },
+    async applicationSubmitted({ applicationId, applicationCode, adminIds }, session) {
+      const to = `/admin/sitter-applications/${applicationId}`;
+      const recipients = Array.isArray(adminIds)
+        ? adminIds.map(id => ({ id, role: 'ADMIN', to }))
+        : (await operators(['ADMIN'], to, session)).map(row => ({ ...row, role: 'ADMIN' }));
+      await write(`application-submitted:${applicationId}`, 'ApplicationSubmitted', recipients,
+        'Có hồ sơ ứng tuyển mới',
+        `Hồ sơ ứng tuyển ${applicationCode} đang chờ xét duyệt.`, session);
+    },
     async complaint({ eventId, event, record }, session) {
       const code = record.code ?? 'khiếu nại';
       const events = {

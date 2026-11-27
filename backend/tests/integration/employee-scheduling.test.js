@@ -1084,6 +1084,82 @@ test('UC-82 sends a requeued visit with no candidates to Staff', async () => {
   expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id, state: 'PENDING' })).toBe(0);
 });
 
+function withdrawalAppWithoutAgent() {
+  const runtime = employeeSchedulingRuntimeModule({ connection, config: { auth: { enabled: true } }, clock, sessionService,
+    env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', EMPLOYEE_DISPATCH_AGENT_ENABLED: 'false' } });
+  const server = express(); server.use(express.json(), requestId); server.use(runtime.mount, runtime.router); server.use(errorHandler(() => {}));
+  const post = (row, path, user, body, key) => request(server).post(`${withdrawalPath(row)}/${path}`)
+    .set({ 'x-test-actor': user.userId, 'X-CSRF-Token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' }).send(body);
+  return { post };
+}
+async function expectInNeedsAction(row, code) {
+  const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored).toMatchObject({ state: 'SCHEDULED', sitterId: null, handoverRequired: true, dispatchReview: { code } });
+  expect(reasonsOfVisit(stored, clock()).map(reason => reason.code)).toContain('NO_SITTER_TO_OFFER');
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'DispatchReviewRequired',
+    recipientId: staff.userId, 'metadata.visitId': String(row._id) })).toBe(1);
+}
+// The file shares one database and automatic dispatch refuses an area with more than 100 registered employees.
+const retire = (...workers) => module.repository.models.EmployeeAvailability.deleteMany({ _id: { $in: workers.map(value => value.userId) } });
+
+test('GBR-21 an early withdrawal without the dispatch agent goes straight to Staff Needs action', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-11-23T05:00:00Z');
+  const { post } = withdrawalAppWithoutAgent();
+  await post(row, 'withdrawals', sitter, { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'ILLNESS' }, 'withdraw-agent-off').expect(200);
+  await expectInNeedsAction(row, 'STAFF_REVIEW_REQUIRED');
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(0);
+  await retire(sitter);
+});
+
+test('GBR-21 a withdrawal released by Staff without the dispatch agent goes to Needs action', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-10-30T11:00:00Z');
+  const { post } = withdrawalAppWithoutAgent();
+  await post(row, 'withdrawals', sitter, { expectedVersion: 0, expectedMode: 'LATE', reasonCode: 'ILLNESS' }, 'withdraw-late-agent-off').expect(200);
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview.code).toBe('NO_ELIGIBLE_SITTER');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await post(row, 'withdrawal-decisions', staff, { expectedVersion: 1, decision: 'RELEASE', reason: 'Synthetic release' }, 'release-agent-off').expect(200);
+  await expectInNeedsAction(row, 'STAFF_REVIEW_REQUIRED');
+  await retire(sitter);
+});
+
+test('GBR-21 offers an early withdrawal again to the five best other pet sitters with a handover', async () => {
+  const sitters = [];
+  for (let index = 0; index < 6; index++) sitters.push(await employee());
+  const dedicatedService = oid(), row = await assignedForWithdrawal(sitters[0], '2026-11-24T04:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { serviceId: dedicatedService }, $unset: { dispatchReview: 1 } });
+  await connection.collection('aisitterprofiles').updateMany(
+    { userId: { $in: sitters.map(value => new mongoose.Types.ObjectId(value.userId)) } }, { $set: { serviceIds: [dedicatedService] } });
+  await sendWithdrawal(row, sitters[0], { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'ILLNESS' }, 'withdraw-reoffer').expect(200);
+  const offers = await module.repository.models.EmployeeVisitOffer.find({ visitId: row._id, state: 'PENDING' }).lean();
+  expect(offers.map(offer => offer.sitterId).sort()).toEqual(sitters.slice(1).map(value => value.userId).sort());
+  const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored).toMatchObject({ state: 'SCHEDULED', handoverRequired: true, handoverNote: { reasonCode: 'ILLNESS' } });
+  expect(stored.dispatchReview).toBeUndefined();
+  await retire(...sitters);
+});
+
+test('GBR-21 a released visit whose offer is refused for another reason reaches Needs action once, with that reason', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-11-23T06:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { paymentMode: 'PREPAY', paymentState: 'PAID' } });
+  await sendWithdrawal(row, sitter, { expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'OTHER' }, 'withdraw-refused').expect(200);
+  await expectInNeedsAction(row, 'PAYMENT_REQUIRED');
+  // The worker keeps retrying; Staff are not told twice.
+  await module.dispatch.requeueWithdrawal(String(row._id), 1);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { 'dispatchReview.retryAt': new Date(clock() - 1) } });
+  await module.dispatch.requeueWithdrawal(String(row._id), 1);
+  await expectInNeedsAction(row, 'PAYMENT_REQUIRED');
+  await retire(sitter);
+});
+
+test('a first dispatch that is not a release keeps ignoring an unrelated refusal', async () => {
+  const row = await visit({ start: '2026-11-23T07:00:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { paymentMode: 'PREPAY', paymentState: 'PAID' } });
+  await module.dispatch.requeueWithdrawal(String(row._id), 0);
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview).toBeUndefined();
+});
+
 async function sequentialFixture({ scores = [4, 3], preferred = false, consent = false, start = '2026-10-31T03:00:00Z', rankerFails = false } = {}) {
   const workers = [];
   const serviceId = oid();

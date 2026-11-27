@@ -29,6 +29,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   const lifecycle = { draining: false };
   let webPushWorker;
   let visitReminderWorker;
+  let lateCheckInWorker;
   let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, productPickupExpiryWorker, completionMonitor, bookingChangeWorker, bookingPaymentExpiryWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
@@ -45,6 +46,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     if (app.locals.employeeDispatch) dispatchWorker = startEmployeeDispatchWorker({ service: app.locals.employeeDispatch, logger });
     if (app.locals.visitCompletionMonitor) completionMonitor = startVisitCompletionMonitor({ service: app.locals.visitCompletionMonitor, logger });
     if (app.locals.visitReminders) visitReminderWorker = startBookingNotificationsWorker({ service: app.locals.visitReminders, intervalMs: 15 * 60000, event: 'visit_reminders', logger });
+    if (app.locals.lateCheckInAlerts) lateCheckInWorker = startBookingNotificationsWorker({ service: app.locals.lateCheckInAlerts, intervalMs: 5 * 60000, event: 'late_check_in_alerts', logger });
     if (app.locals.webPush) webPushWorker = startWebPushWorker({ service: app.locals.webPush, logger });
     if (app.locals.bookingChange) bookingChangeWorker = startBookingChangeWorker({ service: app.locals.bookingChange, logger });
     if (app.locals.bookingPaymentExpiry) bookingPaymentExpiryWorker = startBookingPaymentExpiryWorker({ service: app.locals.bookingPaymentExpiry, logger });
@@ -57,7 +59,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       logger
     });
   } catch {
-    await Promise.allSettled([visitReminderWorker?.stop(), bookingPaymentExpiryWorker?.stop(), webPushWorker?.stop(),
+    await Promise.allSettled([visitReminderWorker?.stop(), lateCheckInWorker?.stop(), bookingPaymentExpiryWorker?.stop(), webPushWorker?.stop(),
       productPickupExpiryWorker?.stop(), completionMonitor?.stop(), customerTierWorker?.stop(),
       applicationMailWorker?.stop(), bookingChangeWorker?.stop(), dispatchWorker?.stop(), accrualWorker?.stop()]);
     if (server?.listening) await new Promise(resolve => server.close(resolve));
@@ -75,6 +77,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       finally {
         clearTimeout(timer);
         await visitReminderWorker?.stop();
+        await lateCheckInWorker?.stop();
         await webPushWorker?.stop();
         await productPickupExpiryWorker?.stop();
         await completionMonitor?.stop();

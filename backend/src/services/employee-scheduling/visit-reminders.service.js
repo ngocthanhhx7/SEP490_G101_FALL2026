@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { createVisitReminderJob } from './visit-reminder.policy.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { digest } from '../../validators/pet-care.validator.js';
+import { vietnamTimeDate } from '../../utils/vietnam-date.js';
 
 const sameInstant = (left, right) => (left?.getTime() ?? null) === (right?.getTime() ?? null);
 const ACTIVE_BOOKING_STATES = ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'];
@@ -75,7 +76,7 @@ export function createVisitRemindersService({ connection, clock = Date.now }) {
             ...(!customerSent ? [{ id: String(booking.customerId), role: 'CUSTOMER', to: `/account/bookings/${booking._id}` }] : []),
             ...(!sitterSent ? [{ id: String(visit.sitterId), role: 'PET_SITTER', to: `/sitter/visits/${visit._id}` }] : [])
           ];
-          const time = visit.startAt.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+          const time = vietnamTimeDate(visit.startAt);
           const address = visit.snapshots?.serviceAddress;
           const addressText = typeof address === 'string' ? address : address?.addressLine ?? address?.label ?? '';
           const pets = (visit.snapshots?.pets ?? []).map(pet => pet.name).filter(Boolean).join(', ');
@@ -90,7 +91,7 @@ export function createVisitRemindersService({ connection, clock = Date.now }) {
               channel: 'IN_APP', title: 'Nhắc lịch chăm sóc thú cưng',
               message: `Buổi chăm sóc lúc ${time}. Địa chỉ: ${addressText}. Thú cưng: ${pets}.`,
               deepLink: recipient.to, metadata: { visitId: String(visit._id), leadMinutes, startAt: visit.startAt.toISOString(),
-                ...(recipient.role === 'PET_SITTER' ? { assignmentVersion, assignedAt: visit.assignedAt ?? null } : {}) }, createdAt: at, readAt: null
+                ...(recipient.role === 'PET_SITTER' ? { assignmentVersion, assignedAt: visit.assignedAt?.toISOString() ?? null } : {}) }, createdAt: at, readAt: null
             } }, { upsert: true, session });
           }
           return { status: 'ACCEPTED' };

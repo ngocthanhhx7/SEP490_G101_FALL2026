@@ -133,10 +133,26 @@ test('Guest intake prevents cross-origin upload, missing capability, foreign doc
   expect(await col('users').countDocuments()).toBe(0);
 });
 
+test('an intake can recover its original receipt without exposing later status or authorizing a different intake', async () => {
+  const a = await intake(), b = await intake();
+  const created = await a.submit().expect(201);
+  await col('sitterapplications').updateOne({ _id: (await col('sitterapplications').findOne({}))._id },
+    { $set: { state: 'UNDER_REVIEW' } });
+  const replay = await a.submit().expect(200);
+  expect(replay.body.data).toEqual({ ...created.body.data, replayed: true });
+  await b.submit(a.body).expect(403).expect(response => {
+    expect(Object.keys(response.body.error).sort()).toEqual(['code', 'message']);
+    expect(response.body).not.toHaveProperty('data');
+  });
+});
+
 test('GBR-25: a pending email or phone cannot open another application, including concurrent submissions', async () => {
   const a = await intake(), b = await intake();
   const results = await Promise.all([a.submit(), b.submit({ ...b.body, email: 'other@example.test', identityNumber: '012345678902' }, 'synthetic-other-application')]);
   expect(results.map(res => res.status).sort()).toEqual([201, 409]);
+  expect(results.find(res => res.status === 409).body.error).toEqual({
+    code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time'
+  });
   expect(await col('sitterapplications').countDocuments()).toBe(1);
   expect(await col('users').countDocuments()).toBe(0);
 });
