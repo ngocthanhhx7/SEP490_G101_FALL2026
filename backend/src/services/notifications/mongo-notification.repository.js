@@ -16,6 +16,8 @@ export function createMongoNotificationRepository({ connection, cursorSecret, cl
       const booking = /^\/account\/bookings\/([a-f0-9]{24})(?:\/visits\/([a-f0-9]{24}))?$/.exec(row.deepLink);
       const offer = /^\/sitter\/invitations\?offerId=([a-f0-9]{24})$/.exec(row.deepLink);
       const assigned = /^\/sitter\/visits\/([a-f0-9]{24})(\/handover)?$/.exec(row.deepLink);
+      const productOrder = /^\/customer\/product-orders\?order=([a-f0-9]{24})$/.exec(row.deepLink);
+      const groomingAppointment = /^\/grooming-booking\?appointment=([a-f0-9]{24})$/.exec(row.deepLink);
       const db = connection.db;
       const projection = { projection: { _id: 1 }, maxTimeMS: 2000 };
       const owner = new Types.ObjectId(recipientId);
@@ -36,6 +38,14 @@ export function createMongoNotificationRepository({ connection, cursorSecret, cl
         const visit = await db.collection('visits').findOne({ _id: new Types.ObjectId(assigned[1]), sitterId: owner,
           state: { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED'] } }, projection);
         return { to: visit ? '/sitter/visits/' + assigned[1] + (assigned[2] ?? '') : null };
+      }
+      if (productOrder && roles.includes('CUSTOMER')) {
+        const order = await db.collection('productorders').findOne({ _id: new Types.ObjectId(productOrder[1]), customerId: owner }, projection);
+        return { to: order ? '/customer/product-orders?order=' + productOrder[1] : null };
+      }
+      if (groomingAppointment && roles.includes('CUSTOMER')) {
+        const appointment = await db.collection('groomingappointments').findOne({ _id: new Types.ObjectId(groomingAppointment[1]), customerId: owner }, projection);
+        return { to: appointment ? '/grooming-booking?appointment=' + groomingAppointment[1] : null };
       }
       return { to: null };
     },

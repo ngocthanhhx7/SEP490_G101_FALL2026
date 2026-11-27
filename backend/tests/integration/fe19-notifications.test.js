@@ -13,6 +13,7 @@ let connection;
 let app;
 let owner;
 let other;
+let sitter;
 let admin;
 let Notification;
 let config;
@@ -73,6 +74,7 @@ beforeAll(async () => {
   Notification = connection.models.Notification;
   owner = await createSession('CUSTOMER');
   other = await createSession('CUSTOMER');
+  sitter = await createSession('PET_SITTER');
   admin = await createSession('ADMIN');
 }, 180000);
 
@@ -179,10 +181,61 @@ describe('FE-19 UC-88 - View Notifications', () => {
     expect(second.body.data.items.map(item => item.id)).toEqual(['reload-after', 'reload-before']);
   });
 
-  test.todo('IT-FE19-UC88-08 resolves Visit and sitter invitation notifications to their target screen');
-  test.todo('IT-FE19-UC88-09 resolves payment notifications to payment details');
-  test.todo('IT-FE19-UC88-10 resolves online product order notifications to order details');
-  test.todo('IT-FE19-UC88-11 resolves grooming appointment notifications to appointment details');
+  test('IT-FE19-UC88-08 resolves Visit and sitter invitation notifications to their target screen', async () => {
+    const bookingId = new mongoose.Types.ObjectId();
+    const visitId = new mongoose.Types.ObjectId();
+    const offerId = new mongoose.Types.ObjectId();
+    const visitNotificationId = 'b'.repeat(64);
+    const offerNotificationId = 'c'.repeat(64);
+    await connection.db.collection('bookings').insertOne({ _id: bookingId, customerId: new mongoose.Types.ObjectId(owner.user.id) });
+    await connection.db.collection('visits').insertOne({ _id: visitId, bookingId, state: 'ASSIGNED', sitterId: new mongoose.Types.ObjectId(sitter.user.id) });
+    await connection.db.collection('employeevisitoffers').insertOne({ _id: offerId, sitterId: sitter.user.id, visitId, state: 'PENDING' });
+    await Notification.create([
+      row(visitNotificationId, owner.user.id, { deepLink: `/account/bookings/${bookingId}/visits/${visitId}` }),
+      row(offerNotificationId, sitter.user.id, { role: 'PET_SITTER', deepLink: `/sitter/invitations?offerId=${offerId}` })
+    ]);
+
+    const visitResponse = await request(app).get(`/api/v1/notifications/${visitNotificationId}/intent`).set(headers(owner)).expect(200);
+    const offerResponse = await request(app).get(`/api/v1/notifications/${offerNotificationId}/intent`).set(headers(sitter)).expect(200);
+    expect(visitResponse.body.data).toEqual({ to: `/account/bookings/${bookingId}/visits/${visitId}` });
+    expect(offerResponse.body.data).toEqual({ to: `/sitter/invitations?offerId=${offerId}` });
+  });
+
+  test('IT-FE19-UC88-09 resolves payment notifications to the owned booking payment screen', async () => {
+    const bookingId = new mongoose.Types.ObjectId();
+    const notificationId = 'd'.repeat(64);
+    await connection.db.collection('bookings').insertOne({ _id: bookingId, customerId: new mongoose.Types.ObjectId(owner.user.id) });
+    await Notification.create(row(notificationId, owner.user.id, {
+      eventType: 'PaymentVerified', deepLink: `/account/bookings/${bookingId}`
+    }));
+
+    const response = await request(app).get(`/api/v1/notifications/${notificationId}/intent`).set(headers(owner)).expect(200);
+    expect(response.body.data).toEqual({ to: `/account/bookings/${bookingId}` });
+  });
+
+  test('IT-FE19-UC88-10 resolves online product order notifications to the owned order', async () => {
+    const orderId = new mongoose.Types.ObjectId();
+    const notificationId = 'e'.repeat(64);
+    await connection.db.collection('productorders').insertOne({ _id: orderId, customerId: new mongoose.Types.ObjectId(owner.user.id) });
+    await Notification.create(row(notificationId, owner.user.id, {
+      eventType: 'ProductOrderUpdated', deepLink: `/customer/product-orders?order=${orderId}`
+    }));
+
+    const response = await request(app).get(`/api/v1/notifications/${notificationId}/intent`).set(headers(owner)).expect(200);
+    expect(response.body.data).toEqual({ to: `/customer/product-orders?order=${orderId}` });
+  });
+
+  test('IT-FE19-UC88-11 resolves grooming appointment notifications to the owned appointment', async () => {
+    const appointmentId = new mongoose.Types.ObjectId();
+    const notificationId = 'f'.repeat(64);
+    await connection.db.collection('groomingappointments').insertOne({ _id: appointmentId, customerId: new mongoose.Types.ObjectId(owner.user.id) });
+    await Notification.create(row(notificationId, owner.user.id, {
+      eventType: 'GroomingAppointmentUpdated', deepLink: `/grooming-booking?appointment=${appointmentId}`
+    }));
+
+    const response = await request(app).get(`/api/v1/notifications/${notificationId}/intent`).set(headers(owner)).expect(200);
+    expect(response.body.data).toEqual({ to: `/grooming-booking?appointment=${appointmentId}` });
+  });
 });
 
 describe('FE-19 JOB-01 - Visit reminders', () => {
