@@ -57,16 +57,20 @@ export function advanceInput(value) {
   if (typeof value.settlementPeriod !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value.settlementPeriod)) fail('VALIDATION_FAILED', 'Settlement month required');
   return { ...value, reason: text(value.reason), settlementConsentReference: text(value.settlementConsentReference, 160) };
 }
-export function advanceDecisionInput(value) {
+function payrollDecisionInput(value, actionsRequiringReason) {
   exact(value, ['expectedVersion', 'action', 'reason', 'transferReference'], ['expectedVersion', 'action']);
   number(value.expectedVersion, 0, 1000000, true);
   if (!['APPROVE', 'REJECT', 'WITHDRAW', 'RECORD_PAYMENT'].includes(value.action)) fail('VALIDATION_FAILED', 'Invalid advance action');
-  return { ...value, ...(value.action === 'REJECT' ? { reason: text(value.reason) } : {}),
+  return { ...value, ...(actionsRequiringReason.includes(value.action) ? { reason: text(value.reason) } : {}),
     ...(value.action === 'RECORD_PAYMENT' ? { transferReference: text(value.transferReference, 160) } : {}) };
 }
 
+export function advanceDecisionInput(value) {
+  return payrollDecisionInput(value, ['APPROVE', 'REJECT']);
+}
+
 export function statementDecisionInput(value) {
-  if (value?.action !== 'VOID_UNPAID') return advanceDecisionInput(value);
+  if (value?.action !== 'VOID_UNPAID') return payrollDecisionInput(value, ['REJECT']);
   exact(value, ['expectedVersion', 'action', 'reason', 'confirmNoPayment'], ['expectedVersion', 'action', 'reason', 'confirmNoPayment']);
   number(value.expectedVersion, 0, 1000000, true);
   if (value.confirmNoPayment !== true) fail('VALIDATION_FAILED', 'Confirm the approved statement has not been paid');

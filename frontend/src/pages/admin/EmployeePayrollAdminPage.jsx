@@ -46,7 +46,7 @@ function DecisionForm({ row, kind, state, api }) {
     const form = event.currentTarget,
       data = new window.FormData(form);
     const body = { expectedVersion: row.version, action: data.get('action') };
-    if (['REJECT', 'VOID_UNPAID'].includes(body.action)) body.reason = data.get('reason');
+    if (data.has('reason')) body.reason = data.get('reason');
     if (body.action === 'VOID_UNPAID') body.confirmNoPayment = data.get('confirmNoPayment') === 'on';
     if (body.action === 'RECORD_PAYMENT') body.transferReference = data.get('transferReference');
     await state.command(`${kind}:${row.id}`, body, (key) =>
@@ -85,7 +85,10 @@ function DecisionForm({ row, kind, state, api }) {
               <option value="REJECT">{kind === 'advance' ? 'Từ chối' : 'Hủy phiếu chờ duyệt'}</option>
             </select>
           </label>
-          {action === 'REJECT' && <PayrollField label="Lý do từ chối" name="reason" maxLength={1000} />}
+          {(action === 'REJECT' || kind === 'advance') && (
+            <PayrollField label={action === 'APPROVE' ? 'Lý do duyệt' : 'Lý do từ chối'}
+              name="reason" maxLength={1000} pattern=".*\S.*" />
+          )}
           <button disabled={state.busy} type="submit">
             Lưu quyết định
           </button>

@@ -48,7 +48,9 @@ bonus disputes and lawful wage deductions need separate reviewed rules.
   Targets exclude legitimate leave and time employer did not allocate work. No base salary penalty.
 - Voluntary advance cap 50% monthly base, one APPROVED advance per Vietnam calendar month;
   no two pending requests. Rejected/withdrawn requests do not consume the allowance.
-  No interest; Admin rejection reason mandatory; only Admin records actual payment.
+  No interest. Only Admin records actual payment.
+- 2026-11-28 update (SAL-IN-03-UTCID01). Admin must enter a nonblank reason before
+  approving or rejecting a salary advance. Both decisions store the reason on the advance.
 - Policy version `PWC-EMPLOYEE-PAYROLL-2026-10-30-v1`.
 
 ## History Pagination
