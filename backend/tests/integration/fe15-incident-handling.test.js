@@ -16,7 +16,7 @@ const ACTORS = {
 function createFixture() {
   const state = {
     visits: new Map([['visit-fe15', { id: 'visit-fe15', customerId: ACTORS.customer.userId, sitterId: ACTORS.sitter.userId, state: 'IN_PROGRESS', version: 0 }]]),
-    incidents: new Map(), operations: new Map(), events: [], nextId: 1
+    incidents: new Map(), operations: new Map(), events: [], notifications: [], nextId: 1
   };
   const tx = {
     async getVisit(id) { return state.visits.get(id) ?? null; },
@@ -36,7 +36,7 @@ function createFixture() {
     },
     async getIdempotencyResult(identity) { return state.operations.get(`${identity.actorRef}:${identity.resourceRef}:${identity.operation}:${identity.key}`) ?? null; },
     async saveIdempotencyResult({ identity, payloadHash, result }) { state.operations.set(`${identity.actorRef}:${identity.resourceRef}:${identity.operation}:${identity.key}`, { payloadHash, result }); },
-    async appendAuditAndOutbox(event) { state.events.push(event); },
+    async appendAuditAndOutbox(event) { state.events.push(event); state.notifications.push(event); },
     async listIncidents({ filter }) {
       return { items: [...state.incidents.values()].filter(item => (!filter.visitId || item.visitId === filter.visitId)
         && (!filter.state || item.state === filter.state)), nextCursor: null };
@@ -72,7 +72,13 @@ describe('FE-15 UC-47/UC-48 - Incident Handling', () => {
   test('IT-FE15-UC47-01 Customer reports a valid Incident for their Visit', async () => {
     const fixture = createFixture();
     const response = await fixture.report().expect(201);
+    const replay = await fixture.report().expect(201);
     expect(response.body.data).toMatchObject({ visitId: 'visit-fe15', state: 'OPEN', incident: { kind: 'INCIDENT', state: 'OPEN' } });
+    expect(replay.body.data).toEqual(response.body.data);
+    expect(fixture.state.incidents.size).toBe(1);
+    expect(fixture.state.operations.size).toBe(1);
+    expect(fixture.state.events.filter(event => event.type === 'IncidentReported')).toHaveLength(1);
+    expect(fixture.state.notifications).toHaveLength(1);
     expect(fixture.state.events).toContainEqual(expect.objectContaining({ type: 'IncidentReported', actorId: ACTORS.customer.userId }));
   });
 
@@ -121,7 +127,14 @@ describe('FE-15 UC-47/UC-48 - Incident Handling', () => {
     const fixture = createFixture();
     const created = await fixture.report('customer', 'fe15-action-02').expect(201);
     const response = await resolve(fixture, 'staff', created.body.data.id, 'fe15-resolve-02', { targetState: 'UNDER_REVIEW', summary: 'Staff contacted Customer' }).expect(200);
+    const replay = await resolve(fixture, 'staff', created.body.data.id, 'fe15-resolve-02', { targetState: 'UNDER_REVIEW', summary: 'Staff contacted Customer' }).expect(200);
     expect(response.body.data).toMatchObject({ state: 'UNDER_REVIEW', version: 1, resolution: { summary: 'Staff contacted Customer' } });
+    expect(replay.body.data).toEqual(response.body.data);
+    expect(fixture.state.incidents.size).toBe(1);
+    expect(fixture.state.operations.size).toBe(2);
+    expect(fixture.state.events.filter(event => event.type === 'IncidentReported')).toHaveLength(1);
+    expect(fixture.state.events.filter(event => event.type === 'IncidentResolved')).toHaveLength(1);
+    expect(fixture.state.notifications).toHaveLength(2);
   });
 
   test('IT-FE15-UC48-03 Staff records multiple handling actions in chronological order', async () => {
