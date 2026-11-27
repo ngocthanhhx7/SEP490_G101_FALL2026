@@ -1,3 +1,4 @@
+import { lateCheckInExempt } from '../care/visit-handover-policy.service.js';
 import { payrollModels } from '../../models/payroll.model.js';
 import { employeePayrollPolicy } from '../../constants/employee-payroll-policy.js';
 import { AppError } from '../../utils/app-error.js';
@@ -21,7 +22,7 @@ export async function recordEmployeeServiceCompletion({ connection, visits, sess
     if (careMinutes > 1440) throw new AppError(409, 'PAYROLL_SOURCE_RECONCILIATION_REQUIRED', 'Visit duration out of bounds');
     await PayrollServiceCredit.updateOne({ visitId: visit._id }, { $setOnInsert: {
       visitId: visit._id, bookingId: visit.bookingId, employeeId: visit.sitterId, completedAt,
-      serviceNetVnd: basis, careMinutes, onTime: visit.checkInAt <= visit.startAt, reportsComplete: verification ? verification.reportsComplete === true : true,
+      serviceNetVnd: basis, careMinutes, onTime: visit.checkInAt <= visit.startAt || lateCheckInExempt(visit), reportsComplete: verification ? verification.reportsComplete === true : true,
       sourceVersion: visit.version, policyVersion: employeePayrollPolicy.version
     } }, { upsert: true, session, runValidators: true });
   }

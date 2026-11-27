@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error.js';
 import { exact, id, number, instant, fail } from './pet-care.validator.js';
 const text = (value, max = 1000) => { if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f\x7f]/.test(value)) fail('VALIDATION_FAILED', 'Text required'); return value.trim(); };
 export function payrollPageInput(value = {}, own = false) {
@@ -36,12 +37,18 @@ export function payrollAdjustmentDecisionInput(value) {
 export function contractInput(value) {
   const required = ['employeeId', 'expectedVersion', 'employmentType', 'salaryBasis', 'monthlyBaseVnd', 'payCycle', 'weeklyMinutes', 'signedAt', 'effectiveAt', 'contractReference', 'workplaceRegion', 'workplaceReference'];
   exact(value, [...required, 'endsAt'], required); id(value.employeeId); number(value.expectedVersion, 0, 1000000, true);
-  if (!['FULL_TIME', 'PART_TIME'].includes(value.employmentType) || !['GROSS', 'NET'].includes(value.salaryBasis) || !['MONTHLY', 'WEEKLY'].includes(value.payCycle)) fail('VALIDATION_FAILED', 'Invalid contract');
+  if (!['FULL_TIME', 'PART_TIME'].includes(value.employmentType) || !['GROSS', 'NET'].includes(value.salaryBasis)) fail('VALIDATION_FAILED', 'Invalid contract');
+  if (value.payCycle !== 'MONTHLY') fail('VALIDATION_FAILED', 'Pet sitter contracts require monthly pay');
   number(value.monthlyBaseVnd, 1, Number.MAX_SAFE_INTEGER, true); number(value.weeklyMinutes, 1, 2880, true); number(value.workplaceRegion, 1, 4, true);
   const signedAt = new Date(instant(value.signedAt)), effectiveAt = new Date(instant(value.effectiveAt));
   const endsAt = value.endsAt ? new Date(instant(value.endsAt)) : undefined;
-  if (signedAt > effectiveAt || (endsAt && endsAt <= effectiveAt)) fail('VALIDATION_FAILED', 'Invalid contract dates');
-  if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.payCycle !== 'MONTHLY')) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
+  if (endsAt && endsAt <= effectiveAt) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'Contract end date must be after start date', {
+      fieldErrors: { endsAt: 'Ngày kết thúc phải sau ngày bắt đầu.' }
+    });
+  }
+  if (signedAt > effectiveAt) fail('VALIDATION_FAILED', 'Invalid contract dates');
+  if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.weeklyMinutes < 2400)) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
   if (value.employmentType === 'PART_TIME' && value.monthlyBaseVnd !== 3000000) fail('VALIDATION_FAILED', 'Part-time agreement mismatch');
   return { ...value, signedAt, effectiveAt, ...(endsAt ? { endsAt } : {}), contractReference: text(value.contractReference, 160), workplaceReference: text(value.workplaceReference, 160) };
 }
@@ -51,16 +58,20 @@ export function advanceInput(value) {
   if (typeof value.settlementPeriod !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value.settlementPeriod)) fail('VALIDATION_FAILED', 'Settlement month required');
   return { ...value, reason: text(value.reason), settlementConsentReference: text(value.settlementConsentReference, 160) };
 }
-export function advanceDecisionInput(value) {
+function payrollDecisionInput(value, actionsRequiringReason) {
   exact(value, ['expectedVersion', 'action', 'reason', 'transferReference'], ['expectedVersion', 'action']);
   number(value.expectedVersion, 0, 1000000, true);
   if (!['APPROVE', 'REJECT', 'WITHDRAW', 'RECORD_PAYMENT'].includes(value.action)) fail('VALIDATION_FAILED', 'Invalid advance action');
-  return { ...value, ...(value.action === 'REJECT' ? { reason: text(value.reason) } : {}),
+  return { ...value, ...(actionsRequiringReason.includes(value.action) ? { reason: text(value.reason) } : {}),
     ...(value.action === 'RECORD_PAYMENT' ? { transferReference: text(value.transferReference, 160) } : {}) };
 }
 
+export function advanceDecisionInput(value) {
+  return payrollDecisionInput(value, ['APPROVE', 'REJECT']);
+}
+
 export function statementDecisionInput(value) {
-  if (value?.action !== 'VOID_UNPAID') return advanceDecisionInput(value);
+  if (value?.action !== 'VOID_UNPAID') return payrollDecisionInput(value, ['REJECT']);
   exact(value, ['expectedVersion', 'action', 'reason', 'confirmNoPayment'], ['expectedVersion', 'action', 'reason', 'confirmNoPayment']);
   number(value.expectedVersion, 0, 1000000, true);
   if (value.confirmNoPayment !== true) fail('VALIDATION_FAILED', 'Confirm the approved statement has not been paid');

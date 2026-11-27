@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, expect, test } from '@jest/globals';
+import express from 'express';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
+import request from 'supertest';
+import { errorHandler, requestId } from '../../src/middlewares/http.js';
 import { publicPolicyVersionModel } from '../../src/models/public-policy-version.model.js';
+import { publicPolicyModule } from '../../src/routes/public-policy.routes.js';
 import { createPublicPolicyCatalog } from '../../src/services/public-policy-catalog.service.js';
 
 let replica, connection, Policy;
@@ -62,4 +66,26 @@ test('bounds returned history without losing latest-time ambiguity and approval 
   ]);
   // Equal newest effective times stay hidden instead of selecting one arbitrarily.
   expect(result.some((item) => item.slug === 'privacy')).toBe(false);
+});
+
+test('exact read exposes previously published content without admitting draft, future or unaudited records', async () => {
+  await Policy.create(row('terms', 121, now - 150000, { status: 'RETIRED', title: 'Archived synthetic terms' }));
+  await Policy.create(row('terms', 122, now + 1000));
+  const catalog = createPublicPolicyCatalog({ PolicyVersion: Policy, clock: () => now });
+  await expect(catalog.readVersion('terms', 'v121')).resolves.toMatchObject({ title: 'Archived synthetic terms',
+    versionId: 'v121', archived: true, currentVersionId: 'v120' });
+  await expect(catalog.readVersion('payments', 'v1')).resolves.toMatchObject({ archived: true, currentVersionId: null });
+  await expect(catalog.readVersion('booking', 'v2')).rejects.toMatchObject({ status: 404 });
+  await expect(catalog.readVersion('terms', 'v122')).rejects.toMatchObject({ status: 404 });
+  await expect(catalog.readVersion('pwa', 'v1')).rejects.toMatchObject({ status: 404 });
+
+  const app = express();
+  const { mount, router } = publicPolicyModule({ connection, clock: () => now });
+  app.use(requestId);
+  app.use(mount, router);
+  app.use(errorHandler(() => {}));
+  const { body } = await request(app).get('/api/v1/public/public-policies/terms/v121').expect(200);
+  expect(body).toMatchObject({ data: { archived: true, currentVersionId: 'v120' }, meta: { schemaVersion: 1 } });
+  const draft = await request(app).get('/api/v1/public/public-policies/booking/v2').expect(404);
+  expect(draft.body.error.code).toBe('POLICY_VERSION_NOT_FOUND');
 });

@@ -94,10 +94,40 @@ test('refuses replies that do not have the expected shape', async () => {
   await expect(bad({ services: 'x' }).options()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   await expect(bad([{ name: 'no id', species: 'DOG' }]).pets()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   await expect(bad({ slots: [{ startAt: 'x', time: '10:00', state: 'OPEN' }] }).slots({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  await expect(bad({ slots: [{ startAt: 'x', time: '10:00', state: 'PET_ALREADY_BOOKED', conflictPetName: '' }] }).slots({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  await expect(bad({ slots: [{ startAt: 'x', time: '10:00', state: 'PET_ALREADY_BOOKED', conflictPetName: 'Milo' }] }).slots({})).resolves.toMatchObject({
+    slots: [{ time: '10:00', state: 'PET_ALREADY_BOOKED', conflictPetName: 'Milo' }]
+  });
   await expect(bad({ pets: [], subtotalVnd: 1.5, totalVnd: 1, tier: { discountVnd: 0 } }).quote({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   await expect(bad({ id: 'a', code: 'XX-1' }).book({}, 'grooming:key-4')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });
 
 test('a 202 reply is an uncertain outcome, never a booking', async () => {
   await expect(apiWith(async () => reply(202, { data: null, meta })).book({}, 'grooming:key-5')).rejects.toMatchObject({ code: 'COMMAND_PENDING' });
+});
+
+test('ST-GRM-07 lists upcoming grooming appointments and cancels with CSRF and error details', async () => {
+  const cancelled = { ...appointment, status: 'CANCELLED' };
+  const fetchImpl = jest.fn(async (url, init) => {
+    if (init.method === 'GET') {
+      return reply(200, { data: { items: [appointment], total: 1, page: 1, limit: 20, serverNow: '2026-11-05T00:00:00.000Z' }, meta });
+    }
+    if (url.endsWith('/a1/cancel')) return reply(200, { data: cancelled, meta });
+    return reply(409, { error: { code: 'GROOMING_CANCEL_TOO_LATE', message: 'Quá hạn', hotline: '024-7300-8899' }, meta });
+  });
+  const api = apiWith(fetchImpl);
+  const listed = await api.listAppointments({ upcoming: true, limit: 20 });
+  expect(listed.items).toHaveLength(1);
+  expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/grooming/appointments?upcoming=true&limit=20');
+
+  const done = await api.cancelAppointment('a1');
+  expect(done.status).toBe('CANCELLED');
+  expect(fetchImpl.mock.calls[1][0]).toBe('/api/v1/grooming/appointments/a1/cancel');
+  expect(fetchImpl.mock.calls[1][1].headers.get('X-CSRF-Token')).toBe('csrf');
+
+  const late = await api.cancelAppointment('a2').catch(error => error);
+  expect(late).toMatchObject({ code: 'GROOMING_CANCEL_TOO_LATE', status: 409, details: { hotline: '024-7300-8899' } });
+
+  await expect(apiWith(async () => reply(200, { data: { items: 'bad' }, meta })).listAppointments()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  await expect(api.cancelAppointment('')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });

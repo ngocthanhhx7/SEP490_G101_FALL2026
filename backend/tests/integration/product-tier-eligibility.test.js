@@ -196,7 +196,7 @@ test('AC-10 cart and persisted online order agree and replay keeps the old snaps
   }
 });
 
-test('AC-27 counter cash records the quoted price and still sells above L without a discount', async () => {
+test('IT-FE24-UC68-03 applies the eligible customer tier discount to counter totals', async () => {
   const { Product, ProductOrder } = productSalesModels(connection);
   const product = await Product.create({
     code: 'SP-9995', name: 'Synthetic toy', category: 'ACCESSORY', petType: 'DOG',

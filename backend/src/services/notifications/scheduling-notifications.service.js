@@ -1,7 +1,25 @@
+import { HANDOVER_WINDOW_MS, lateCheckInExempt } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { digest } from '../../validators/pet-care.validator.js';
+import { vietnamTimeDate } from '../../utils/vietnam-date.js';
+
+const dayTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', hourCycle: 'h23' });
+
+const assignedTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const assignedDate = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+// Recipient-specific wording where one event reaches people with different roles.
+const roleMessages = {
+  VisitReassigned: { PET_SITTER: 'Điều phối đã giao buổi này cho người chăm sóc khác. Bạn không cần thực hiện buổi này.' }
+};
 
 const messages = {
+  VisitPetPickedUp: ['Đã đón thú cưng', 'Cửa hàng đã đón thú cưng của bạn.'],
+  VisitPetReturned: ['Đã trả thú cưng', 'Cửa hàng đã đưa thú cưng của bạn về nhà.'],
+  VisitCheckInLate: ['Buổi chăm sóc trễ check-in', 'Buổi đã quá giờ bắt đầu 15 phút nhưng người chăm sóc chưa check-in.'],
+  VisitHandoverRequired: ['Cần xác nhận bàn giao', 'Hãy đọc và xác nhận bàn giao trước khi check-in.'],
+  VisitReassigned: ['Đã đổi người chăm sóc', 'Điều phối đã sắp xếp người chăm sóc khác cho buổi này. Thời gian và địa điểm không đổi.'],
+  VisitHandoverConfirmed: ['Đã xác nhận bàn giao', 'Người chăm sóc thay thế đã xác nhận bàn giao buổi.'],
   VisitWithdrawalRequested: ['Yêu cầu rút ca cần xử lý', 'Người chăm sóc gửi yêu cầu rút ca cận giờ. Ca vẫn giữ người phụ trách đến khi được xử lý.'],
   VisitWithdrawn: ['Ca đang được sắp xếp lại', 'Người chăm sóc đã rút ca. Lịch chỉ định cần khách xác nhận người thay thế.'],
   VisitWithdrawalApproved: ['Đã xử lý yêu cầu rút ca', 'Nhân viên đã chấp nhận yêu cầu rút. Ca được đưa về điều phối; người thay thế chưa được xác nhận.'],
@@ -13,6 +31,7 @@ const messages = {
   VisitCompletionReviewRequired: ['Cần xác minh kết thúc buổi', 'Buổi đã quá giờ kết thúc 2 giờ nhưng chưa có check-out. Cần nhân viên hoặc quản trị xác minh; chưa tự xác nhận hoàn thành.'],
   OfferCreated: ['Lời mời chăm sóc mới', 'Bạn có lời mời nhận ca đang chờ phản hồi.'],
   OfferAccepted: ['Đã nhận ca chăm sóc', 'Người chăm sóc đã xác nhận nhận ca.'],
+  VisitAssignedDirectly: ['Đã giao buổi chăm sóc', 'Buổi chăm sóc đã có người phụ trách.'],
   DispatchReviewRequired: ['Ca chăm sóc cần điều phối', 'Hệ thống chưa tìm được người nhận ca. Vui lòng kiểm tra và sắp xếp người chăm sóc.'],
   ScheduleProposed: ['Xác nhận lịch chăm sóc mới', 'Nhân viên đã đề xuất lịch thay thế. Vui lòng kiểm tra và xác nhận.'],
   CustomerScheduleConfirmed: ['Đã xác nhận lịch thay thế', 'Khách hàng đã xác nhận lịch mới. Lời mời nhận ca đã được tạo.']
@@ -21,34 +40,64 @@ const messages = {
 // Runs in the same transaction as the operational event; command replay cannot
 // create a second notification or commit a notification for a rolled back offer.
 export function createSchedulingNotifications({ col, clock = Date.now }) {
+  async function lateCheckInMessage(visit, booking, session) {
+    const name = async userId => userId
+      ? (await col('users').findOne({ _id: userId }, { session, projection: { displayName: 1 } }))?.displayName : null;
+    const customer = await name(visit.customerId ?? booking?.customerId);
+    const sitter = await name(visit.sitterId);
+    return `Buổi lúc ${vietnamTimeDate(visit.startAt)} chưa check-in sau 15 phút. Khách hàng: ${customer ?? 'chưa rõ tên'}. Người chăm sóc: ${sitter ?? 'chưa rõ tên'}.`;
+  }
   return { async publish(event, session) {
     if (!messages[event.type]) return;
     const visit = await col('visits').findOne({ _id: new Types.ObjectId(event.visitId) }, { session });
     if (!visit) return;
     const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
     const recipients = [];
+    if (['VisitPetPickedUp', 'VisitPetReturned'].includes(event.type) && booking?.customerId)
+      recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
     if (['VisitEndingSoon', 'VisitCheckOutReminder', 'VisitCompletionReviewRequired', 'VisitClosureVerified', 'VisitWithdrawalRequested', 'VisitWithdrawalApproved', 'VisitWithdrawalRejected', 'VisitWithdrawn'].includes(event.type))
       recipients.push({ id: event.sitterId, role: 'PET_SITTER', to: ['VisitWithdrawalApproved', 'VisitWithdrawn'].includes(event.type) ? '/sitter/invitations' : '/sitter/visits/' + String(event.visitId) });
     if (['VisitWithdrawalApproved', 'VisitWithdrawn'].includes(event.type) && booking?.customerId)
       recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
     if (event.type === 'OfferCreated' || event.type === 'CustomerScheduleConfirmed') recipients.push({ id: event.sitterId, role: 'PET_SITTER',
       to: /^[a-f0-9]{24}$/.test(event.offerId ?? '') ? '/sitter/invitations?offerId=' + event.offerId : '/sitter/invitations' });
-    if (['OfferAccepted', 'ScheduleProposed'].includes(event.type) && booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER',
+    if (['OfferAccepted', 'ScheduleProposed', 'VisitAssignedDirectly'].includes(event.type) && booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER',
       to: event.type === 'ScheduleProposed' ? '/account/schedule-proposals/' + event.detail.proposalId : '/account/bookings/' + String(booking._id) });
-    if (['DispatchReviewRequired', 'VisitCompletionReviewRequired', 'VisitClosureVerificationRequired', 'VisitWithdrawalRequested'].includes(event.type)) {
-      const staff = await col('users').find({ state: 'ACTIVE', roles: { $in: event.type === 'VisitClosureVerificationRequired' ? ['ADMIN'] : ['STAFF', 'ADMIN'] }, synthetic: { $ne: true } },
+    if (event.type === 'VisitAssignedDirectly') recipients.push({ id: event.sitterId, role: 'PET_SITTER',
+      to: '/sitter/visits/' + String(event.visitId) });
+    if (event.type === 'VisitReassigned') {
+      if (event.detail?.previousSitterId) recipients.push({ id: String(event.detail.previousSitterId), role: 'PET_SITTER', to: '/sitter/schedule' });
+      if (booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
+    }
+    if (event.type === 'VisitHandoverRequired') recipients.push({ id: event.sitterId, role: 'PET_SITTER',
+      to: '/sitter/visits/' + String(visit._id) + '/handover' });
+    if (['DispatchReviewRequired', 'VisitCompletionReviewRequired', 'VisitClosureVerificationRequired', 'VisitWithdrawalRequested', 'VisitHandoverConfirmed', 'VisitCheckInLate'].includes(event.type)) {
+      const roles = event.type === 'VisitClosureVerificationRequired' ? ['ADMIN']
+        : event.type === 'VisitCheckInLate' ? ['STAFF'] : ['STAFF', 'ADMIN'];
+      const staff = await col('users').find({ state: 'ACTIVE', roles: { $in: roles }, synthetic: { $ne: true } },
         { session, projection: { _id: 1, roles: 1 }, maxTimeMS: 5000 }).toArray();
       for (const user of staff) recipients.push({ id: String(user._id), role: user.roles.includes('ADMIN') ? 'ADMIN' : 'STAFF',
-        to: '/staff/dispatch?' + (event.type === 'VisitWithdrawalRequested' ? 'withdrawalId'
+        to: '/staff/dispatch?' + (['VisitHandoverConfirmed', 'VisitCheckInLate'].includes(event.type) ? 'handoverVisitId'
+          : event.type === 'VisitWithdrawalRequested' ? 'withdrawalId'
           : event.type === 'DispatchReviewRequired' ? 'visitId' : 'closureId') + '=' + String(visit._id) });
     }
-    const eventId = digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId ?? event.detail?.noticeKey ?? event.detail?.version]);
-    const [title, message] = messages[event.type];
+    const eventId = event.type === 'VisitCheckInLate'
+      ? digest([event.type, event.visitId])
+      : digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId ?? event.detail?.noticeKey ?? event.detail?.version]);
+    const [title, defaultMessage] = messages[event.type];
+    const message = event.type === 'VisitAssignedDirectly'
+      ? `Bạn được giao buổi ${visit.snapshots?.serviceName ?? 'chăm sóc'} lúc ${assignedTime.format(new Date(visit.startAt))} ngày ${assignedDate.format(new Date(visit.startAt))}.`
+      : event.type === 'VisitHandoverRequired' ? (lateCheckInExempt(visit)
+      ? 'Buổi được giao khi còn chưa đầy 1 giờ. Hãy xác nhận ngay, trước khi check-in.'
+      : `Hãy xác nhận bàn giao trước ${dayTime.format(new Date(+visit.startAt - HANDOVER_WINDOW_MS))}.`)
+      : event.type === 'VisitCheckInLate' ? await lateCheckInMessage(visit, booking, session)
+        : defaultMessage;
     for (const recipient of recipients) {
       await col('notifications').updateOne({ _id: digest([eventId, recipient.id, recipient.role]) }, { $setOnInsert: {
         eventId, recipientId: recipient.id, role: recipient.role, eventType: event.type, title,
-        message: recipient.role === 'PET_SITTER' && ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'].includes(event.type)
-          ? `${message} Lý do: ${event.detail.reason}` : message,
+        message: roleMessages[event.type]?.[recipient.role] ?? (event.type === 'VisitAssignedDirectly' && recipient.role === 'CUSTOMER'
+          ? defaultMessage : recipient.role === 'PET_SITTER' && ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'].includes(event.type)
+          ? `${message} Lý do: ${event.detail.reason}` : message),
         channel: 'IN_APP', deepLink: recipient.to, metadata: { visitId: String(event.visitId), ...(event.offerId ? { offerId: String(event.offerId) } : {}) }, createdAt: new Date(clock()), readAt: null
       } }, { upsert: true, session });
     }

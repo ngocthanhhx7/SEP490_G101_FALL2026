@@ -72,6 +72,25 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
         throw new ApiError('INVALID_RESPONSE');
       return result;
     },
+    async handover(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/handover`, signal);
+      if (result.pending) return result;
+      const row = result.data;
+      if (row?.visitId !== id || !['PENDING', 'CONFIRMED', 'NOT_REQUIRED'].includes(row.state) ||
+        (row.state === 'PENDING' && (!Number.isSafeInteger(row.version) || !/^[a-f0-9]{64}$/.test(row.care?.version ?? '') ||
+          !row.note || !Array.isArray(row.pets) || !Array.isArray(row.reports) || !Array.isArray(row.care?.pets) ||
+          !Array.isArray(row.care?.tasks) || !['startAt', 'endAt', 'accessOpensAt', 'checkInOpensAt'].every(field => Number.isFinite(Date.parse(row[field]))))))
+        throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async confirmHandover(id, body, key) {
+      const result = await mutate(`/visits/${encodeURIComponent(id)}/handover-confirmations`, body, key);
+      if (result.pending || result.status === 202) return result;
+      const row = result.data;
+      if (row?.visitId !== id || row.state !== 'CONFIRMED' || row.version !== body.expectedVersion + 1 ||
+        !Number.isFinite(Date.parse(row.acceptedAt)) || !Number.isFinite(Date.parse(row.checkInOpensAt))) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     care: (id, { signal } = {}) => get(`/visits/${encodeURIComponent(id)}/care`, signal),
     acknowledgeCare: (id, version, key) => mutate(`/visits/${encodeURIComponent(id)}/care/acknowledgements`, { version }, key),
     accessNotes: id => get(`/visits/${encodeURIComponent(id)}/access-notes`),
@@ -96,10 +115,25 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
       if (result.data?.id !== id || !Number.isSafeInteger(result.data.version)) throw new ApiError('INVALID_RESPONSE');
       return result;
     },
+    async reassignment(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/reassignment`, signal);
+      const row = result.data;
+      if (row?.visit?.id !== id || !Number.isSafeInteger(row.visit.version) || !Number.isFinite(Date.parse(row.visit.startAt)) || !row.currentSitter?.id
+        || !Array.isArray(row.items) || !Array.isArray(row.blocked)) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async reassign(id, body, key) {
+      const result = await mutate(`/visits/${encodeURIComponent(id)}/reassignments`, body, key);
+      if (result.pending || result.status === 202) return result;
+      if (result.data?.visitId !== id || result.data.sitterId !== body.sitterId || result.data.version !== body.expectedVersion + 1
+        || !Number.isFinite(Date.parse(result.data.startAt))) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     candidates: (id, query, { signal } = {}) => get(`/visits/${encodeURIComponent(id)}/candidates?${new globalThis.URLSearchParams(query)}`, signal),
     plans: ({ signal } = {}) => get('/care-plans', signal),
-    respond: (id, decision, expectedVersion, key) => mutate(`/offers/${encodeURIComponent(id)}/${decision}`, { expectedVersion }, key),
-    invite: (id, expectedVersion, key, sitterId) => mutate(`/visits/${encodeURIComponent(id)}/invitations`, { expectedVersion, ...(sitterId ? { sitterId } : {}) }, key),
+    respond: (id, decision, expectedVersion, key, extra) =>
+      mutate(`/offers/${encodeURIComponent(id)}/${decision}`, { expectedVersion, ...(extra ?? {}) }, key),
+    invite: (id, expectedVersion, key, sitterId, expectedAction) => mutate(`/visits/${encodeURIComponent(id)}/invitations`, { expectedVersion, ...(sitterId ? { sitterId } : {}), ...(expectedAction ? { expectedAction } : {}) }, key),
     preview: (id, body) => mutate(`/care-plans/${encodeURIComponent(id)}/preview`, body),
     finalize: (id, body, key) => mutate(`/care-plans/${encodeURIComponent(id)}/finalization`, body, key),
     propose: (id, body, key) => mutate(`/visits/${encodeURIComponent(id)}/schedule-proposals`, body, key),

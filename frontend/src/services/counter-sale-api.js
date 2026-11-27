@@ -1,6 +1,9 @@
 import { ApiError, createApiClient } from './api-client.js';
 import { COUNTER_STATUS_LABELS } from '../constants/counter-sale.js';
 
+const PAYMENT_METHODS = ['COUNTER_CASH', 'COUNTER_VIETQR'];
+const LINK_STATES = ['CREATING', 'READY', 'FAILED', 'PAID'];
+const PAYOS_CHECKOUT = /^https:\/\/pay\.payos\.vn\/web\//u;
 const text = value => typeof value === 'string' && value.length > 0;
 const count = value => Number.isSafeInteger(value) && value >= 0;
 const invalid = () => { throw new ApiError('INVALID_RESPONSE', 200); };
@@ -19,10 +22,20 @@ function checkOrder(data) {
   checkTotals(data);
   if (!text(data.id) || !/^DH-\d{4,}$/u.test(data.code ?? '') || data.channel !== 'COUNTER'
     || !Object.hasOwn(COUNTER_STATUS_LABELS, data.status) || typeof data.paid !== 'boolean'
-    || data.receiveMethod !== 'COUNTER' || data.paymentMethod !== 'COUNTER_CASH'
+    || data.receiveMethod !== 'COUNTER' || !PAYMENT_METHODS.includes(data.paymentMethod)
     || (data.customer !== null && (!text(data.customer?.id) || !text(data.customer?.displayName)))) invalid();
-  if (data.paid && (!count(data.cashPayment?.amount) || data.cashPayment.amount !== data.total
-    || !Number.isFinite(Date.parse(data.cashPayment.receivedAt)) || !text(data.cashPayment.receivedBy))) invalid();
+  if (data.paid) {
+    if (data.paymentMethod === 'COUNTER_VIETQR') {
+      if (!count(data.vietqrPayment?.amount) || data.vietqrPayment.amount !== data.total
+        || !Number.isFinite(Date.parse(data.vietqrPayment.paidAt))) invalid();
+    } else if (!count(data.cashPayment?.amount) || data.cashPayment.amount !== data.total
+      || !Number.isFinite(Date.parse(data.cashPayment.receivedAt)) || !text(data.cashPayment.receivedBy)) invalid();
+  }
+  if (data.paymentLink !== undefined && data.paymentLink !== null) {
+    if (!LINK_STATES.includes(data.paymentLink.state)) invalid();
+    if (data.paymentLink.checkoutUrl !== undefined && data.paymentLink.checkoutUrl !== null
+      && !PAYOS_CHECKOUT.test(data.paymentLink.checkoutUrl)) invalid();
+  }
   return data;
 }
 function checkPage(response, check) {
@@ -50,6 +63,12 @@ export function createCounterSaleApi(options) {
     },
     create: (body, idempotencyKey) => one(root, { method: 'POST', body, idempotencyKey }),
     read: (id, { signal } = {}) => one(`${root}/${encodeURIComponent(id)}`, { signal }),
+    async createPaymentLink(id) {
+      const result = await request(`${root}/${encodeURIComponent(id)}/payment-link`, { method: 'POST', body: {} });
+      if (result.pending) throw new ApiError('COMMAND_PENDING', 202);
+      if (!PAYOS_CHECKOUT.test(result.data?.checkoutUrl ?? '')) invalid();
+      return result.data;
+    },
     recordCash: id => one(`${root}/${encodeURIComponent(id)}/record-cash`, { method: 'POST', body: {} }),
     complete: id => one(`${root}/${encodeURIComponent(id)}/complete`, { method: 'POST', body: {} }),
     cancel: id => one(`${root}/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: {} })

@@ -4,7 +4,7 @@ export function decisionSnapshotModels(connection) {
     DecisionSnapshot: {
       fields: {
         ownerId: { type: oid, required: true, index: true },
-        kind: { type: String, enum: ['QUOTE', 'MATCH'], required: true },
+        kind: { type: String, enum: ['QUOTE', 'MATCH', 'COUNTER_BOOKING'], required: true },
         requestHash: { type: String, required: true },
         expiresAt: { type: Date, required: true },
         snapshot: { type: Schema.Types.Mixed, required: true, select: false }

@@ -55,8 +55,14 @@ function makeReceipt({ data, eventId, orderCode, receivedAt }) {
   };
 }
 
+// A prepaid product order is paid through the same webhook as a booking. Its intent says `kind: 'PRODUCT_ORDER'` and
+// reports `orderState` instead of `bookingState`; a booking intent has no kind and is handled exactly as before.
+const isOrderIntent = intent => intent?.kind === 'PRODUCT_ORDER';
+const kindOf = intent => (isOrderIntent(intent) || intent?.kind === 'COUNTER_BOOKING' ? { kind: intent.kind } : {});
+
 function reconcile(reason, intent) {
   return {
+    ...kindOf(intent),
     type: 'RECONCILE',
     reason,
     intentId: intent?.id === undefined || intent?.id === null ? null : String(intent.id),
@@ -75,7 +81,11 @@ function classifyReceipt({ data, orderCode, receipt, intent, receivedAt }) {
   if (intent.state !== 'PENDING') {
     return reconcile(intent.state === 'EXPIRED' ? 'INTENT_EXPIRED' : 'INTENT_NOT_PENDING', intent);
   }
-  if (intent.bookingState !== 'AWAITING_PAYMENT') {
+  if (isOrderIntent(intent)) {
+    // An order is payable until it is cancelled: a result that reaches us after the payment deadline but before the
+    // expiry job cancelled the order still counts (R3 JOB-04 asks payOS before cancelling). A cancelled order is never reopened.
+    if (intent.orderState !== 'AWAITING_PAYMENT') return reconcile('ORDER_NOT_PAYABLE', intent);
+  } else if (intent.bookingState !== 'AWAITING_PAYMENT') {
     return reconcile(intent.bookingState === 'CANCELLED' || intent.bookingState === 'CLOSED'
       ? 'BOOKING_NOT_PAYABLE' : 'BOOKING_NOT_AWAITING_PAYMENT', intent);
   }
@@ -86,8 +96,10 @@ function classifyReceipt({ data, orderCode, receipt, intent, receivedAt }) {
   if (intent.currency !== EXPECTED_CURRENCY) return reconcile('INTENT_CURRENCY_UNAVAILABLE', intent);
 
   const expiresAt = asDate(intent.expiresAt);
-  if (!expiresAt) return reconcile('INTENT_EXPIRY_UNAVAILABLE', intent);
-  if (receivedAt.getTime() >= expiresAt.getTime()) return reconcile('INTENT_EXPIRED', intent);
+  if (!isOrderIntent(intent)) {
+    if (!expiresAt) return reconcile('INTENT_EXPIRY_UNAVAILABLE', intent);
+    if (receivedAt.getTime() >= expiresAt.getTime()) return reconcile('INTENT_EXPIRED', intent);
+  }
   if (intent.id === undefined || intent.id === null || String(intent.id).length === 0) {
     return reconcile('INTENT_ID_UNAVAILABLE', intent);
   }
@@ -96,12 +108,13 @@ function classifyReceipt({ data, orderCode, receipt, intent, receivedAt }) {
   }
 
   return {
+    ...kindOf(intent),
     type: 'MARK_PAID',
     intentId: String(intent.id),
     expectedIntentVersion: intent.version,
     expectedIntentState: 'PENDING',
     expectedBookingState: 'AWAITING_PAYMENT',
-    expectedExpiresAt: expiresAt.toISOString()
+    expectedExpiresAt: expiresAt ? expiresAt.toISOString() : null
   };
 }
 
@@ -162,32 +175,37 @@ export function createPayosPaymentWebhookService({ provider, repository, clock =
     throw new TypeError('A verified payOS provider, payment repository, and clock are required');
   }
 
+  async function processVerifiedData(data) {
+    if (!isRecord(data)) throw new TypeError('payOS verifier must return signed webhook data');
+    const receivedAt = asDate(clock());
+    if (!receivedAt) throw new TypeError('Webhook clock must return a valid date');
+
+    const orderCode = canonicalOrderCode(data.orderCode);
+    const eventId = createEventId(data);
+    const receipt = makeReceipt({ data, eventId, orderCode, receivedAt });
+    const intent = orderCode
+      ? await repository.findPaymentIntentByProviderReference(orderCode)
+      : null;
+    const decision = classifyReceipt({ data, orderCode, receipt, intent, receivedAt });
+    const outboxEvent = makeOutboxEvent({ receipt, decision });
+    const reconciliationEvent = decision.type === 'MARK_PAID'
+      ? makeOutboxEvent({ receipt, decision: { ...decision, type: 'RECONCILE', reason: 'INTENT_CHANGED_DURING_WEBHOOK' } })
+      : null;
+    const result = await repository.recordWebhookOutcome({
+      eventId, receipt, decision, outboxEvent,
+      ...(reconciliationEvent ? { reconciliationEvent } : {})
+    });
+
+    return formatRepositoryResult(result, decision);
+  }
+
   return Object.freeze({
     async handleWebhook(body) {
       // Invalid signatures propagate from the provider verifier before the repository is touched.
-      const data = await provider.verifyWebhook(body);
-      if (!isRecord(data)) throw new TypeError('payOS verifier must return signed webhook data');
-
-      const receivedAt = asDate(clock());
-      if (!receivedAt) throw new TypeError('Webhook clock must return a valid date');
-
-      const orderCode = canonicalOrderCode(data.orderCode);
-      const eventId = createEventId(data);
-      const receipt = makeReceipt({ data, eventId, orderCode, receivedAt });
-      const intent = orderCode
-        ? await repository.findPaymentIntentByProviderReference(orderCode)
-        : null;
-      const decision = classifyReceipt({ data, orderCode, receipt, intent, receivedAt });
-      const outboxEvent = makeOutboxEvent({ receipt, decision });
-      const reconciliationEvent = decision.type === 'MARK_PAID'
-        ? makeOutboxEvent({ receipt, decision: { ...decision, type: 'RECONCILE', reason: 'INTENT_CHANGED_DURING_WEBHOOK' } })
-        : null;
-      const result = await repository.recordWebhookOutcome({
-        eventId, receipt, decision, outboxEvent,
-        ...(reconciliationEvent ? { reconciliationEvent } : {})
-      });
-
-      return formatRepositoryResult(result, decision);
-    }
+      return processVerifiedData(await provider.verifyWebhook(body));
+    },
+    // The same processing for payment data that was verified some other way: the signed payOS status lookup the
+    // product-order expiry job makes before it cancels an unpaid order (R3 JOB-04).
+    handleVerifiedPayment: processVerifiedData
   });
 }

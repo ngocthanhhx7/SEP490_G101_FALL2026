@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
 import { AppError } from '../../utils/app-error.js';
+import { RATING_WINDOW_MS } from './booking-rating-window.js';
 
 export const REVIEW_STATES = Object.freeze([
   'SUBMITTED',
@@ -282,6 +283,22 @@ export function createReviewService({
           'VISIT_NOT_ELIGIBLE',
           'Only an assigned completed visit can be rated'
         );
+      // The window runs from the end of the booking when the repository knows it.
+      // null means the booking has not ended; the repository rejects that case.
+      const completedAnchor =
+        visit.bookingEndedAt === undefined
+          ? Date.parse(visit.completedAt ?? visit.checkOutAt ?? visit.endAt)
+          : new Date(visit.bookingEndedAt ?? Number.NaN).getTime();
+      if (
+        Number.isFinite(completedAnchor) &&
+        nowValue(clock) - completedAnchor > RATING_WINDOW_MS
+      ) {
+        fail(
+          409,
+          'REVIEW_WINDOW_EXPIRED',
+          'The 7-day rating window has expired'
+        );
+      }
       if (expected !== null && visit.version !== expected)
         fail(409, 'VERSION_CONFLICT', 'Visit changed; reload before rating');
       const existing = await callFirst(
@@ -289,12 +306,14 @@ export function createReviewService({
         ['findReview', 'getReview', 'findRating'],
         {
           visitId,
+          bookingId: idOf(visit.bookingId),
+          sitterId: sitterIdOf(visit),
           direction: 'CUSTOMER_TO_SITTER',
           customerId: actor.userId
         }
       );
       if (existing)
-        fail(409, 'REVIEW_ALREADY_EXISTS', 'This visit has already been rated');
+        fail(409, 'REVIEW_ALREADY_EXISTS', 'This pet sitter has already been rated for this booking');
       const now = new Date(nowValue(clock)).toISOString();
       const saved = await callFirst(
         tx,
@@ -303,6 +322,7 @@ export function createReviewService({
           id: randomUUID(),
           kind: 'REVIEW',
           direction: 'CUSTOMER_TO_SITTER',
+          bookingId: idOf(visit.bookingId),
           visitId,
           customerId: actor.userId,
           sitterId: sitterIdOf(visit),

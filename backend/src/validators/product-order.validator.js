@@ -12,13 +12,13 @@ export function parseIdempotencyKey(value) {
   return value;
 }
 
-// Delivery needs an address (MSG101) and is paid on delivery; pickup has no address and is paid in the shop.
+// Delivery needs an address (MSG101); pickup has none. Each receive method offers payOS in advance or one cash way (GBR-36).
 export function parsePlaceOrder(body) {
   requireOnlyKeys(body, ['receiveMethod', 'paymentMethod', 'addressId'], ['receiveMethod', 'paymentMethod']);
   if (!PRODUCT_RECEIVE_METHODS.includes(body.receiveMethod)) {
     throw new AppError(422, 'VALIDATION_FAILED', 'receiveMethod is invalid');
   }
-  if (body.paymentMethod !== PRODUCT_PAYMENT_BY_RECEIVE_METHOD[body.receiveMethod]) {
+  if (!PRODUCT_PAYMENT_BY_RECEIVE_METHOD[body.receiveMethod].includes(body.paymentMethod)) {
     throw new AppError(422, 'VALIDATION_FAILED', 'paymentMethod does not match receiveMethod');
   }
   if (body.receiveMethod === 'PICKUP') {
@@ -38,6 +38,19 @@ export function parsePlaceOrder(body) {
 export function parseOrderListQuery(query = {}) {
   if (Object.keys(query).some(key => !PAGE_QUERY_KEYS.includes(key))) throw new AppError(422, 'VALIDATION_FAILED', 'Query is invalid');
   return parsePageQuery(query);
+}
+
+export function parseCancelOrder(body) {
+  if (body === undefined || body === null) return {};
+  if (typeof body !== 'object' || Array.isArray(body)) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'Body is invalid');
+  }
+  requireOnlyKeys(body, ['expectedVersion']);
+  if (body.expectedVersion === undefined) return {};
+  if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'expectedVersion is invalid');
+  }
+  return { expectedVersion: body.expectedVersion };
 }
 
 export { parseObjectId };

@@ -1,12 +1,12 @@
-import { fail } from './pet-care.validator.js';
+import { fail, id } from './pet-care.validator.js';
 
 // Reasons of the Staff Needs action list (R3 10.1.1). Only reasons with a data source are listed.
-export const NEEDS_ACTION_REASONS = Object.freeze(['NO_SITTER_TO_OFFER', 'NO_SITTER_24H', 'NOT_CHECKED_IN_30M', 'WITHDRAWAL_UNDER_12H', 'NOT_CHECKED_OUT_2H', 'COMPLETION_VERIFICATION_PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED', 'WORKFLOW_BLOCKED']);
+export const NEEDS_ACTION_REASONS = Object.freeze(['NO_SITTER_TO_OFFER', 'NO_SITTER_24H', 'NOT_CHECKED_IN_30M', 'WITHDRAWAL_UNDER_12H', 'NOT_CHECKED_OUT_2H', 'COMPLETION_VERIFICATION_PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED', 'WORKFLOW_BLOCKED', 'HANDOVER_NOT_CONFIRMED_1H']);
 export const VISIT_BOARD_TABS = Object.freeze(['needs-action', 'all']);
 export const SEARCH_MIN_LENGTH = 2;
 export const SEARCH_MAX_LENGTH = 50;
 
-const KNOWN = new Set(['tab', 'search', 'areaCode', 'reason', 'cursor']);
+const KNOWN = new Set(['tab', 'search', 'areaCode', 'reason', 'cursor', 'visitId']);
 
 // Query of GET /visit-board. Unknown keys and repeated keys are refused so a typo never turns a filter off silently.
 export function visitBoardQuery(query = {}) {
@@ -14,6 +14,8 @@ export function visitBoardQuery(query = {}) {
     if (!KNOWN.has(key) || typeof value !== 'string') fail('VALIDATION_FAILED', `Unsupported query parameter ${key}`);
   }
   const tab = query.tab ?? 'needs-action';
+  if (query.visitId !== undefined && tab !== 'all') fail('VALIDATION_FAILED', 'Visit filter requires the All tab');
+  const visitId = query.visitId === undefined ? undefined : id(query.visitId);
   if (!VISIT_BOARD_TABS.includes(tab)) fail('VALIDATION_FAILED', 'Unsupported tab');
   let search;
   if (query.search !== undefined) {
@@ -24,7 +26,7 @@ export function visitBoardQuery(query = {}) {
   if (query.reason !== undefined && !NEEDS_ACTION_REASONS.includes(query.reason)) fail('VALIDATION_FAILED', 'Unsupported reason');
   if (query.cursor !== undefined && (!query.cursor.length || query.cursor.length > 512)) fail('VALIDATION_FAILED', 'Invalid cursor');
   return { tab, ...(search ? { search } : {}), ...(query.areaCode ? { areaCode: query.areaCode } : {}),
-    ...(query.reason ? { reason: query.reason } : {}), ...(query.cursor ? { cursor: query.cursor } : {}) };
+    ...(visitId && { visitId }), ...(query.reason ? { reason: query.reason } : {}), ...(query.cursor ? { cursor: query.cursor } : {}) };
 }
 
 // Query of GET /visits/:id/contact: whose phone number to show.

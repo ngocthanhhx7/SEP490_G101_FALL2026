@@ -1,6 +1,7 @@
 import { Schema } from 'mongoose';
 import {
-  GROOMING_APPOINTMENT_STATUSES, GROOMING_BITE_ANSWERS, GROOMING_DISCOUNT_BLOCK_REASONS, GROOMING_PET_STATUSES, GROOMING_SKIN_ANSWERS
+  GROOMING_APPOINTMENT_STATUSES, GROOMING_BITE_ANSWERS, GROOMING_CANCELLATION_ROLES, GROOMING_DISCOUNT_BLOCK_REASONS, GROOMING_PET_STATUSES,
+  GROOMING_SKIN_ANSWERS
 } from '../constants/grooming.js';
 
 const oid = Schema.Types.ObjectId;
@@ -28,9 +29,9 @@ function appointmentSchema() {
     name: { type: String, required: true, maxlength: 100 }, species: { type: String, enum: ['DOG', 'CAT'], required: true },
     breedCode: { type: String, maxlength: 80 }, weightKg: { type: Number, min: 0 }, petVersion: count, traits: [String]
   }, embedded);
-  // A "very risky" biting answer is never stored: that pet cannot be booked online.
+  // Counter staff may record a risky answer; online pricing still rejects it.
   const answers = new Schema({
-    biteOrScratch: { type: String, enum: GROOMING_BITE_ANSWERS.filter(value => value !== 'YES'), required: true },
+    biteOrScratch: { type: String, enum: GROOMING_BITE_ANSWERS, required: true },
     skinCondition: { type: String, enum: GROOMING_SKIN_ANSWERS, required: true }
   }, embedded);
   const pet = new Schema({
@@ -57,15 +58,34 @@ function appointmentSchema() {
   }, embedded);
   const pricing = new Schema({
     subtotalVnd: { ...money, required: true }, tierDiscountVnd: { ...money, required: true }, totalVnd: { ...money, required: true },
+    pickupFeeVnd: money,
     currency: { type: String, enum: ['VND'], required: true }
   }, embedded);
   const schema = new Schema({
     code: { type: String, required: true, match: /^GR-\d{4,}$/ },
     customerId: { type: oid, required: true },
+    createdChannel: { type: String, enum: ['COUNTER'] },
+    createdBy: oid,
+    counterCheckoutId: { type: String, maxlength: 80 },
+    counterPaymentState: { type: String, enum: ['AWAITING_PAYMENT', 'PAID', 'CANCELLED'] },
+    counterPaymentDeadlineAt: Date,
+    prepaid: new Schema({
+      receiptId: { type: String, required: true },
+      amountVnd: { ...money, required: true },
+      method: { type: String, enum: ['COUNTER_CASH', 'COUNTER_VIETQR'], required: true },
+      receivedBy: { type: oid, required: true }, paidAt: { type: Date, required: true }
+    }, embedded),
     slot: { type: slot, required: true },
     status: { type: String, enum: GROOMING_APPOINTMENT_STATUSES, default: 'BOOKED', required: true },
     pets: { type: [pet], required: true, validate: value => value.length >= 1 && value.length <= 10 },
     tier: { type: tier, required: true }, pricing: { type: pricing, required: true },
+    pickup: new Schema({
+      addressId: { type: oid, required: true }, addressLabel: { type: String, maxlength: 120 },
+      addressText: { type: String, required: true, maxlength: 500 },
+      distanceMeters: { type: Number, min: 0, required: true },
+      tier: { type: new Schema({ fromKm: { type: Number, min: 0, required: true }, toKm: { type: Number, min: 0, required: true } }, embedded), required: true },
+      feeVnd: { ...money, required: true }, policyVersion: { ...count, min: 1, required: true }
+    }, embedded),
     shop: { type: new Schema({ address: { type: String, required: true, maxlength: 500 } }, embedded), required: true },
     bookedAt: { type: Date, required: true },
     requestReceipt: { type: new Schema({ key: { type: String, required: true }, fingerprint: { type: String, required: true },
@@ -73,16 +93,28 @@ function appointmentSchema() {
     version: { ...count, default: 0 },
     checkIn: new Schema({ at: Date, byStaffId: oid }, embedded),
     noShow: new Schema({ at: Date, byStaffId: oid }, embedded),
+    cancellation: new Schema({
+      at: { type: Date, required: true },
+      byRole: { type: String, enum: GROOMING_CANCELLATION_ROLES, required: true },
+      byUserId: { type: oid, required: true },
+      reason: { type: String, maxlength: 1000 }
+    }, embedded),
     payment: new Schema({
       method: { type: String, enum: ['CASH', 'VIETQR'] }, paidAt: Date, amountVnd: money, tipVnd: money, cashGivenVnd: money,
       payosOrderCode: { type: String, maxlength: 80 }, receivedBy: oid
     }, embedded),
     closedAt: Date, handedBackAt: Date
   }, options);
+  schema.pre('validate', function () {
+    if (this.createdChannel !== 'COUNTER' && this.pets.some(pet => pet.answers?.biteOrScratch === 'YES')) {
+      this.invalidate('pets', 'Online grooming does not accept a very risky bite answer');
+    }
+  });
   schema.index({ code: 1 }, { unique: true });
   schema.index({ 'requestReceipt.key': 1 }, { unique: true });
   schema.index({ 'pets.reservedSitterId': 1, status: 1, 'slot.endAt': 1 });
   schema.index({ customerId: 1, 'slot.startAt': -1 });
+  schema.index({ counterPaymentState: 1, counterPaymentDeadlineAt: 1 });
   schema.index({ 'slot.localDate': 1, status: 1, 'slot.startAt': 1 });
   schema.index({ 'pets.petId': 1, 'slot.startAt': 1 });
   return schema;

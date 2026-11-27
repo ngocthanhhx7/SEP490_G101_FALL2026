@@ -107,7 +107,7 @@ export function StaffBookingChangeDialog({ api, requestId, onClose, onDecision }
         <div><dt>Giá</dt><dd>{staffChangePrice(detail.items)}</dd></div>
       </dl>
       {pending && <SitterAvailability items={detail.items} />}
-      <p className="staff-change-deadline">Hết hạn lúc {staffChangeMoment(detail.expiresAt)} (6 giờ trước giờ cũ hoặc giờ mới, giờ nào đến trước). Hết hạn thì buổi giữ giờ cũ.</p>
+      <p className="staff-change-deadline">Hết hạn lúc {staffChangeMoment(detail.expiresAt)} (6 giờ trước giờ cũ). Hết hạn thì buổi giữ giờ cũ.</p>
     </>}
     {uncertain && <p className="staff-change-error" role="alert">Chưa nhận được xác nhận. Hãy kiểm tra lại cùng yêu cầu.</p>}
     {!uncertain && (failure || changed && pending) && <p className="staff-change-error" role="alert">

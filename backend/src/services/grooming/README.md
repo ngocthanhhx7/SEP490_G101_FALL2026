@@ -1,7 +1,9 @@
 # Shop grooming booking (UC-58)
 
-Customer reads options, slots and deterministic quotes, books an appointment and
-reads their own appointments. The runtime is explicitly gated by
+Customer reads options, slots and deterministic quotes, books an appointment,
+reads their own appointments (including upcoming ones for the dashboard) and
+cancels a booked appointment at no charge until two hours before it starts
+(GBR-40). The runtime is explicitly gated by
 `GROOMING_BOOKING_ENABLED=true`, authentication, configured shop address and
 provisioned storage. Public catalog DTOs expose the runtime capability; the
 frontend hides shop booking actions while disabled, retaining eligible home care.
@@ -13,9 +15,11 @@ frontend hides shop booking actions while disabled, retaining eligible home care
 | `shop-shift-source.service.js` | Explicit employee-registered SHOP windows, current verified FULL_TIME contract, service/species/weight/trait capability, leave, home/shop/block occupancy and ordinary day/week hours. Legacy windows mean HOME. Bounded roster reads fail explicitly on overflow. |
 | `grooming-reservation.service.js` | Distinct employee matching for simultaneous pets, each employee eligible for that pet's complete duration and selected services. Counts per hour alone are insufficient. |
 | `grooming-slots.service.js` | Preview hourly start times using the same matching; partial-duration availability cannot create an impossible booking. Final booking rechecks everything. |
+| `grooming-pet-occupancy.service.js` | Shared bounded appointment read for slot previews and booking confirmation. An overflow requires roster review. |
 | `grooming-pricing.service.js` | Current approved per-pet/per-service prices in the booking transaction, integer VND and floor tier discount. Common product checkout eligibility supplies approved tier version and holds. No AI pricing or invented surcharge/tax. |
 | `grooming-discount-hold.service.js` | Compatibility adapter to common checkout eligibility; no copied financial rule. |
-| `grooming-booking.service.js` | Transactional price/ownership recheck, pet guard, shared employee guards and embedded reservation/receipt. Owner-scoped reads hide staff identities, receipts, care evidence and payment internals. |
+| `grooming-booking.service.js` | Transactional price/ownership recheck, pet guard, shared employee guards, customer cancellation (free until 2 hours before start) and embedded reservation/receipt. Owner-scoped reads hide staff identities, receipts, care evidence and payment internals. |
+| `grooming-unpaid.service.js` | GBR-11 shared Customer payment hold: refuses new home or shop bookings when a handed-back grooming appointment still has an unpaid amount. Checks authoritative recorded money under the Customer scheduling guard. |
 | `grooming-appointment-code.service.js` | Independent GR sequence; failed transactions may leave harmless gaps. |
 | `grooming-storage.service.js` | Explicit additive provisioning of appointments and counters only; runtime does not create indexes. |
 | `grooming-demo-seed.service.js` | Development-only synthetic shop fixtures, never production employment evidence. |

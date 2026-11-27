@@ -9,11 +9,11 @@ import { createPetCareController } from '../controllers/pet-care.controller.js';
 import { createPetCareManagement } from '../services/pet-care-management.service.js';
 import { petCareModels } from '../models/pet-care.model.js';
 import { createServiceAreaCatalog } from '../services/service-area-catalog.service.js';
-export function petCareRuntimeModule({ config, connection, clock = Date.now, env = {} }) {
+export function petCareRuntimeModule({ config, connection, clock = Date.now }) {
   if (!config.auth?.enabled) return null;
   const repository = { connection, models: petCareModels(connection) },
     management = createPetCareManagement({ repository, clock,
-      coverageAreas: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' ? () => createServiceAreaCatalog(connection).list() : [] });
+      coverageAreas: () => createServiceAreaCatalog(connection).list() });
   const session = createSessionService({
     connection,
     clock,

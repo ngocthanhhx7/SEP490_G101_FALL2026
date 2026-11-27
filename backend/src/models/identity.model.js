@@ -6,11 +6,17 @@ export function identityModels(connection) {
     channel: { type: String, enum: ['EMAIL', 'PHONE'], required: true },
     canonicalCiphertext: { type: String, required: true, select: false },
     lookupKey: { type: String, required: true, select: false },
-    state: { type: String, enum: ['VERIFIED', 'REPLACED'], required: true },
-    verifiedAt: { type: Date, required: true }
+    state: { type: String, enum: ['UNVERIFIED', 'VERIFIED', 'REPLACED'], required: true },
+    verifiedAt: { type: Date, required() { return this.state === 'VERIFIED'; }, default: undefined }
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
   contactSchema.index({ channel: 1, lookupKey: 1 }, {
     unique: true, partialFilterExpression: { state: 'VERIFIED' }
+  });
+  // Distinct pending and verified phone records must not claim the same number.
+  // A separate name preserves the existing verified-only index in live databases.
+  contactSchema.index({ channel: 1, lookupKey: 1 }, {
+    name: 'contact_active_unique', unique: true,
+    partialFilterExpression: { state: { $in: ['UNVERIFIED', 'VERIFIED'] } }
   });
 
   const otpChallengeSchema = new Schema({

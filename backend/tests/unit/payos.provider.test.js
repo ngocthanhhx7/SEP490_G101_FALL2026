@@ -181,6 +181,51 @@ describe('payOS provider adapter', () => {
     expect(JSON.stringify(reconciliationSnapshot)).not.toContain('private');
   });
 
+  test('counter cancellation releases a link only after a signed cancelled and unpaid payOS response', async () => {
+    const cancelled = { orderCode: paymentRequest.orderCode, amount: paymentRequest.amount,
+      amountPaid: 0, amountRemaining: paymentRequest.amount, status: 'CANCELLED' };
+    const fetchImpl = jest.fn(async () => responseFor(cancelled));
+    const provider = createPayosProvider({ ...config, fetchImpl });
+    expect(await provider.cancelPaymentLink(paymentRequest.orderCode, 'Counter order cancelled'))
+      .toEqual({ orderCode: paymentRequest.orderCode, amount: paymentRequest.amount,
+        amountPaid: 0, providerStatus: 'CANCELLED' });
+    const [url, options] = fetchImpl.mock.calls[0];
+    expect(url).toBe(`https://api-merchant.payos.vn/v2/payment-requests/${paymentRequest.orderCode}/cancel`);
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ cancellationReason: 'Counter order cancelled' });
+    const paid = { ...cancelled, amountPaid: 1 };
+    const unsafe = createPayosProvider({ ...config, fetchImpl: async () => responseFor(paid) });
+    await expect(unsafe.cancelPaymentLink(paymentRequest.orderCode)).rejects.toMatchObject({
+      code: 'PAYOS_CANCEL_NOT_CONFIRMED'
+    });
+  });
+
+  test.each(['PENDING', 'PAID', 'CANCELLED'])('recovers the hosted URL only for a signed pending lookup (%s)', async status => {
+    const id = '124c33293c934a85be5b7f8761a27a07';
+    const data = { id, orderCode: paymentRequest.orderCode, amount: paymentRequest.amount,
+      amountPaid: 0, amountRemaining: paymentRequest.amount, status };
+    const provider = createPayosProvider({ ...config, fetchImpl: async () => responseFor(data) });
+
+    const link = await provider.getPaymentLink(paymentRequest.orderCode);
+
+    expect(link.paymentLinkId).toBe(id);
+    expect(link.checkoutUrl).toBe(status === 'PENDING' ? `https://pay.payos.vn/web/${id}` : undefined);
+  });
+
+  test('distinguishes a missing payment code from generic HTTP and business failures', async () => {
+    const missing = { code: '101', desc: 'Mã thanh toán không tồn tại' };
+    const provider = createPayosProvider({ ...config, fetchImpl: jest.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => missing })
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ...missing, desc: 'Unexpected error' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => missing }) });
+
+    await expect(provider.getPaymentLink(paymentRequest.orderCode)).rejects.toMatchObject({ code: 'PAYOS_LINK_NOT_FOUND' });
+    await expect(provider.getPaymentLink(paymentRequest.orderCode)).rejects.toMatchObject({ code: 'PAYOS_REQUEST_FAILED' });
+    await expect(provider.getPaymentLink(paymentRequest.orderCode)).rejects.toMatchObject({ code: 'PAYOS_REQUEST_REJECTED' });
+    await expect(provider.createPaymentLink(paymentRequest)).rejects.toMatchObject({ code: 'PAYOS_REQUEST_REJECTED' });
+  });
+
   test('turns provider timeouts into safe errors and flags POST outcomes as uncertain', async () => {
     const fetchImpl = jest.fn(() => new Promise(() => {}));
     const provider = createPayosProvider({ ...config, timeoutMs: 100, fetchImpl });

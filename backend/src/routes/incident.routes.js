@@ -7,6 +7,7 @@ import {
   requireSession
 } from '../middlewares/session.js';
 import { AppError } from '../utils/app-error.js';
+import { createAdmissionMiddleware, createMediaAdmission } from './private-image.routes.js';
 
 function ensure(service) {
   if (
@@ -51,6 +52,19 @@ export function createIncidentRouter({
   const read = requireRoles('CUSTOMER', 'PET_SITTER', 'STAFF');
   const operational = requireRoles('STAFF');
   const csrf = requireCsrf(sessionPort, { allowedOrigins });
+  const readEvidence = createAdmissionMiddleware({
+    admission: createMediaAdmission(),
+    work: async (req, res) => {
+      const { body, contentType } = await service.evidence({
+        actor: req.auth, caseId: req.params.caseId, mediaId: req.params.mediaId
+      });
+      res.set({
+        'Content-Type': contentType,
+        'Content-Disposition': 'attachment; filename="incident-evidence"',
+        'X-Content-Type-Options': 'nosniff'
+      }).send(body);
+    }
+  });
 
   router.post(
     '/incidents',
@@ -65,6 +79,12 @@ export function createIncidentRouter({
     involved,
     csrf,
     createIncidentController({ service }).createVisitsByVisitIdIncidents
+  );
+  router.get(
+    '/incidents/config',
+    auth,
+    read,
+    createIncidentController({ service }).getIncidentConfig
   );
   router.get(
     '/incidents',
@@ -89,6 +109,35 @@ export function createIncidentRouter({
     auth,
     read,
     createIncidentController({ service }).getCasesByCaseId
+  );
+  router.get('/cases/:caseId/evidence/:mediaId/content', auth, read, readEvidence);
+  router.post(
+    '/cases/:caseId/actions',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createCasesByCaseIdActions
+  );
+  router.post(
+    '/incidents/:incidentId/actions',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createIncidentsByIncidentIdActions
+  );
+  router.post(
+    '/cases/:caseId/suspension-proposals',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createCasesByCaseIdSuspensionProposals
+  );
+  router.post(
+    '/incidents/:incidentId/suspension-proposals',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createIncidentsByIncidentIdSuspensionProposals
   );
   router.post(
     '/cases/:caseId/resolutions',

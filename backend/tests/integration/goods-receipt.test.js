@@ -23,6 +23,7 @@ const actors = {
 };
 const RECEIPTS = '/api/v1/admin/goods-receipts';
 const SUPPLIERS = '/api/v1/admin/suppliers';
+const STOCK = '/api/v1/admin/stock-levels';
 // Synthetic keys only; the goods receipt routes share a runtime with the order routes, which need them.
 const CONTACT_KEYS = { contactLookupSecret: 'synthetic-contact-lookup-secret-0123', contactEncryptionKey: 'synthetic-contact-encryption-key' };
 let replica, connection, server, base, models;
@@ -102,7 +103,7 @@ test('canonicalizes uppercase ObjectIds for supplier and product identities', as
   expect(replayed).toEqual(first);
 });
 
-test('refuses stock overflow and rolls back the entire receipt transaction', async () => {
+test('IT-FE25-UC70-26 rolls back the receipt when a stock update would overflow', async () => {
   const supplierId = await makeSupplier();
   await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: Number.MAX_SAFE_INTEGER } });
   const body = { supplierId, lines: [await line('SP-0012', 2, 2)] };
@@ -126,7 +127,7 @@ describe('access (AC-34)', () => {
     expect(await models.GoodsReceipt.countDocuments()).toBe(0);
   });
 
-  test('AC-34 a write needs the CSRF token, and a receipt can be neither edited nor deleted', async () => {
+  test('IT-FE25-UC70-28 refuses editing or deleting a saved receipt', async () => {
     const supplierId = await makeSupplier();
     const body = { supplierId, lines: [await line('SP-0012', 5, 5)] };
     await request(base).post(RECEIPTS).set('x-test-actor', 'admin').set('Origin', base).set('Idempotency-Key', newKey()).send(body).expect(403);
@@ -146,7 +147,7 @@ describe('suppliers and products for a new receipt', () => {
     expect(Object.keys(items[0]).sort()).toEqual(['id', 'name']);
   });
 
-  test('a supplier stopped on the Supplier Management screen leaves the list, and returns when it works with the shop again', async () => {
+  test('IT-FE25-UC69-16 removes an inactive supplier from the Goods Receipt supplier picker', async () => {
     const supplierId = await makeSupplier('Synthetic Alpha');
     const names = async () => (await admin.get(`${RECEIPTS}/suppliers`).expect(200)).body.data.items.map((item) => item.name);
     expect(await names()).toEqual(['Synthetic Alpha']);
@@ -209,7 +210,7 @@ describe('suppliers and products for a new receipt', () => {
 });
 
 describe('saving a receipt (UC-70, AC-31)', () => {
-  test('AC-31 saves PN-0001, adds the stock taken into the shop, copies names and codes, and fills the day and the recorder', async () => {
+  test('IT-FE25-UC70-02 Admin saves a valid receipt', async () => {
     const supplierId = await makeSupplier('Synthetic Pet Food Co');
     const before = [await productOf('SP-0012'), await productOf('SP-0014'), await productOf('SP-0020')];
     const first = vietnamDate(new Date());
@@ -235,7 +236,7 @@ describe('saving a receipt (UC-70, AC-31)', () => {
     expect(stored.number).toBe(1);
   });
 
-  test('AC-31 a receipt that rejects everything is still saved, and the stock stays as it was', async () => {
+  test('IT-FE25-UC70-16 saves a fully rejected receipt without changing stock', async () => {
     const supplierId = await makeSupplier();
     const before = await productOf('SP-0012');
     const receipt = (await save({ supplierId, lines: [await line('SP-0012', 8, 0, 'Hàng hết hạn')] }).expect(201)).body.data;
@@ -244,11 +245,92 @@ describe('saving a receipt (UC-70, AC-31)', () => {
     expect(await models.GoodsReceipt.countDocuments()).toBe(1);
   });
 
-  test('AC-31 a receipt may take in all it received, with no reason and no notice', async () => {
+  test('IT-FE25-UC70-13 computes zero rejected goods when all received goods are accepted', async () => {
     const supplierId = await makeSupplier();
     const receipt = (await save({ supplierId, lines: [await line('SP-0012', 4, 4)] }).expect(201)).body.data;
     expect(receipt.lines[0]).toMatchObject({ quantityRejected: 0, rejectReason: '' });
     expect(await notices()).toEqual([]);
+  });
+
+  test('IT-FE25-UC70-14 computes rejected quantity for a partially accepted line with a reason', async () => {
+    const supplierId = await makeSupplier();
+    const receipt = (await save({ supplierId, lines: [await line('SP-0012', 10, 7, 'Bao bì rách')] }).expect(201)).body.data;
+    expect(receipt.lines[0]).toMatchObject({ quantityReceived: 10, quantityAccepted: 7, quantityRejected: 3, rejectReason: 'Bao bì rách' });
+  });
+
+  test('IT-FE25-UC70-17 increases stock by quantity accepted', async () => {
+    const supplierId = await makeSupplier();
+    const before = await stockOf('SP-0012');
+    await save({ supplierId, lines: [await line('SP-0012', 10, 7, 'Bao bì rách')] }).expect(201);
+    expect(await stockOf('SP-0012') - before).toBe(7);
+  });
+
+  test('IT-FE25-UC70-18 updates each product by its different accepted quantity', async () => {
+    const supplierId = await makeSupplier();
+    const codes = ['SP-0012', 'SP-0014', 'SP-0020'];
+    const before = await Promise.all(codes.map(stockOf));
+    await save({ supplierId, lines: [await line(codes[0], 2, 2), await line(codes[1], 4, 4), await line(codes[2], 6, 6)] }).expect(201);
+    const after = await Promise.all(codes.map(stockOf));
+    expect(after.map((value, index) => value - before[index])).toEqual([2, 4, 6]);
+  });
+
+  test('IT-FE25-UC70-19 updates multi-product stock only by each accepted quantity', async () => {
+    const supplierId = await makeSupplier();
+    const codes = ['SP-0012', 'SP-0014', 'SP-0020'];
+    const before = await Promise.all(codes.map(stockOf));
+    await save({ supplierId, lines: [await line(codes[0], 5, 5), await line(codes[1], 7, 3, 'Hỏng'), await line(codes[2], 9, 0, 'Hết hạn')] }).expect(201);
+    const after = await Promise.all(codes.map(stockOf));
+    expect(after.map((value, index) => value - before[index])).toEqual([5, 3, 0]);
+  });
+
+  test('IT-FE25-UC70-22 stores a new code, receipt date and recorder', async () => {
+    const supplierId = await makeSupplier();
+    const first = vietnamDate(new Date());
+    const receipt = (await save({ supplierId, lines: [await line('SP-0012', 1, 1)] }).expect(201)).body.data;
+    const last = vietnamDate(new Date());
+    expect(receipt).toMatchObject({ code: 'PN-0001', recorderName: 'Synthetic Recorder' });
+    expect([first, last]).toContain(receipt.receivedOn);
+    const stored = await models.GoodsReceipt.findOne({ code: receipt.code }).lean();
+    expect(String(stored.recorderId)).toBe(actors.admin.userId);
+  });
+
+  test('IT-FE25-UC70-24 stores quantity rejected as received minus accepted', async () => {
+    const supplierId = await makeSupplier();
+    const receipt = (await save({ supplierId, lines: [await line('SP-0012', 13, 8, 'Hỏng')] }).expect(201)).body.data;
+    expect(receipt.lines[0].quantityRejected).toBe(receipt.lines[0].quantityReceived - receipt.lines[0].quantityAccepted);
+  });
+
+  test('IT-FE25-UC70-25 totals accepted and rejected quantities across all lines', async () => {
+    const supplierId = await makeSupplier();
+    const receipt = (await save({ supplierId, lines: [await line('SP-0012', 5, 5), await line('SP-0014', 8, 6, 'Hỏng'), await line('SP-0020', 7, 0, 'Hết hạn')] }).expect(201)).body.data;
+    expect(receipt).toMatchObject({ totalReceived: 20, totalAccepted: 11, totalRejected: 9 });
+  });
+
+  test('IT-FE25-UC70-30 keeps stock on hand equal to the accepted totals per product', async () => {
+    const supplierId = await makeSupplier();
+    const codes = ['SP-0012', 'SP-0014'];
+    const before = await Promise.all(codes.map(stockOf));
+    await save({ supplierId, lines: [await line(codes[0], 10, 8, 'Hỏng'), await line(codes[1], 6, 5, 'Hỏng')] }).expect(201);
+    const after = await Promise.all(codes.map(stockOf));
+    expect(after).toEqual([before[0] + 8, before[1] + 5]);
+  });
+
+  test('IT-FE25-UC71-09 shows the stock added by a successful UC-70 receipt', async () => {
+    const supplierId = await makeSupplier();
+    const before = await stockOf('SP-0012');
+    await save({ supplierId, lines: [await line('SP-0012', 10, 7, 'Bao bì rách')] }).expect(201);
+    const list = (await admin.get(STOCK).query({ search: 'SP-0012' }).expect(200)).body.data;
+    expect(list.items).toEqual([expect.objectContaining({ code: 'SP-0012', stockOnHand: before + 7 })]);
+  });
+
+  test('IT-FE25-UC71-16 shows the UC-70 receipt in the product stock history', async () => {
+    const supplierId = await makeSupplier('Synthetic History Supplier');
+    const productId = await idOf('SP-0012');
+    const saved = (await save({ supplierId, lines: [await line('SP-0012', 6, 4, 'Hỏng')] }).expect(201)).body.data;
+    const history = (await admin.get(`${STOCK}/${productId}/history`).expect(200)).body.data.items;
+    expect(history).toEqual([expect.objectContaining({
+      kind: 'GOODS_RECEIPT', referenceCode: saved.code, supplierName: 'Synthetic History Supplier', quantityChange: 4
+    })]);
   });
 
   test('a reason given for a line that rejects nothing is not saved', async () => {
@@ -279,7 +361,17 @@ describe('saving a receipt (UC-70, AC-31)', () => {
 });
 
 describe('MSG122 for rejected goods', () => {
-  test('AC-31 each line that rejects writes one notice for every active Admin, with a link that opens the receipt', async () => {
+  test('IT-FE25-UC70-20 notifies every active Admin about one rejected product', async () => {
+    const supplierId = await makeSupplier();
+    const receipt = (await save({ supplierId, lines: [await line('SP-0012', 5, 3, 'Bao bì rách')] }).expect(201)).body.data;
+    const rows = await notices();
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.recipientId).sort()).toEqual([actors.admin.userId, actors.otherAdmin.userId].sort());
+    expect(rows.every((row) => row.message.includes('từ chối 2') && row.message.includes('Bao bì rách'))).toBe(true);
+    expect(rows.every((row) => row.deepLink === `/admin/goods-receipts?receipt=${receipt.code}`)).toBe(true);
+  });
+
+  test('IT-FE25-UC70-21 notifies every active Admin for each rejected product line', async () => {
     const supplierId = await makeSupplier();
     const receipt = (await save({ supplierId, lines: [await line('SP-0012', 10, 10), await line('SP-0014', 12, 10, 'Bao bì rách'), await line('SP-0020', 5, 2, 'Hết hạn')] }).expect(201)).body.data;
     const rows = await notices();
@@ -337,10 +429,22 @@ describe('MSG122 for rejected goods', () => {
 describe('what is refused', () => {
   const stockSnapshot = async () => (await models.Product.find().sort({ code: 1 }).lean()).map((p) => [p.code, p.stockOnHand, p.version]);
 
-  test('AC-31 MSG113: a quantity received that is not a whole number above 0, nothing saved', async () => {
+  test.each([
+    ['IT-FE25-UC70-07', 0],
+    ['IT-FE25-UC70-08', -1],
+    ['IT-FE25-UC70-09', 1.5]
+  ])('%s refuses invalid quantity received %p', async (_id, received) => {
+    const supplierId = await makeSupplier();
+    const res = await save({ supplierId, lines: [await line('SP-0012', received, 0)] });
+    expect(res.status).toBe(422);
+    expect(lineFieldsOf(res)).toEqual({ 0: expect.objectContaining({ quantityReceived: 'INVALID' }) });
+    expect(await models.GoodsReceipt.countDocuments()).toBe(0);
+  });
+
+  test('other invalid quantity received values are refused without persistence', async () => {
     const supplierId = await makeSupplier();
     const before = await stockSnapshot();
-    for (const received of [0, -1, 1.5, '5', null, undefined, 1e21]) {
+    for (const received of ['5', null, undefined, 1e21]) {
       const l = await line('SP-0012', received, 0);
       if (received === undefined) delete l.quantityReceived;
       const res = await save({ supplierId, lines: [l] });
@@ -353,9 +457,21 @@ describe('what is refused', () => {
     expect(await notices()).toEqual([]);
   });
 
-  test('AC-31 MSG119: a quantity taken into the shop that is not a whole number from 0 to the quantity received', async () => {
+  test.each([
+    ['IT-FE25-UC70-10', 11],
+    ['IT-FE25-UC70-11', -1],
+    ['IT-FE25-UC70-12', 2.5]
+  ])('%s refuses invalid quantity accepted %p', async (_id, accepted) => {
     const supplierId = await makeSupplier();
-    for (const accepted of [-1, 11, 2.5, '5', null, undefined]) {
+    const res = await save({ supplierId, lines: [await line('SP-0012', 10, accepted, 'Hỏng')] });
+    expect(res.status).toBe(422);
+    expect(lineFieldsOf(res)).toEqual({ 0: { quantityAccepted: 'INVALID' } });
+    expect(await models.GoodsReceipt.countDocuments()).toBe(0);
+  });
+
+  test('other invalid quantity accepted values are refused', async () => {
+    const supplierId = await makeSupplier();
+    for (const accepted of ['5', null, undefined]) {
       const l = await line('SP-0012', 10, accepted, 'Hỏng');
       if (accepted === undefined) delete l.quantityAccepted;
       const res = await save({ supplierId, lines: [l] });
@@ -365,7 +481,7 @@ describe('what is refused', () => {
     expect((await save({ supplierId, lines: [await line('SP-0012', 10, 10)] })).status).toBe(201);
   });
 
-  test('AC-31 MSG120: a line that rejects goods needs a reason, within 300 characters', async () => {
+  test('IT-FE25-UC70-15 requires a reason when any goods are rejected', async () => {
     const supplierId = await makeSupplier();
     for (const reason of [undefined, '', '   ', null]) {
       const res = await save({ supplierId, lines: [await line('SP-0012', 10, 7, reason)] });
@@ -388,6 +504,14 @@ describe('what is refused', () => {
     expect(next.code).toBe('PN-0001');
   });
 
+  test('IT-FE25-UC70-06 refuses a receipt without products', async () => {
+    const supplierId = await makeSupplier();
+    const res = await save({ supplierId, lines: [] });
+    expect(res.status).toBe(422);
+    expect(fieldsOf(res)).toEqual({ lines: 'REQUIRED' });
+    expect(await models.GoodsReceipt.countDocuments()).toBe(0);
+  });
+
   test('the supplier and the lines: missing, malformed, too many, the same product twice', async () => {
     const supplierId = await makeSupplier();
     const one = await line('SP-0012', 1, 1);
@@ -395,7 +519,6 @@ describe('what is refused', () => {
     expect(fieldsOf(await save({ supplierId: 7, lines: [one] }))).toEqual({ supplierId: 'INVALID' });
     expect(fieldsOf(await save({ supplierId }))).toEqual({ lines: 'INVALID' });
     expect(fieldsOf(await save({ supplierId, lines: 'x' }))).toEqual({ lines: 'INVALID' });
-    expect(fieldsOf(await save({ supplierId, lines: [] }))).toEqual({ lines: 'REQUIRED' });
     expect(fieldsOf(await save({ supplierId, lines: Array.from({ length: 51 }, () => one) }))).toEqual({ lines: 'TOO_MANY' });
     expect(lineFieldsOf(await save({ supplierId, lines: [one, { ...one }] }))).toEqual({ 1: { productId: 'DUPLICATE' } });
     expect(lineFieldsOf(await save({ supplierId, lines: [{ ...one, productId: 'nope' }] }))).toEqual({ 0: { productId: 'INVALID' } });
@@ -419,7 +542,7 @@ describe('what is refused', () => {
     expect(await models.GoodsReceipt.countDocuments()).toBe(0);
   });
 
-  test('AC-30 a supplier that stopped working with the shop cannot be chosen, and nothing is saved', async () => {
+  test('IT-FE25-UC70-04 rejects a Goods Receipt for an inactive supplier (IT-FE25-UC69-16)', async () => {
     const supplierId = await makeSupplier('Synthetic Supplier', { status: 'STOPPED' });
     const before = await stockOf('SP-0012');
     const res = await save({ supplierId, lines: [await line('SP-0012', 5, 5, undefined)] });
@@ -430,13 +553,13 @@ describe('what is refused', () => {
     expect((await models.Supplier.findById(supplierId).lean()).lastReceiptAt).toBeUndefined();
   });
 
-  test('a supplier that does not exist is refused', async () => {
+  test('IT-FE25-UC70-03 refuses a supplier that does not exist', async () => {
     const res = await save({ supplierId: String(oid()), lines: [await line('SP-0012', 5, 5)] });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('SUPPLIER_NOT_FOUND');
   });
 
-  test('IT-FE21-UC57-13 requires a product to exist in Product Catalogue before Goods Receipt can use it', async () => {
+  test('IT-FE21-UC57-13 / IT-FE25-UC70-05 refuses a product outside the catalog and rolls back all lines', async () => {
     const supplierId = await makeSupplier();
     const before = await stockSnapshotAll();
     const ghost = String(oid());
@@ -452,26 +575,35 @@ describe('what is refused', () => {
     return (await models.Product.find().sort({ code: 1 }).lean()).map((p) => [p.code, p.stockOnHand, p.version]);
   }
 
-  test('AC-30 a receipt already saved stays as it was when the supplier later stops or is renamed', async () => {
+  test('IT-FE25-UC69-17 stopping a supplier preserves its Goods Receipt, Stock History and stock quantity', async () => {
     const supplierId = await makeSupplier('Synthetic Supplier');
-    const saved = (await save({ supplierId, lines: [await line('SP-0012', 5, 5)] }).expect(201)).body.data;
+    const productId = await idOf('SP-0012');
+    const saved = (await save({ supplierId, lines: [{ productId, quantityReceived: 5, quantityAccepted: 5 }] }).expect(201)).body.data;
+    const stockAfterReceipt = await productOf('SP-0012');
     await admin.patch(`${SUPPLIERS}/${supplierId}`).send({ version: 0, name: 'Synthetic Renamed' }).expect(200);
     await admin.post(`${SUPPLIERS}/${supplierId}/stop`).send({ version: 1 }).expect(200);
+    expect(await models.Supplier.findById(supplierId).lean()).toMatchObject({ status: 'STOPPED' });
     const read = (await admin.get(`${RECEIPTS}/${saved.code}`).expect(200)).body.data;
     expect(read).toEqual(saved);
     expect(read.supplierName).toBe('Synthetic Supplier');
     expect((await admin.get(RECEIPTS).expect(200)).body.data.items.map((item) => item.code)).toEqual(['PN-0001']);
+    expect((await admin.get(`${STOCK}/${productId}/history`).expect(200)).body.data.items).toContainEqual(expect.objectContaining({
+      kind: 'GOODS_RECEIPT', referenceCode: saved.code, supplierName: 'Synthetic Supplier', quantityChange: 5
+    }));
+    const stockAfterStop = await productOf('SP-0012');
+    expect([stockAfterStop.stockOnHand, stockAfterStop.version]).toEqual([stockAfterReceipt.stockOnHand, stockAfterReceipt.version]);
     expect((await save({ supplierId, lines: [await line('SP-0012', 1, 1)] })).status).toBe(409);
   });
 });
 
 describe('codes and the transaction', () => {
-  test('the codes go PN-0001, PN-0002, ... and a code is never reused after a refused save', async () => {
+  test('IT-FE25-UC70-29 records a supplemental delivery as a new immutable receipt', async () => {
     const supplierId = await makeSupplier();
     const code = async () => (await save({ supplierId, lines: [await line('SP-0012', 1, 1)] }).expect(201)).body.data.code;
     expect(await code()).toBe('PN-0001');
     await save({ supplierId, lines: [] }).expect(422);
     expect(await code()).toBe('PN-0002');
+    expect((await admin.get(`${RECEIPTS}/PN-0001`).expect(200)).body.data.code).toBe('PN-0001');
   });
 
   test('the code has no upper limit: PN-9999 is followed by PN-10000', async () => {
@@ -500,6 +632,17 @@ describe('codes and the transaction', () => {
     expect(results.map((res) => res.body.data.code).sort()).toEqual(['PN-0001', 'PN-0002', 'PN-0003', 'PN-0004', 'PN-0005', 'PN-0006']);
     expect(await stockOf('SP-0012') - before).toBe(21);
     expect(await models.GoodsReceipt.countDocuments()).toBe(6);
+  });
+
+  test('IT-FE25-UC70-27 rolls back when saving receipt details fails', async () => {
+    const supplierId = await makeSupplier();
+    const before = await stockOf('SP-0012');
+    jest.spyOn(models.GoodsReceipt.collection, 'insertOne').mockRejectedValueOnce(new Error('synthetic receipt insert failure'));
+    await save({ supplierId, lines: [await line('SP-0012', 5, 5)] }).expect(500);
+    expect(await models.GoodsReceipt.countDocuments()).toBe(0);
+    expect(await stockOf('SP-0012')).toBe(before);
+    expect(await models.ProductCounter.findById('GOODS_RECEIPT').lean()).toBeNull();
+    expect((await models.Supplier.findById(supplierId).lean()).lastReceiptAt).toBeUndefined();
   });
 
   test('a failure while writing a notice leaves no receipt, no stock and no notice at all', async () => {
@@ -654,6 +797,19 @@ describe('sending a save again (D-218)', () => {
 });
 
 describe('reading receipts', () => {
+  test('IT-FE25-UC70-23 shows a newly saved receipt in Recent Goods Receipts', async () => {
+    const supplierId = await makeSupplier('Synthetic Recent Supplier');
+    const saved = (await save({ supplierId, lines: [await line('SP-0012', 7, 5, 'Hỏng')] }).expect(201)).body.data;
+    const list = (await admin.get(RECEIPTS).expect(200)).body.data.items;
+    expect(list).toEqual([expect.objectContaining({
+      code: saved.code,
+      supplierName: 'Synthetic Recent Supplier',
+      totalReceived: 7,
+      totalAccepted: 5,
+      totalRejected: 2
+    })]);
+  });
+
   test('the newest ten receipts come first, as a summary; one receipt is read by its code', async () => {
     const supplierId = await makeSupplier();
     const recorderId = oid();
@@ -677,10 +833,11 @@ describe('reading receipts', () => {
   });
 });
 
-test('Sale Staff records and reads receipts without supplier or catalog management permission', async () => {
+test('IT-FE25-UC70-01 Sale Staff records a valid receipt with an active supplier and valid product', async () => {
   const supplierId = await makeSupplier();
   const body = { supplierId, lines: [await line('SP-0012', 2, 2)] };
   const saved = (await saveAs('sale', body).expect(201)).body.data;
+  expect(await models.GoodsReceipt.findOne({ code: saved.code }).lean()).not.toBeNull();
   await api('sale').get(`${RECEIPTS}/${saved.code}`).expect(200);
   await api('sale').get(`${RECEIPTS}/suppliers`).expect(200);
   await api('sale').post(SUPPLIERS).send({}).expect(403);

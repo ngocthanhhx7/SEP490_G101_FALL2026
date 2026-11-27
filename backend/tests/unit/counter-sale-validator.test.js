@@ -10,6 +10,9 @@ test.each([null, [], { lines: null }, { lines: [{ productId: id, quantity: 1, un
   { lines: [{ productId: id, quantity: 1 }, { productId: id.toLowerCase(), quantity: 2 }] }])('rejects malformed and duplicate draft %j', body => {
   expect(() => parseCounterCreate(body)).toThrow();
 });
+test.each([parseCounterCreate, parseCounterPreview])('rejects 100 units for a counter line', parse => {
+  expect(() => parse({ lines: [{ productId: id, quantity: 100 }] })).toThrow('quantity is invalid');
+});
 test('bounds page, search and contact without echoing private input', () => {
   expect(parseCounterPage({})).toEqual({ page: 1, limit: 20 });
   expect(parseCounterProductQuery({ search: '  Dây   dắt ', limit: '50' })).toEqual({ page: 1, limit: 50, search: 'Dây dắt' });

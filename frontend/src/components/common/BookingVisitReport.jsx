@@ -18,6 +18,10 @@ export function BookingVisitReport({ visit, readEvidence }) {
           : visit.checklist?.length ? <ul>{visit.checklist.map(item => <li key={item.itemId}>
           <strong>{item.label}</strong><p>{item.status === 'DONE' ? 'Đã thực hiện' : item.status === 'SKIPPED' ? 'Không thực hiện' : 'Chưa ghi nhận'}{item.reason ? ` · ${item.reason}` : ''}</p>
         </li>)}</ul> : <p>Người chăm sóc chưa lưu checklist cho buổi này.</p>}
+        {visit.customerNote && <>
+          <h3>Ghi chú cho khách</h3>
+          <p className="booking-visit-report__note">{visit.customerNote}</p>
+        </>}
         <h3>Ảnh bằng chứng</h3>
         {visit.evidence?.length ? <div className="visit-evidence-gallery">{visit.evidence.map(item => <VisitEvidencePreview
           key={item.kind + item.mediaId} mediaId={item.mediaId} read={readEvidence}

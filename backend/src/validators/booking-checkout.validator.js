@@ -1,4 +1,5 @@
 import { exact, id, instant, fail } from './pet-care.validator.js';
+import { pickupSelection } from './pickup.validator.js';
 
 export function bookingCheckoutInput(value) {
   exact(value, ['quoteId', 'visits', 'acceptServicePolicies'], ['quoteId', 'visits', 'acceptServicePolicies']);
@@ -6,16 +7,19 @@ export function bookingCheckoutInput(value) {
   if (value.acceptServicePolicies !== true) fail('SERVICE_POLICY_CONSENT_REQUIRED', 'Accept the quoted service policies');
   if (!Array.isArray(value.visits) || !value.visits.length || value.visits.length > 60) fail('VALIDATION_FAILED', 'One to sixty visits required');
   const visits = value.visits.map(row => {
-    exact(row, ['itemIndex', 'startAt', 'location', 'addressId', 'requestedSitterId', 'matchId', 'bookingMode'], ['itemIndex', 'startAt', 'location']);
+    exact(row, ['itemIndex', 'startAt', 'location', 'addressId', 'requestedSitterId', 'matchId', 'bookingMode', 'acceptUnavailableSitter', 'pickup'], ['itemIndex', 'startAt', 'location']);
     if (row.bookingMode !== undefined && (!['SYSTEM', 'DIRECT'].includes(row.bookingMode) ||
       (row.bookingMode === 'DIRECT') !== Boolean(row.requestedSitterId))) fail('VALIDATION_FAILED', 'Choose system dispatch or a specific employee');
     if (row.matchId !== undefined) id(row.matchId);
     if (row.requestedSitterId !== undefined) id(row.requestedSitterId);
+    if (row.acceptUnavailableSitter !== undefined && (row.acceptUnavailableSitter !== true || !row.requestedSitterId))
+      fail('VALIDATION_FAILED', 'Availability consent requires a specific employee');
     if (!Number.isSafeInteger(row.itemIndex) || row.itemIndex < 0 || row.itemIndex > 19 || !['HOME', 'FACILITY', 'OUTDOOR'].includes(row.location))
       fail('VALIDATION_FAILED', 'Invalid visit selection');
     if (row.location !== 'FACILITY') id(row.addressId);
     else if (row.addressId !== undefined) fail('VALIDATION_FAILED', 'Facility location is resolved by the server');
-    return { ...row, startAt: new Date(instant(row.startAt)) };
+    if (row.pickup !== undefined && row.location !== 'FACILITY') fail('VALIDATION_FAILED', 'Pickup is available only at the shop');
+    return { ...row, ...(row.pickup !== undefined ? { pickup: pickupSelection(row.pickup) } : {}), startAt: new Date(instant(row.startAt)) };
   });
   return { quoteId: value.quoteId, visits, acceptServicePolicies: true };
 }

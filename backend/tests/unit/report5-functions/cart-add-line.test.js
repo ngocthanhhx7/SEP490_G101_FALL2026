@@ -1,0 +1,45 @@
+// CART-02 — chỉ kiểm thử addLine; mỗi UTCID là một test riêng.
+// Kỳ vọng nghiệp vụ theo SRS; fixtures tổng hợp, không gọi provider/database thật.
+import { test, expect, jest } from '@jest/globals';
+jest.unstable_mockModule('../../../src/models/product.model.js', () => ({ productSalesModels: c => c.models }));
+const { createProductCartService } = await import('../../../src/services/product-sales/product-cart.service.js');
+const OWNER = '111111111111111111111111', PRODUCT = '222222222222222222222222';
+function query(value) { const q = { session: () => q, lean: async () => value }; return q; }
+function fixture() {
+  const actor = { userId: OWNER, roles: ['CUSTOMER'], state: 'ACTIVE' };
+  const product = { _id: PRODUCT, code: 'SP-0001', name: 'Thức ăn tổng hợp', category: 'FOOD', petType: 'DOG', visible: true,
+    sellingPrice: 10000, stockOnHand: 10, quantityHeld: 2 };
+  const cart = { customerId: OWNER, lines: [{ productId: PRODUCT, quantity: 2 }], version: 1 };
+  const Product = { find: jest.fn(() => query([product])), findOne: jest.fn(() => query(product)), updateOne: jest.fn() };
+  const ProductCart = { findOne: jest.fn(filter => query(filter.customerId === OWNER ? cart : null)),
+    updateOne: jest.fn(async (_filter, update) => {
+      if (update.$push) cart.lines.push({ ...update.$push.lines });
+      if (update.$pull) cart.lines = cart.lines.filter(line => line.productId !== update.$pull.lines.productId);
+      if (update.$set?.['lines.$.quantity'] !== undefined) cart.lines[0].quantity = update.$set['lines.$.quantity'];
+      return { matchedCount: 1, modifiedCount: 1 };
+    }) };
+  const connection = { models: { Product, ProductCart }, transaction: async work => work({}) };
+  const eligibility = { read: async () => ({ tierCode: 'MEMBER', discountBps: 0, prepaidOnly: false }) };
+  const service = createProductCartService({ connection, eligibility });
+  return { actor, product, cart, Product, ProductCart, service };
+}
+
+// SRS: UC-61; SRS III.23.1.1 dòng 5823–5834; GBR-35.
+test("CART-02-UTCID01 [N] Thêm hàng làm tăng lượng trong giỏ mà không giữ stock", async () => {
+  const f = fixture();
+  const actual = await f.service.addLine(f.actor, { productId: PRODUCT, quantity: 1 });
+  expect(actual.lines[0].quantity).toBe(3); expect(f.product.quantityHeld).toBe(2);
+  expect(f.Product.updateOne).not.toHaveBeenCalled();
+});
+
+// SRS: SRS III.23.1.1 dòng 5833–5834; MSG58; quantityAvailable=8, giỏ hiện có 2
+test("CART-02-UTCID02 [A] Không thêm quá lượng có thể bán", async () => {
+  const f = fixture();
+  await expect(f.service.addLine(f.actor, { productId: PRODUCT, quantity: 7 })).rejects.toMatchObject({ code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', status: 409 });
+});
+
+// SRS: UC-61 / Product Details: Out of stock MSG98; GBR-35
+test("CART-02-UTCID03 [A] Hàng không còn lượng bán không được thêm", async () => {
+  const f = fixture(); f.product.stockOnHand = f.product.quantityHeld;
+  await expect(f.service.addLine(f.actor, { productId: PRODUCT, quantity: 1 })).rejects.toMatchObject({ code: 'PRODUCT_OUT_OF_STOCK', status: 409 });
+});

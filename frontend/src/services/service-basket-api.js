@@ -12,6 +12,11 @@ export function createServiceBasketApi(options) {
       return response;
     },
     async checkoutOptions({ signal } = {}) { return request('/checkout/options', { signal }); },
+    async pickupQuote(body, { signal } = {}) {
+      const result = await request('/checkout/pickup-quotes', { method: 'POST', body, signal });
+      if (result.pending || typeof result.data?.allowed !== 'boolean') throw new ApiError('INVALID_RESPONSE');
+      return result.data;
+    },
     async availability(body, { signal } = {}) {
       const response = await request('/checkout/availability', { method: 'POST', body, signal });
       if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
@@ -32,6 +37,16 @@ export function createServiceBasketApi(options) {
     async paymentLink(id, idempotencyKey) {
       return (await request(`/checkout/bookings/${encodeURIComponent(id)}/payment-link`, { method: 'POST', body: {}, idempotencyKey })).data;
     },
+    async previewCancellation(id, body, { signal } = {}) {
+      const response = await request(`/checkout/bookings/${encodeURIComponent(id)}/cancellation-preview`, { method: 'POST', body, signal });
+      if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
+      return response.data;
+    },
+    async cancelBooking(id, body, idempotencyKey) {
+      const response = await request(`/checkout/bookings/${encodeURIComponent(id)}/cancellations`, { method: 'POST', body, idempotencyKey });
+      if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
+      return response.data;
+    },
     async pets({ signal } = {}) {
       const response = await request('/pet-care/pets', { signal });
       if (!Array.isArray(response.data)) throw new ApiError('INVALID_RESPONSE');
@@ -41,7 +56,9 @@ export function createServiceBasketApi(options) {
       const response = await request('/pricing/basket-quotes', { method: 'POST', body: { items } });
       const value = response.data;
       if (!value || !Number.isSafeInteger(value.totalVnd) || value.totalVnd < 0 || !Array.isArray(value.items) ||
-        !['baseVnd', 'surchargeVnd', 'discountVnd', 'orderFeeVnd'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0) ||
+        !['baseVnd', 'surchargeVnd', 'discountVnd', 'tierDiscountVnd'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0) ||
+        !value.tier || !['MEMBER', 'SILVER', 'GOLD'].includes(value.tier.code) ||
+        value.totalVnd !== value.baseVnd + value.surchargeVnd - value.discountVnd - value.tierDiscountVnd ||
         !Number.isFinite(Date.parse(value.expiresAt))) throw new ApiError('INVALID_RESPONSE');
       return value;
     }

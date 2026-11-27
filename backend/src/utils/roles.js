@@ -7,7 +7,7 @@ export function isSingleRole(roles) {
 
 export function hasRole(actorRoles, requiredRole) {
   if (!isSingleRole(actorRoles) || !ROLES.has(requiredRole)) return false;
-  if (requiredRole === 'CUSTOMER' && actorRoles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role))) return false;
+  if (requiredRole === 'CUSTOMER' && actorRoles.some(role => ['ADMIN', 'STAFF', 'SALE_STAFF', 'PET_SITTER'].includes(role))) return false;
   return (
     actorRoles.includes(requiredRole) ||
     (requiredRole === 'STAFF' && actorRoles.includes('ADMIN'))

@@ -47,11 +47,14 @@ describe('Service Details', () => {
     await screen.findByRole('heading', { name: 'Tắm và vệ sinh thú cưng' });
     expect(screen.getByText('Đặt lịch chăm sóc tại cửa hàng chưa mở.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Đặt lịch tại cửa hàng' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Chọn dịch vụ này' })).not.toBeInTheDocument();
   });
   test('a shop-only service (Tắm) has the shop button alone', async () => {
     renderAt('/services/bath-1');
     expect(await screen.findByRole('heading', { name: 'Tắm và vệ sinh thú cưng' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Đặt lịch tại cửa hàng' })).toHaveAttribute('href', '/grooming-booking?serviceId=bath-1');
+    for (const action of screen.getAllByRole('link', { name: 'Đặt lịch tại cửa hàng' })) {
+      expect(action).toHaveAttribute('href', '/grooming-booking?serviceId=bath-1');
+    }
     expect(screen.queryByRole('link', { name: 'Đặt tại nhà' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Đặt dịch vụ này' })).not.toBeInTheDocument();
   });
@@ -59,18 +62,21 @@ describe('Service Details', () => {
   test('a service at the shop and at home (Cắt móng) has two buttons with different destinations', async () => {
     renderAt('/services/nail-2');
     await screen.findByRole('heading', { name: 'Cắt móng' });
-    const shop = screen.getByRole('link', { name: 'Đặt lịch tại cửa hàng' });
-    const home = screen.getByRole('link', { name: 'Đặt tại nhà' });
-    expect(shop).toHaveAttribute('href', '/grooming-booking?serviceId=nail-2');
-    expect(home).toHaveAttribute('href', '/booking/nail-2');
-    expect(shop.getAttribute('href')).not.toBe(home.getAttribute('href'));
+    const shop = screen.getAllByRole('link', { name: 'Đặt lịch tại cửa hàng' });
+    const home = screen.getAllByRole('link', { name: 'Đặt tại nhà' });
+    expect(shop).toHaveLength(2);
+    expect(home).toHaveLength(2);
+    for (const action of shop) expect(action).toHaveAttribute('href', '/grooming-booking?serviceId=nail-2');
+    for (const action of home) expect(action).toHaveAttribute('href', '/booking/nail-2');
     expect(screen.queryByRole('link', { name: 'Đặt dịch vụ này' })).not.toBeInTheDocument();
   });
 
   test('a service that is not shop grooming keeps the label "Đặt dịch vụ này" and its destination', async () => {
     renderAt('/services/walk-3');
     await screen.findByRole('heading', { name: 'Dắt chó đi dạo' });
-    expect(screen.getByRole('link', { name: 'Đặt dịch vụ này' })).toHaveAttribute('href', '/booking/walk-3');
+    for (const action of screen.getAllByRole('link', { name: 'Đặt dịch vụ này' })) {
+      expect(action).toHaveAttribute('href', '/booking/walk-3');
+    }
     expect(screen.queryByRole('link', { name: 'Đặt lịch tại cửa hàng' })).not.toBeInTheDocument();
   });
 });

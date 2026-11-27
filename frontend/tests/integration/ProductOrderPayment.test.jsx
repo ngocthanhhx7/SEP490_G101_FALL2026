@@ -1,0 +1,214 @@
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
+import { ProductCartProvider } from '../../src/contexts/ProductCartContext.jsx';
+import { MyProductOrdersPage } from '../../src/pages/customer/MyProductOrdersPage.jsx';
+import { ProductOrderManagementPage } from '../../src/pages/admin/ProductOrderManagementPage.jsx';
+
+// UC-62 (payment in advance through payOS), GBR-36, GBR-37.
+const customer = { id: 'synthetic-customer', roles: ['CUSTOMER'] };
+const adapter = { resolve: async () => ({ status: 'authenticated', user: customer }) };
+const soon = () => new Date(Date.now() + 30 * 60_000).toISOString();
+const line = { productId: 'p1', productCode: 'SP-0014', productName: 'Thức ăn hạt', quantity: 2, unitPrice: 210000, lineTotal: 420000 };
+const ID = 'a'.repeat(24);
+const prepaid = (over = {}) => ({ id: ID, code: 'DH-0040', createdAt: '2026-11-24T03:00:00.000Z', receiveMethod: 'DELIVERY',
+  paymentMethod: 'PREPAID', paid: false, status: 'PLACED', paymentDeadlineAt: soon(), trackingCode: null,
+  deliveryAddress: { label: 'Nhà', location: '45 Láng Hạ', areaCode: 'DISTRICT_DONG_DA' },
+  lines: [line], subtotal: 420000, shippingFee: 25000, total: 445000, ...over });
+const PAY = 'Thanh toán qua payOS';
+
+if (window.HTMLDialogElement && !window.HTMLDialogElement.prototype.showModal) {
+  window.HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute('open', ''); };
+}
+if (window.HTMLDialogElement && !window.HTMLDialogElement.prototype.close) {
+  window.HTMLDialogElement.prototype.close = function close() { this.removeAttribute('open'); };
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{`${location.pathname}${location.search}|${JSON.stringify(location.state)}`}</div>;
+}
+
+function showOrders(ordersOrOne, { path = '/customer/product-orders', createPaymentLink } = {}) {
+  const list = Array.isArray(ordersOrOne) ? ordersOrOne : [ordersOrOne];
+  const api = { getCart: jest.fn().mockResolvedValue({ data: { lines: [], lineCount: 0 } }),
+    listOrders: jest.fn().mockResolvedValue({ data: list, meta: { page: { page: 1, limit: 20, total: list.length, totalPages: 1 } } }),
+    getOrder: jest.fn().mockImplementation((id) => Promise.resolve({ data: list.find((item) => item.id === id) ?? list[0] })),
+    confirmReceived: jest.fn().mockImplementation((id) => {
+      const target = list.find((item) => item.id === id) ?? list[0];
+      return Promise.resolve({ ...target, status: 'DELIVERED', paid: true, deliveredBy: 'CUSTOMER', autoDeliverAt: null });
+    }),
+    createPaymentLink: createPaymentLink ?? jest.fn().mockRejectedValue({ code: 'PAYMENT_PROVIDER_UNAVAILABLE', status: 503 }) };
+  render(<MemoryRouter initialEntries={[path]}><SessionProvider adapter={adapter}><ProductCartProvider api={api}>
+    <MyProductOrdersPage api={api} /><LocationProbe /></ProductCartProvider></SessionProvider></MemoryRouter>);
+  return api;
+}
+
+describe('My Orders, payment in advance', () => {
+  test('an unpaid prepaid order shows its deadline and a button to pay on payOS', async () => {
+    const api = showOrders(prepaid());
+    const button = await screen.findByRole('button', { name: PAY });
+    expect(screen.getByText('Chờ thanh toán')).toBeVisible();
+    expect(screen.getByText(/Thanh toán trước \d{2}:\d{2} \d{2}\/\d{2}\/\d{4}\./)).toBeVisible();
+    fireEvent.click(button);
+    await waitFor(() => expect(api.createPaymentLink).toHaveBeenCalledWith(ID));
+  });
+
+  test('MSG33 when payOS cannot make the page: the order stays and the customer can try again', async () => {
+    showOrders(prepaid());
+    fireEvent.click(await screen.findByRole('button', { name: PAY }));
+    expect(await screen.findByText('Chưa thể mở trang thanh toán lúc này. Vui lòng thử lại sau vài phút.')).toBeVisible();
+    expect(screen.getByRole('button', { name: PAY })).toBeEnabled();
+  });
+
+  test('MSG32 when the customer comes back from payOS after cancelling, and the order can be paid again', async () => {
+    showOrders(prepaid(), { path: `/customer/product-orders?order=${ID}&cancel=true&status=CANCELLED` });
+    expect(await screen.findByText('Thanh toán chưa thành công. Vui lòng thử lại.')).toBeVisible();
+    expect(screen.getByRole('button', { name: PAY })).toBeVisible();
+  });
+
+  test('MSG59 when the customer comes back from payOS and the order itself is paid; the address alone is not enough', async () => {
+    showOrders(prepaid({ paid: true }), { path: `/customer/product-orders?order=${ID}&cancel=false&status=PAID` });
+    expect(await screen.findByText('Đơn hàng DH-0040 đã được đặt.')).toBeVisible();
+  });
+
+  test('no MSG59 when the return address says paid but the order is not paid yet', async () => {
+    showOrders(prepaid(), { path: `/customer/product-orders?order=${ID}&cancel=false&status=PAID` });
+    expect(await screen.findByText('Chờ thanh toán')).toBeVisible();
+    expect(screen.queryByText('Đơn hàng DH-0040 đã được đặt.')).not.toBeInTheDocument();
+  });
+
+  test('a paid order has no pay button', async () => {
+    showOrders(prepaid({ paid: true }));
+    expect(await screen.findByText('Đã thanh toán')).toBeVisible();
+    expect(screen.queryByRole('button', { name: PAY })).not.toBeInTheDocument();
+  });
+
+  test('a prepaid order cancelled at the deadline says so and offers no payment', async () => {
+    showOrders(prepaid({ status: 'CANCELLED' }));
+    expect(await screen.findByText('Đã huỷ vì quá hạn thanh toán')).toBeVisible();
+    expect(screen.queryByRole('button', { name: PAY })).not.toBeInTheDocument();
+  });
+
+  test('a late unpaid order offers no pay button', async () => {
+    showOrders(prepaid({ paymentDeadlineAt: new Date(Date.now() - 60_000).toISOString() }));
+    expect(await screen.findByText('Chờ thanh toán')).toBeVisible();
+    expect(screen.queryByRole('button', { name: PAY })).not.toBeInTheDocument();
+  });
+
+  test('B1: uses dedicated My Orders split/table classes and switches detail with full amounts on View click', async () => {
+    const first = prepaid({ id: '1'.repeat(24), code: 'DH-0041', status: 'DELIVERED', paid: true, paymentMethod: 'COD',
+      subtotal: 420000, tierDiscount: 0, shippingFee: 25000, total: 445000 });
+    const second = prepaid({ id: '2'.repeat(24), code: 'DH-0042', status: 'HANDED_TO_CARRIER', paid: false, paymentMethod: 'COD',
+      lines: [{ productId: 'p2', productCode: 'SP-0015', productName: 'Cát vệ sinh', quantity: 3, unitPrice: 100000, lineTotal: 300000 }],
+      subtotal: 300000, tierDiscount: 15000, tierCode: 'GOLD', shippingFee: 25000, total: 310000 });
+    showOrders([first, second]);
+    await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0041' });
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('pwc-shop-table--orders');
+    expect(table).not.toHaveClass('pwc-shop-table--wide');
+    expect(table.closest('.pwc-shop-split')).toHaveClass('pwc-shop-split--orders');
+
+    const viewSecond = screen.getByRole('button', { name: 'Xem đơn DH-0042' });
+    fireEvent.click(viewSecond);
+    expect(viewSecond).toHaveAttribute('aria-pressed', 'true');
+    expect(viewSecond.closest('tr')).toHaveClass('is-selected');
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0042' });
+    expect(within(detail).getByText('Cát vệ sinh × 3')).toBeVisible();
+    expect(within(detail).getByText('Tạm tính')).toBeVisible();
+    expect(within(detail).getByText('Giảm giá hạng Vàng')).toBeVisible();
+    expect(within(detail).getByText('− 15.000 đ')).toBeVisible();
+    expect(within(detail).getByText('Phí giao hàng')).toBeVisible();
+    expect(within(detail).getByText('310.000 đ')).toBeVisible();
+  });
+
+  test('B2: MSG59 toast auto-hides and clears location.state while keeping MSG33 payment link error', async () => {
+    jest.useFakeTimers();
+    try {
+      const msg33 = 'Chưa thể mở trang thanh toán lúc này. Vui lòng thử lại sau vài phút.';
+      showOrders(prepaid(), { path: { pathname: '/customer/product-orders', search: `?order=${ID}`, state: { placed: 'DH-0040', paymentLinkError: msg33 } } });
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      const toastText = screen.getByText('Đơn hàng DH-0040 đã được đặt.');
+      expect(toastText.closest('[role="status"]')).toBeVisible();
+      expect(screen.getByText(msg33)).toBeVisible();
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(`/customer/product-orders?order=${ID}|null`);
+      act(() => { jest.advanceTimersByTime(5000); });
+      expect(screen.queryByText('Đơn hàng DH-0040 đã được đặt.')).not.toBeInTheDocument();
+      expect(screen.getByText(msg33)).toBeVisible();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('B2: MSG59 toast from payOS return strips status query param and can be manually closed', async () => {
+    showOrders(prepaid({ paid: true }), { path: `/customer/product-orders?order=${ID}&cancel=false&status=PAID` });
+    const toastText = await screen.findByText('Đơn hàng DH-0040 đã được đặt.');
+    expect(toastText.closest('[role="status"]')).toBeVisible();
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent(`/customer/product-orders?order=${ID}&cancel=false|null`));
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
+    expect(screen.queryByText('Đơn hàng DH-0040 đã được đặt.')).not.toBeInTheDocument();
+  });
+
+  test('C: in-transit delivery shows auto-confirm date, MSG156, asks MSG166, confirms received and shows MSG167 toast', async () => {
+    const inTransit = prepaid({ paymentMethod: 'COD', paid: false, status: 'HANDED_TO_CARRIER',
+      trackingCode: 'VN-7788', autoDeliverAt: '2026-12-03T05:00:00.000Z' });
+    const api = showOrders(inTransit);
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0040' });
+    expect(within(detail).getByText('Tự xác nhận đã nhận vào 03/12/2026.')).toBeVisible();
+    expect(within(detail).getByText('Đơn này không thể huỷ nữa.')).toBeVisible();
+    expect(within(detail).queryByRole('button', { name: 'Huỷ đơn' })).not.toBeInTheDocument();
+    fireEvent.click(within(detail).getByRole('button', { name: 'Đã nhận hàng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Xác nhận đã nhận đơn DH-0040' });
+    expect(within(dialog).getByText('Bạn đã nhận đủ đơn DH-0040? Sau khi xác nhận, đơn chuyển sang Đã giao hàng.')).toBeVisible();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận đã nhận hàng' }));
+    await waitFor(() => expect(api.confirmReceived).toHaveBeenCalledWith(ID));
+    const toast = await screen.findByText('Đã xác nhận nhận đơn DH-0040.');
+    expect(toast.closest('[role="status"]')).toBeVisible();
+  });
+
+  test('C: non-transit orders hide the Received button and auto-confirm hint', async () => {
+    showOrders(prepaid({ paymentMethod: 'COD', paid: true, status: 'DELIVERED', deliveredBy: 'CUSTOMER', autoDeliverAt: null }));
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0040' });
+    expect(within(detail).queryByRole('button', { name: 'Đã nhận hàng' })).not.toBeInTheDocument();
+    expect(within(detail).queryByText(/Tự xác nhận đã nhận vào/)).not.toBeInTheDocument();
+  });
+});
+
+describe('Order Management, prepaid orders', () => {
+  const admin = (over = {}) => ({ ...prepaid(over), customer: { id: 'u1', displayName: 'Hoàng Thị Mai', phone: '0912345678' } });
+  function showAdmin(order) {
+    const api = { listOrders: jest.fn().mockResolvedValue({ data: [order], meta: { counts: { PREPARE: 1, AWAITING_PICKUP: 0, IN_TRANSIT: 0, RETURNING: 0 } } }),
+      handToCarrier: jest.fn(), markReady: jest.fn(), recordPayment: jest.fn(), handToCustomer: jest.fn() };
+    render(<MemoryRouter><ProductOrderManagementPage api={api} /></MemoryRouter>);
+    return api;
+  }
+
+  test('an unpaid prepaid delivery order cannot be handed to the carrier', async () => {
+    showAdmin(admin());
+    expect(await screen.findByText(/Chờ khách thanh toán/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Đã giao cho hãng vận chuyển' })).not.toBeInTheDocument();
+  });
+
+  test('an unpaid prepaid pick-up order cannot be marked ready', async () => {
+    showAdmin(admin({ receiveMethod: 'PICKUP', deliveryAddress: null, shippingFee: 0, total: 420000 }));
+    expect(await screen.findByText(/Chờ khách thanh toán/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Đánh dấu sẵn sàng' })).not.toBeInTheDocument();
+  });
+
+  test('a paid prepaid order is handed over at once, with no payment to take', async () => {
+    showAdmin(admin({ paid: true }));
+    expect(await screen.findByRole('button', { name: 'Đã giao cho hãng vận chuyển' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Đã thu tiền' })).not.toBeInTheDocument();
+  });
+
+  test.each([
+    ['CUSTOMER', 'Khách hàng xác nhận'],
+    ['STAFF', 'Sale Staff xác nhận'],
+    ['SYSTEM', 'Hệ thống tự động xác nhận sau 7 ngày']
+  ])('C: Order Management shows who confirmed delivery (%s)', async (deliveredBy, label) => {
+    showAdmin(admin({ status: 'DELIVERED', paid: true, paymentMethod: 'COD', deliveredBy }));
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0040' });
+    expect(within(detail).getByText('Xác nhận giao')).toBeVisible();
+    expect(within(detail).getByText(label)).toBeVisible();
+  });
+});

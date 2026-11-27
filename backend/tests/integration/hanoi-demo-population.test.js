@@ -40,6 +40,21 @@ test('seeds linked Hanoi fixtures once, preserves live records, and yields eligi
   const quote = await pricing.basket(String(customer._id), { items: [{ serviceId: String(service._id), petIds: [String(pet._id)], durationMinutes: 60, visitCount: 1 }] });
   const repository = createEmployeeScheduleRepository({ connection, clock, coverageAreas: DEMO_WORK_AREAS });
   const availability = createCheckoutAvailabilityService({ connection, repository, clock });
+  const searchBeforeHistory = await availability.search({ userId: String(customer._id), roles: ['CUSTOMER'], state: 'ACTIVE' }, {
+    quoteId: quote.quoteId, visit: { itemIndex: 0, startAt: '2026-11-03T02:00:00Z', location: 'HOME', addressId: String(address._id) } });
+  expect(searchBeforeHistory.sitters).toEqual([]);
+  const demoSitter = await connection.models.User.findOne({ fixtureKey: /:sitter-3$/ }).lean();
+  await connection.collection('visits').insertOne({
+    _id: new mongoose.Types.ObjectId(),
+    bookingId: new mongoose.Types.ObjectId(),
+    customerId: customer._id,
+    sitterId: demoSitter._id,
+    petIds: [pet._id],
+    state: 'COMPLETED',
+    startAt: new Date('2026-10-25T02:00:00Z'),
+    endAt: new Date('2026-10-25T03:00:00Z'),
+    completedAt: new Date('2026-10-25T03:00:00Z')
+  });
   const search = await availability.search({ userId: String(customer._id), roles: ['CUSTOMER'], state: 'ACTIVE' }, {
     quoteId: quote.quoteId, visit: { itemIndex: 0, startAt: '2026-11-03T02:00:00Z', location: 'HOME', addressId: String(address._id) } });
   expect(search.sitters.length).toBeGreaterThan(0);
