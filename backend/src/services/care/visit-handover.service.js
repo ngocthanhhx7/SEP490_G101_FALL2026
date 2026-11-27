@@ -5,6 +5,7 @@ import { CARE_PROFILE_KEYS } from '../../validators/customer-care.validator.js';
 import { handoverConfirmationInput } from '../../validators/visit-handover.validator.js';
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 import { HANDOVER_WINDOW_MS, handoverPending, lateCheckInExempt } from './visit-handover-policy.service.js';
+import { additionalCareChecklist } from './visit-care-instructions.service.js';
 import { workflowMissing, workflowTasks } from './workflow-snapshot.service.js';
 
 const CHECK_IN_WINDOW_MS = 30 * 60000;
@@ -111,7 +112,9 @@ export function createVisitHandoverService({ repository, clock = Date.now }) {
           previousVisitCount: previousSitterId ? earlier.filter(row => String(row.sitterId) === String(previousSitterId)).length : null },
         care: { version: digest(care), revision, confirmedAt,
           pets: care.pets.map(pet => ({ name: pet.name, profile: careProfile(pet) })),
-          tasks: requiredTaskLabels(visit) },
+          tasks: requiredTaskLabels(visit),
+          ...(visit.snapshots.workflow ? { additionalTasks: additionalCareChecklist(visit).map(({ itemId, label, required }) =>
+            ({ itemId, label, required })) } : {}) },
         reports: earlier.map(row => summarizeReport(row, actor.userId, names)),
         pets: care.pets.map(pet => ({ name: pet.name, breed: breedByPet.get(String(pet.id)) ?? null }))
       };

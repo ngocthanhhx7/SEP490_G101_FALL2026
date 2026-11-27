@@ -62,6 +62,10 @@ function CareInstructions({ care }) {
     {care.tasks.length > 0 && <dl className="handover-confirmation__details handover-confirmation__tasks">
       <Detail label="Việc cần làm"><ul>{care.tasks.map((task, index) => <li key={index}>{task}</li>)}</ul></Detail>
     </dl>}
+    {care.additionalTasks?.length > 0 && <dl className="handover-confirmation__details handover-confirmation__tasks">
+      <Detail label="Việc khách bổ sung"><ul>{care.additionalTasks.map(task =>
+        <li key={task.itemId}>{task.label}{task.required ? '' : ' (Tuỳ chọn)'}</li>)}</ul></Detail>
+    </dl>}
   </section>;
 }
 

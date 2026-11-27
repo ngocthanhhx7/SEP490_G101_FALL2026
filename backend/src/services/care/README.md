@@ -40,7 +40,9 @@ Service Workflow owns bounded Service draft/publication and immutable per-Visit 
 Bulk care-instruction updates carry the selected visit's version and the exact
 IDs/versions of the later visits shown to the customer. A changed target or
 crossed two-hour cutoff requires a fresh view and confirmation before writes.
+Each target keeps the locked task labels from its own visit snapshot.
 
 For a visit with a published workflow, the execution checklist contains only
 customer-added tasks. Checkout verifies their required items along with the
-published workflow gates.
+published workflow gates. A replacement sitter sees the additional tasks before
+the handover acknowledgement applies to the current instruction version.

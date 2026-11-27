@@ -161,6 +161,20 @@ async function seedBookingWithVisits(visitSpecs) {
   return { booking, visits, petId: String(petId) };
 }
 
+async function seedWorkflow(visitId) {
+  const definition = {
+    title: 'Quy trình chăm sóc thử',
+    steps: ['CHECK_IN', 'EXECUTION', 'CHECK_OUT'].map(phase => ({
+      stepId: phase.toLowerCase(), title: 'Việc trong quy trình', phase, scope: 'PER_VISIT', species: [], locations: [],
+      required: true, canSkip: false, photoSlots: []
+    }))
+  };
+  await col('visits').updateOne({ _id: visitId }, { $set: {
+    'snapshots.workflow': { definition, revision: 1, hash: workflowHash(definition) },
+    workflowResults: definition.steps.map(step => ({ taskKey: `${step.stepId}:visit`, status: 'COMPLETED' }))
+  } });
+}
+
 async function seedEvidence(sitterId, mediaId) {
   await col('privateimages').insertOne({
     _id: mediaId,
@@ -227,19 +241,7 @@ test.each(['legacy', 'versioned'])('ST-BKG-26 full flow: customer edits, sitter 
   const visitId = String(visits[0]._id);
 
   const versioned = mode === 'versioned';
-  if (versioned) {
-    const definition = {
-      title: 'Quy trình chăm sóc thử',
-      steps: ['CHECK_IN', 'EXECUTION', 'CHECK_OUT'].map(phase => ({
-        stepId: phase.toLowerCase(), phase, scope: 'PER_VISIT', species: [], locations: [],
-        required: true, canSkip: false, photoSlots: []
-      }))
-    };
-    await col('visits').updateOne({ _id: visits[0]._id }, { $set: {
-      'snapshots.workflow': { definition, revision: 1, hash: workflowHash(definition) },
-      workflowResults: definition.steps.map(step => ({ taskKey: `${step.stepId}:visit`, status: 'COMPLETED' }))
-    } });
-  }
+  if (versioned) await seedWorkflow(visits[0]._id);
 
   // Role/ownership guards
   await request(app).get(`/api/v1/checkout/bookings/${booking._id}/care-instructions`).set(authHeaders(otherCustomerSession)).expect(404);
@@ -448,6 +450,69 @@ test('bulk care instructions reject a stale target and require confirmation when
   const confirmed = await put(firstId, { ...payload, applyFromNextVisit: true }).expect(200);
   expect(confirmed.body.data.updatedVisitIds).toEqual([laterId]);
   expect((await col('visits').findOne({ _id: visits[0]._id })).version).toBe(0);
+});
+
+test('applies customer tasks across services while preserving each visit’s locked task labels', async () => {
+  const firstStart = new Date(nowMs + 3 * 3600000), laterStart = new Date(nowMs + 24 * 3600000);
+  const { booking, visits } = await seedBookingWithVisits([
+    { startAt: firstStart, endAt: new Date(+firstStart + 3600000) },
+    { startAt: laterStart, endAt: new Date(+laterStart + 3600000) }
+  ]);
+  const [first, later] = visits;
+  const tasks = label => [{ itemId: 'service-scope', label, required: true },
+    { itemId: 'pet-condition', label: 'Ghi nhận tình trạng', required: true }];
+  await col('visits').updateOne({ _id: first._id }, { $set: {
+    'snapshots.serviceName': 'Dắt chó đi dạo', 'snapshots.checklistItems': tasks('Dắt chó đi dạo')
+  } });
+  await col('visits').updateOne({ _id: later._id }, { $set: {
+    'snapshots.serviceName': 'Cho ăn tại nhà', 'snapshots.checklistItems': tasks('Cho ăn tại nhà')
+  } });
+  const updated = await request(app).put(`/api/v1/checkout/bookings/${booking._id}/visits/${first._id}/care-instructions`)
+    .set(authHeaders(customerSession)).send({
+      expectedVersion: 0, applyToLater: true, targetVersions: [{ visitId: String(later._id), version: 0 }],
+      pets: [], tasks: [...tasks('Dắt chó đi dạo'), { label: 'Thay nước sạch', required: true }]
+    }).expect(200);
+  expect(updated.body.data.visits[0].tasks[0].label).toBe('Dắt chó đi dạo');
+  expect(updated.body.data.visits[1]).toMatchObject({ serviceName: 'Cho ăn tại nhà' });
+  expect(updated.body.data.visits[1].tasks[0]).toMatchObject({ itemId: 'service-scope', label: 'Cho ăn tại nhà', locked: true });
+  expect(updated.body.data.visits[1].tasks).toContainEqual(expect.objectContaining({ label: 'Thay nước sạch' }));
+});
+
+test('a replacement sitter sees updated customer tasks before acknowledging a versioned handover', async () => {
+  const startAt = new Date(nowMs + 3 * 3600000);
+  const { booking, visits } = await seedBookingWithVisits([{
+    state: 'ASSIGNED', sitterId: new mongoose.Types.ObjectId(sitterSession.user.id), startAt, endAt: new Date(+startAt + 3600000)
+  }]);
+  const visit = visits[0], root = `/api/v1/employee-scheduling/visits/${visit._id}`;
+  await seedWorkflow(visit._id);
+  await request(app).put(`/api/v1/checkout/bookings/${booking._id}/visits/${visit._id}/care-instructions`)
+    .set(authHeaders(customerSession)).send({
+      expectedVersion: 0, pets: [], tasks: [
+        { label: 'Thay nước sạch', required: true }, { label: 'Chơi bóng 5 phút', required: false }
+      ]
+    }).expect(200);
+  nowMs = +startAt - 20 * 60000;
+  await col('visits').updateOne({ _id: visit._id }, { $set: {
+    sitterId: new mongoose.Types.ObjectId(replacementSession.user.id), handoverRequired: true, handoverAccepted: false,
+    assignedAt: new Date(nowMs), handoverNote: { previousSitterId: new mongoose.Types.ObjectId(sitterSession.user.id), reasonCode: 'REASSIGNED' }
+  }, $inc: { version: 1 } });
+
+  await request(app).get(root + '/handover').set(authHeaders(sitterSession)).expect(404);
+  const handover = await request(app).get(root + '/handover').set(authHeaders(replacementSession)).expect(200);
+  const { care, version } = handover.body.data;
+  expect(care.tasks).toContain('Việc trong quy trình');
+  expect(care.additionalTasks).toEqual([
+    expect.objectContaining({ label: 'Thay nước sạch', required: true }),
+    expect.objectContaining({ label: 'Chơi bóng 5 phút', required: false })
+  ]);
+  const confirm = expectedVersion => request(app).post(root + '/handover-confirmations')
+    .set(authHeaders(replacementSession, `synthetic-handover-${expectedVersion}`))
+    .send({ expectedVersion, careVersion: care.version, acknowledged: true });
+  await confirm(version - 1).expect(409);
+  await confirm(version).expect(200);
+  const saved = await col('visits').findOne({ _id: visit._id });
+  expect(saved.acknowledgedInstructionVersion).toBe(2);
+  expect(saved.careInstructions.acknowledgedBySitterId).toBe(replacementSession.user.id);
 });
 
 test('GBR-23 under 2 hours keeps old version on current visit and applies new version only to later unstarted visits', async () => {

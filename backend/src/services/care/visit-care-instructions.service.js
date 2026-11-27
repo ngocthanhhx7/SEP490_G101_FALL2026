@@ -107,13 +107,12 @@ function buildNormalizedTasks(visit, inputTasks) {
     (visit.snapshots?.checklistItems ?? []).map(item => [item.itemId, item.label])
   );
   const lockedTasks = LOCKED_DEFAULT_TASK_IDS.map(itemId => {
-    const supplied = inputTasks.find(row => row.itemId === itemId);
     const fallback = itemId === 'service-scope'
       ? (visit.snapshots?.serviceScope || DEFAULT_TASK_LABELS[itemId])
       : DEFAULT_TASK_LABELS[itemId];
     return {
       itemId,
-      label: supplied?.label || existingItems.get(itemId) || fallback,
+      label: existingItems.get(itemId) || fallback,
       required: true,
       locked: true
     };
