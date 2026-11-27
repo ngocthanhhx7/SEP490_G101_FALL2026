@@ -154,6 +154,74 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         ? '/account/bookings/' + bookingId + '/visits/' + visitId : '/account/bookings';
       await write(`visit:${visitId}:${version}`, `Visit${operation}`, [{ id: customerId, to }], ...labels[operation], session);
     },
+    async faultyProductClaim({ event, claim }, session) {
+      const claimId = String(claim._id);
+      const orderId = String(claim.orderId);
+      const eventId = `faulty-claim:${claimId}:${event}:${claim.version ?? 0}`;
+      const adminLink = `/admin/faulty-product-claims?claim=${encodeURIComponent(claimId)}`;
+      const customerLink = `/customer/product-orders?order=${encodeURIComponent(orderId)}`;
+      const meta = { claimId, orderId, claimStatus: claim.status };
+      const writeClaim = async (recipients, title, message) => {
+        for (const recipient of recipients.filter(row => row.id)) {
+          await col('notifications').updateOne(
+            { _id: digest([eventId, String(recipient.id), recipient.role ?? null]) },
+            {
+              $setOnInsert: {
+                eventId,
+                eventType: event,
+                recipientId: String(recipient.id),
+                role: recipient.role ?? null,
+                title,
+                message,
+                channel: 'IN_APP',
+                deepLink: recipient.to,
+                metadata: meta,
+                createdAt: new Date(clock()),
+                readAt: null
+              }
+            },
+            { upsert: true, session }
+          );
+        }
+      };
+
+      if (event === 'FaultyProductClaimSubmitted') {
+        const staff = await operators(['SALE_STAFF'], adminLink, session);
+        await writeClaim(
+          staff.map(row => ({ ...row, role: 'SALE_STAFF' })),
+          'Có báo sản phẩm lỗi mới',
+          `Khách vừa gửi báo sản phẩm lỗi ${claim.code} cho đơn ${claim.orderCode}.`
+        );
+      } else if (event === 'FaultyProductClaimInspected') {
+        const admins = await operators(['ADMIN'], adminLink, session);
+        await writeClaim(
+          admins.map(row => ({ ...row, role: 'ADMIN' })),
+          'Khiếu nại sản phẩm chờ duyệt',
+          `Sale Staff đã kiểm tra khiếu nại ${claim.code} và chuyển Admin duyệt.`
+        );
+      } else if (event === 'FaultyProductClaimDecided') {
+        let message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã có kết quả xử lý.`;
+        if (claim.decision === 'EXCHANGE') {
+          message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã được duyệt đổi hàng mới.`;
+        } else if (claim.decision === 'REFUND') {
+          const formatted = `${new Intl.NumberFormat('vi-VN').format(claim.refundAmountVnd ?? 0)} đ`;
+          message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã được duyệt hoàn tiền ${formatted}. Kế toán sẽ hoàn tiền ngoài hệ thống.`;
+        } else if (claim.decision === 'REJECT') {
+          message = `Khiếu nại ${claim.code} cho đơn ${claim.orderCode} đã bị từ chối.`;
+        }
+        await writeClaim(
+          [{ id: claim.customerId, role: 'CUSTOMER', to: customerLink }],
+          'Kết quả báo sản phẩm lỗi',
+          message
+        );
+      } else if (event === 'FaultyProductExchangeSent') {
+        await writeClaim(
+          [{ id: claim.customerId, role: 'CUSTOMER', to: customerLink }],
+          'Đã gửi hàng đổi',
+          `Cửa hàng đã gửi sản phẩm đổi mới cho khiếu nại ${claim.code} (đơn ${claim.orderCode}).`
+        );
+      }
+    },
     async careInstructionsUpdated({ visitId, bookingId, sitterId, instructionVersion }, session) {
       await col('notifications').updateOne(
         { _id: digest([`care-instructions:${visitId}:v${instructionVersion}`, String(sitterId), 'PET_SITTER']) },

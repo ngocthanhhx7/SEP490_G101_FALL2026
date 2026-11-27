@@ -287,7 +287,7 @@ export function createProductOrderManagementService({
       return transition(actor, orderId, {
         allowed: (order) => order.receiveMethod === 'PICKUP' && order.status === 'READY',
         check: (order) => { if (!order.paid) throw productSalesErrors.orderNotPaid(); },
-        changes: () => ({ status: 'PICKED_UP' }),
+        changes: () => ({ status: 'PICKED_UP', deliveredAt: new Date(clock()) }),
         stock: 'LEAVE'
       });
     },
