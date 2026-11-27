@@ -240,13 +240,12 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         await employeeGuard(input.employeeId, session);
         if (sourceDraft && (await draftService.preview(actor, sourceDraft.input, session)).sourceHash !== sourceDraft.sourceHash) fail('PAYROLL_SOURCE_CHANGED', 'Sources changed; preview again', 409);
         const contract = await currentContract(input.employeeId, session, input.periodStart);
+        if (contract.payCycle !== 'MONTHLY') fail('PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED', 'Verify a signed monthly-pay contract before preparing payroll', 409);
         if (contract.endsAt && contract.endsAt < input.periodEnd) fail('CONTRACT_REQUIRED', 'Split period at contract end', 409);
         if (await models.EmploymentContract.exists({ employeeId: input.employeeId, supersededAt: null, effectiveAt: { $gt: input.periodStart, $lt: input.periodEnd } }).session(session))
           fail('CONTRACT_REQUIRED', 'Split period at contract change', 409);
         const existing = await models.PayrollStatement.find({ employeeId: input.employeeId, monthKey, status: { $ne: 'VOIDED' } }).select('+assessment').session(session).lean();
         if (existing.some(s => s.periodStart < input.periodEnd && s.periodEnd > input.periodStart)) fail('PAYROLL_PERIOD_OVERLAP', 'Payroll period overlaps', 409);
-        if (contract.payCycle === 'WEEKLY' && input.periodEnd - input.periodStart > 7 * 86400000) fail('VALIDATION_FAILED', 'Weekly period too long');
-        if (contract.payCycle === 'WEEKLY' && input.dueAt - input.periodEnd > 8 * 86400000) fail('VALIDATION_FAILED', 'Pay date exceeds weekly payment interval');
         if (existing.some(s => s.assessment.scheduledMonthMinutes !== input.scheduledMonthMinutes) ||
           existing.reduce((sum, s) => sum + s.assessment.paidPeriodMinutes, 0) + input.paidPeriodMinutes > input.scheduledMonthMinutes)
           fail('PAYROLL_RECONCILIATION_REQUIRED', 'Attendance would duplicate monthly base', 409);
@@ -280,7 +279,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (existing.reduce((sum, s) => sum + (s.breakdown.allowanceVnd ?? 0), 0) + breakdown.allowanceVnd > (contract.monthlyAllowanceVnd ?? 0)) fail('PAYROLL_RECONCILIATION_REQUIRED', 'Rounded monthly allowance requires reconciliation', 409);
         const statementId = new models.PayrollStatement()._id, employee = await User.findById(input.employeeId).select('displayName').session(session).lean();
         const [statement] = await models.PayrollStatement.create([{ _id: statementId, reference: `PL-${monthKey}-${String(statementId).toUpperCase()}`, employeeName: employee?.displayName, employeeCode: contract.employeeCode, employeeId: input.employeeId, contractId: contract._id, periodStart: input.periodStart,
-          periodEnd: input.periodEnd, dueAt: input.dueAt, monthKey, payCycle: contract.payCycle, status: 'PREPARED', version: 0,
+          periodEnd: input.periodEnd, dueAt: input.dueAt, monthKey, payCycle: 'MONTHLY', status: 'PREPARED', version: 0,
           breakdown, assessment: { ...input, ...(sourceDraft ? { sourceDraft } : {}) }, creditIds: commission.payable.map(c => c._id), heldCreditIds: commission.held.map(c => c._id), advanceIds: repayments.map(a => a.advanceId), preparedBy: actor.userId, preparedAt: now() }], { session });
         for (const claim of [...commission.payable.map(c => `credit:${c._id}`),
           ...(input.includeMonthlyBonus ? [`bonus:${input.employeeId}:${monthKey}`] : [])]) {

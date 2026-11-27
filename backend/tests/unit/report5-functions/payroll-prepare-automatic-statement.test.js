@@ -60,15 +60,15 @@ test("PAYROLL-02-UTCID01 [N] Chuyển nguồn bảng kê tháng đã kiểm tra 
   expect(actual).toEqual({ id: STATEMENT, payCycle: 'MONTHLY', status: 'PREPARED' });
 });
 
-// SRS: UC-75 Normal 1; GBR-44: lập bảng kê tuần part-time.
-test("PAYROLL-02-UTCID02 [N] Chuyển nguồn bảng kê tuần đã kiểm tra sang lệnh lập", async () => {
-  const checked = assessment({ weekly: true });
-  const f = fixture({ previewAssessment: checked });
-  const save = jest.fn(async () => ({ id: STATEMENT, payCycle: 'WEEKLY', status: 'PREPARED' }));
+// UC-21/GBR-31/44: hợp đồng tuần cần đối chiếu trước khi lập phiếu mới.
+test('PAYROLL-02-UTCID02 does not save when draft validation rejects a legacy WEEKLY contract', async () => {
+  const f = fixture();
+  const error = { code: 'PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED', status: 409 };
+  f.preview.mockRejectedValueOnce(error);
+  const save = jest.fn();
   const request = { input: sourceInput({ weekly: true }), sourceHash: 'synthetic-reviewed-hash' };
-  const actual = await f.service.prepareAutomaticStatement.call({ prepareStatement: save }, ADMIN, request, KEY);
-  expect(save).toHaveBeenCalledWith(ADMIN, checked, KEY, { input: request.input, sourceHash: request.sourceHash });
-  expect(actual.payCycle).toBe('WEEKLY');
+  await expect(f.service.prepareAutomaticStatement.call({ prepareStatement: save }, ADMIN, request, KEY)).rejects.toMatchObject(error);
+  expect(save).not.toHaveBeenCalled();
 });
 
 // SRS: I.4.4 Permission Matrix; GBR-02; UC-76 Primary Actor Admin.
