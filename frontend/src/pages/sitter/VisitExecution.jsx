@@ -67,7 +67,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
-    {row.workflow?.mode === 'LEGACY' && <p>Ca legacy chưa có workflow snapshot; sử dụng checklist đã lưu của ca.</p>}
+    {row.workflow?.mode === 'LEGACY' && <p>Buổi này dùng danh sách việc đã lưu.</p>}
     <h4>{states[row.state] ?? 'Cần kiểm tra trạng thái ca'}</h4>
     {row.completionAttention === 'COMPLETION_REVIEW_REQUIRED' && <p role="alert">Cần xác minh kết thúc. Buổi đã quá hạn check-out; điều phối và quản trị đã được thông báo để hỗ trợ.</p>}
     {row.completionAttention === 'COMPLETION_VERIFICATION_PENDING' && <p role="status">Đang chờ quản trị đối chiếu bằng chứng và giờ kết thúc thực tế.</p>}
