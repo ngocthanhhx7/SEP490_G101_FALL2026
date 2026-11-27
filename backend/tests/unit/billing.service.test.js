@@ -185,6 +185,18 @@ test('incomplete visit or multi-visit booking cannot receive a postpay bill', as
   expect(second.calls.issueBill).toHaveLength(0);
 });
 
+test('BILL-03-UTCID06 does not issue a postpay bill when the ownership lookup finds no visit', async () => {
+  const { service, calls } = setup({ visitContext: null });
+
+  await errorWithCode(service.issuePostpayBill({
+    actorId: 'other-customer', bookingId: 'booking-1', visitId: 'visit-1',
+    expectedVersion: 5, idempotencyKey: 'other-customer-bill',
+  }), 'RESOURCE_NOT_FOUND');
+  expect(calls.findOwnedVisitBillingContext).toEqual([{ actorId: 'other-customer', bookingId: 'booking-1', visitId: 'visit-1' }]);
+  expect(calls.replayBill).toHaveLength(0);
+  expect(calls.issueBill).toHaveLength(0);
+});
+
 test('ownership mismatch and stale versions fail before writing', async () => {
   const notOwned = setup({ bookingContext: null });
   await errorWithCode(notOwned.service.createPrepaymentIntent({
