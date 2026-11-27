@@ -11,10 +11,11 @@ import { vietnamDate, vietnamDateTime } from '../../utils/calendar-date.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { VerifiedVisitRating } from '../customer/VerifiedVisitRating.jsx';
 import { Button, Dialog } from '../../components/ui/index.js';
+import { PickupSelectionField, pickupReady, pickupInput, pickupPrice, PICKUP_UNAVAILABLE } from '../../components/common/PickupSelectionField.jsx';
 import './booking-checkout.css';
 
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cơ sở', OUTDOOR: 'Ngoài trời' };
+const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cửa hàng', OUTDOOR: 'Ngoài trời' };
 const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ sơ đã thay đổi. Vui lòng lấy báo giá mới.',
   MATCH_EXPIRED: 'Gợi ý đã hết hạn. Vui lòng tìm lại sitter.', MATCH_CHANGED: 'Hồ sơ hoặc lịch khác với gợi ý. Vui lòng tìm lại sitter.',
   MATCH_ALREADY_USED: 'Gợi ý này đã tạo đơn. Kiểm tra đơn của bạn trước khi tìm lại.',
@@ -32,6 +33,9 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   ADDRESS_OUT_OF_SERVICE_AREA: 'Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.',
   GROOMING_PAYMENT_OUTSTANDING: 'Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.',
   HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
+  PICKUP_DISTANCE_UNAVAILABLE: PICKUP_UNAVAILABLE,
+  PICKUP_QUOTE_CHANGED: 'Phí đón vừa thay đổi. Vui lòng xem lại trước khi xác nhận.',
+  PICKUP_DISTANCE_EXCEEDED: 'Địa chỉ đón vượt quá khoảng cách cho phép. Vui lòng chọn lại địa chỉ.',
   COMMAND_PENDING: 'Yêu cầu đang được xử lý.', INVALID_STATE: 'Đơn không còn ở trạng thái có thể thanh toán.',
   VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[error.code] || apiErrorFeedback(error, 'Chưa xác nhận được thao tác. Vui lòng thử lại.');
 
@@ -60,12 +64,15 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
   const [selectedLocations, setSelectedLocations] = useState(() => visits.map(row => recommendation ? 'HOME' : row.service?.details?.locations?.[0] || 'HOME'));
   const [starts, setStarts] = useState(() => visits.map(() => recommendation ? vietnamDateTime(new Date(recommendation.startAt)) : ''));
   const [addressIds, setAddressIds] = useState(() => visits.map(() => recommendation?.addressId ?? ''));
+  const [pickups, setPickups] = useState(() => visits.map(() => null));
+  const pickupFee = pickups.reduce((sum, value, index) => sum + (selectedLocations[index] === 'FACILITY' ? pickupPrice(value) : 0), 0);
+  const allPickupsReady = pickups.every((value, index) => selectedLocations[index] !== 'FACILITY' || pickupReady(value));
   const [busySlots, setBusySlots] = useState([]);
   const today = vietnamDate();
   const minimumFor = location => vietnamDateTime(new Date(Math.ceil((Date.now() + (location === 'HOME'
     ? 2 * 3600000 : quote.paymentMode === 'PREPAY' ? 15 * 60000 : 1)) / 60000) * 60000));
   const submit = async event => {
-    event.preventDefault(); if (locked.current) return;
+    event.preventDefault(); if (locked.current || (!uncertain && !allPickupsReady)) return;
     if (!uncertain) {
       const selected = starts.map((value, index) => {
         const item = quote.items[visits[index].itemIndex];
@@ -91,6 +98,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
         itemIndex: row.itemIndex, startAt: `${data.get(`start:${index}`)}:00+07:00`, location: selectedLocations[index],
         ...(data.get(`sitter:${index}`) ? { requestedSitterId: data.get(`sitter:${index}`) } : {}),
         ...(selectedLocations[index] !== 'FACILITY' ? { addressId: data.get(`address:${index}`) } : {}),
+        ...(selectedLocations[index] === 'FACILITY' && pickupInput(pickups[index]) ? { pickup: pickupInput(pickups[index]) } : {}),
         ...(recommendation ? { matchId: recommendation.matchId, requestedSitterId: recommendation.requestedSitterId,
           addressId: recommendation.addressId, startAt: recommendation.startAt, location: 'HOME' } : {}) })) };
       const fingerprint = JSON.stringify(body);
@@ -142,6 +150,8 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
             <PreviousSitterField key={[starts[index],selectedLocations[index],addressIds[index]].join('|')} api={api} quoteId={quote.quoteId}
               itemIndex={row.itemIndex} index={index} start={starts[index]} location={selectedLocations[index]} addressId={addressIds[index]} />}
         {selectedLocations[index] === 'FACILITY' && <p>{options.data?.facilityAddress || 'Chưa có địa chỉ cơ sở được xác nhận.'}</p>}
+        {selectedLocations[index] === 'FACILITY' && api.pickupQuote && <PickupSelectionField addresses={addresses.data ?? []}
+          api={api} value={pickups[index]} onChange={value => setPickups(current => current.map((old, i) => i === index ? value : old))} />}
         {selectedLocations[index] !== 'FACILITY' && <label>Địa chỉ đã lưu<select name={`address:${index}`} required disabled={Boolean(recommendation)}
           value={addressIds[index]} onChange={event => setAddressIds(current => current.map((value, i) => i === index ? event.target.value : value))}>
           <option value="">Chọn địa chỉ</option>{(addresses.data || []).map(address => <option key={address.id || address._id} disabled={address.served === false} value={address.id || address._id}>{address.label}{address.served === false ? " — Chưa phục vụ" : ""}</option>)}
@@ -162,7 +172,8 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
           <div><dt>Giảm nhiều buổi</dt><dd>− {money(quote.discountVnd)}</dd></div>
           <div><dt>Giảm giá hạng {({ MEMBER: 'Member', SILVER: 'Silver', GOLD: 'Gold' })[quote.tier?.code] ?? ''}</dt>
             <dd>− {money(quote.tierDiscountVnd ?? 0)}</dd></div>
-          <div><dt>Tổng thanh toán</dt><dd><strong>{money(quote.totalVnd)}</strong></dd></div>
+          {pickups.some((value, index) => value && selectedLocations[index] === 'FACILITY') && <div><dt>Phí đón (cả hai chiều)</dt><dd>{money(pickupFee)}</dd></div>}
+          <div><dt>Tổng thanh toán</dt><dd><strong>{money(quote.totalVnd + pickupFee)}</strong></dd></div>
         </dl>
       </section>
       <label className="pwc-checkout-consent"><input type="checkbox" name="consent" required />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.</label>
@@ -171,7 +182,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     {error && <p role="alert">{error}</p>}
     {options.status === 'error' && <p role="alert">Đặt lịch hiện chưa khả dụng. <button type="button" onClick={options.retry}>Thử lại</button></p>}
     {onEditQuote && <button type="button" disabled={busy || uncertain} onClick={onEditQuote}>Quay lại báo giá</button>}
-    <button type="submit" disabled={busy || options.status !== 'success' || options.data?.groomingPaymentOutstanding}><CalendarCheck size={18} />{busy ? 'Đang xác nhận…' : uncertain ? 'Xác nhận lại' : 'Xác nhận đặt dịch vụ'}</button>
+    <button type="submit" disabled={busy || (!uncertain && !allPickupsReady) || options.status !== 'success' || options.data?.groomingPaymentOutstanding}><CalendarCheck size={18} />{busy ? 'Đang xác nhận…' : uncertain ? 'Xác nhận lại' : 'Xác nhận đặt dịch vụ'}</button>
     <Dialog open={busySlots.length > 0} onClose={() => setBusySlots([])} title="Người chăm sóc mong muốn không rảnh"
       description={busySlots.map(index => `Buổi ${index + 1} (${starts[index].replace('T', ' ')})`).join(', ')}
       footer={<><Button type="button" onClick={() => { command.current = null; setBusySlots([]); }}>Đổi ngày</Button>

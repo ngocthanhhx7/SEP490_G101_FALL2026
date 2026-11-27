@@ -74,7 +74,7 @@ export async function provisionInitialCatalog({
             description: item.description,
             scope: item.scope,
             species: item.species,
-            state: 'ACTIVE',
+            state: item.state === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
             effectiveAt: now,
             changedBy: actorId,
             reason,

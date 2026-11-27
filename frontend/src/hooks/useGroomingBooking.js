@@ -69,9 +69,10 @@ export function useGroomingBooking({ api, serviceId }) {
   const chooseDate = value => { changed(); setDate(value); setTime(''); };
   const chooseTime = value => { if (busy || pending) return; setNotice(''); setTime(value); };
 
-  async function confirm() {
+  async function confirm(pickup) {
     if (locked.current || !canConfirm) return;
-    const body = pending ? command.current.body : { startAt: selectedSlot.startAt, pets: quotePets(picked), expectedTotalVnd: quote.data.totalVnd };
+    const body = pending ? command.current.body : { startAt: selectedSlot.startAt, pets: quotePets(picked),
+      expectedTotalVnd: quote.data.totalVnd + (pickup?.expectedFeeVnd ?? 0), ...(pickup ? { pickup } : {}) };
     // The same key is reused for an unchanged request, so a retry after an uncertain reply can never book twice.
     const fingerprint = JSON.stringify(body);
     if (command.current?.fingerprint !== fingerprint) command.current = { fingerprint, body, key: `grooming:${globalThis.crypto.randomUUID()}` };
@@ -90,6 +91,10 @@ export function useGroomingBooking({ api, serviceId }) {
         command.current = null; answer(error.details.petId, 'biteOrScratch', 'YES');
       } else if (error.code === 'GROOMING_PAYMENT_OUTSTANDING') {
         command.current = null; setNotice('Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.');
+      } else if (['PICKUP_QUOTE_CHANGED', 'PICKUP_DISTANCE_EXCEEDED', 'PICKUP_DISTANCE_UNAVAILABLE'].includes(error.code)) {
+        command.current = null;
+        setNotice(error.code === 'PICKUP_DISTANCE_UNAVAILABLE' ? 'Hiện chưa tính được khoảng cách nên chưa đón được. Vui lòng mang thú cưng đến cửa hàng hoặc thử lại sau.'
+          : error.serverMessage || 'Phí đón vừa thay đổi. Vui lòng chọn lại địa chỉ đón.');
       } else if (isUncertainOutcome(error)) {
         setPending(true); setNotice(UNCERTAIN);
       } else {

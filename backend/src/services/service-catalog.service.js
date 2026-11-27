@@ -375,7 +375,7 @@ export function createServiceCatalogService({
   }
 
   async function listAdmin({ includePolicyText = false } = {}) {
-    const services = await Service.find({}).select('code').sort({ code: 1 }).limit(1001).lean();
+    const services = await Service.find({}).select('code presentation').sort({ code: 1 }).limit(1001).lean();
     if (services.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
     const ids = services.map((service) => service._id);
     const at = new Date(clock());
@@ -436,6 +436,7 @@ export function createServiceCatalogService({
         state: version.state,
         effectiveAt: version.effectiveAt.toISOString(),
         latestPolicyVersion: latestPolicyVersion?.version ?? 0,
+        locations: service.presentation?.locations ?? [],
         policy,
         ...(prices ? { price: prices.get(key) ?? null } : {})
       });

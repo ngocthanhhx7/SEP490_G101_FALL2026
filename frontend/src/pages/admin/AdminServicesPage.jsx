@@ -6,6 +6,37 @@ import { createApiClient } from '../../services/api-client.js';
 import './admin-services.css';
 
 const SPECIES = [{ value: 'DOG', label: 'Chó' }, { value: 'CAT', label: 'Mèo' }];
+const LOCATIONS = [{ value: 'HOME', label: 'Tại nhà' }, { value: 'FACILITY', label: 'Tại cửa hàng' }, { value: 'OUTDOOR', label: 'Ngoài trời' }];
+const serviceLocations = service => service?.presentation?.locations ?? service?.locations ?? [];
+function ServiceLocationsForm({ service, apiRequest, onSaved }) {
+  const [locations, setLocations] = useState(() => serviceLocations(service));
+  const [reason, setReason] = useState('');
+  const [pending, setPending] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const save = async event => {
+    event.preventDefault();
+    if (!locations.length || pending) return;
+    setPending(true); setFeedback(null);
+    try {
+      const response = await apiRequest('/services/admin/' + service.id + '/locations', {
+        method: 'PUT', body: { locations, expectedVersion: service.latestVersion ?? service.version, reason: reason.trim() }
+      });
+      if (response.pending) setFeedback('Yêu cầu đang xử lý. Tải lại để xác nhận.');
+      else { setReason(''); onSaved(); }
+    } catch (error) { setFeedback(getErrorMessage(error)); }
+    finally { setPending(false); }
+  };
+  return <form className="admin-service-form" onSubmit={save}>
+    <fieldset className="admin-service-species"><legend>Nơi làm</legend>
+      {LOCATIONS.map(item => <label key={item.value}><input type="checkbox" checked={locations.includes(item.value)}
+        onChange={event => setLocations(previous => event.target.checked ? [...previous, item.value] : previous.filter(value => value !== item.value))} />{item.label}</label>)}
+    </fieldset>
+    {!locations.length && <p>Chọn ít nhất một nơi làm.</p>}
+    <Input label="Lý do thay đổi nơi làm" required minLength={3} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} />
+    {feedback && <Notice state="error" title="Chưa hoàn tất">{feedback}</Notice>}
+    <Button type="submit" disabled={!locations.length} loading={pending}>Lưu nơi làm</Button>
+  </form>;
+}
 const STATES = [
   { value: 'DRAFT', label: 'Bản nháp' }, { value: 'ACTIVE', label: 'Đang cung cấp' },
   { value: 'INACTIVE', label: 'Tạm ngừng' }, { value: 'ARCHIVED', label: 'Lưu trữ' }
@@ -134,7 +165,7 @@ export function AdminServicesPage({ apiRequest: suppliedRequest }) {
         </Notice>}
         {services.length > 0 && <ul className="admin-services-items">{services.map(service => <li key={service.id}>
           <button type="button" className="admin-service-choice" aria-pressed={selected?.id === service.id} onClick={() => choose(service)}>
-            <span className="admin-service-choice-main"><strong>{service.name}</strong><small>{service.code}</small></span>
+            <span className="admin-service-choice-main"><strong>{service.name}</strong><small>{service.code}</small><small>{serviceLocations(service).map(value => LOCATIONS.find(item => item.value === value)?.label).filter(Boolean).join(' · ')}</small></span>
             <span className={'admin-service-state admin-service-state--' + service.state.toLowerCase()}>
               {STATES.find(item => item.value === service.state)?.label ?? service.state}
             </span>
@@ -190,6 +221,8 @@ export function AdminServicesPage({ apiRequest: suppliedRequest }) {
             {editing ? 'Lưu phiên bản' : 'Tạo dịch vụ'}
           </Button>{editing && <Button variant="ghost" onClick={() => { setEditing(false); setFeedback(null); }}>Hủy</Button>}</div>
         </form>}
+        {selected && isAdmin && !editing && <ServiceLocationsForm key={selected.id + ':' + selected.version} service={selected} apiRequest={apiRequest}
+          onSaved={() => { setFeedback({ state: 'success', text: 'Đã lưu nơi làm.' }); resource.retry(); }} />}
         {selected && isAdmin && !editing && <form className="admin-service-form admin-policy-form" onSubmit={savePolicy}>
           <div><p className="admin-services-eyebrow">CHÍNH SÁCH</p><h3>Xuất bản phiên bản chính sách</h3></div>
           <Input label="Tiêu đề" required minLength={2} maxLength={120} value={policyForm.title}
