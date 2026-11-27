@@ -13,6 +13,13 @@ import { AppError } from '../utils/app-error.js';
 
 const admissionByConnection = new WeakMap();
 
+export function mediaAdmissionFor(connection, limit = 4) {
+  if (!admissionByConnection.has(connection)) {
+    admissionByConnection.set(connection, createMediaAdmission({ limit }));
+  }
+  return admissionByConnection.get(connection);
+}
+
 export function privateImageModule({ connection, media, secret, maxImagesPerUser,
   requireAuthenticated, csrf, maxInFlight = 4, imageModels, storagePrefix = 'private-images',
   name = 'private-images', mount = '/api/v1/private-images', clock = Date.now }) {
@@ -21,11 +28,7 @@ export function privateImageModule({ connection, media, secret, maxImagesPerUser
     authorizeVisitUpload: storagePrefix === 'private-images' ? createVisitEvidenceQuota({ connection, clock }) : undefined });
   const controller = createPrivateImageController({ service });
   const router = Router();
-  let admission = admissionByConnection.get(connection);
-  if (!admission) {
-    admission = createMediaAdmission({ limit: maxInFlight });
-    admissionByConnection.set(connection, admission);
-  }
+  const admission = mediaAdmissionFor(connection, maxInFlight);
   const parseImage = express.raw({ type: ['image/png', 'image/jpeg'], limit: MAX_IMAGE_BYTES });
   const upload = admitted(admission, async (req, res) => {
     await parseBody(parseImage, req, res);

@@ -47,7 +47,9 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
       try { envelope = await response.json(); }
       catch { throw new ApiError(response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR', response.status); }
       if (!response.ok) throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
-        fieldErrors: envelope?.error?.fieldErrors
+        fieldErrors: envelope?.error?.fieldErrors,
+        conflictField: envelope?.error?.conflictField,
+        reapplyAt: envelope?.error?.reapplyAt
       });
       if (envelope?.meta?.schemaVersion !== 1 || !envelope?.data || typeof envelope.data.id !== 'string'
         || !/^[A-Za-z0-9_-]{22,128}$/.test(envelope.data.applicationCode ?? '')
@@ -137,6 +139,11 @@ export function createSitterApplicationAdminApi({
     startInterview({ applicationId, expectedVersion, signal }) {
       return request(`/applications/${encodeURIComponent(applicationId)}/interview`, {
         method: 'POST', body: { expectedVersion }, idempotencyKey: keyFactory(), signal
+      });
+    },
+    saveAssessment({ applicationId, expectedVersion, expectedAssessmentVersion, checklist, callAt, outcome, idempotencyKey = keyFactory(), signal }) {
+      return request(`/applications/${encodeURIComponent(applicationId)}/assessment`, {
+        method: 'PATCH', body: { expectedVersion, expectedAssessmentVersion, checklist, callAt, outcome }, idempotencyKey, signal
       });
     },
     decide({ applicationId, action, reason, interviewNote, expectedVersion, signal }) {

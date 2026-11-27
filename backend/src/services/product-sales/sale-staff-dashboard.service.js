@@ -7,7 +7,7 @@ import { readProductOrderTabCounts } from './product-order-tab-counts.js';
 import { countLowStockProducts } from './stock-low-filter.js';
 
 export function createSaleStaffDashboardService({ connection }) {
-  const { Product, ProductOrder } = productSalesModels(connection);
+  const { Product, ProductOrder, FaultyProductClaim } = productSalesModels(connection);
 
   return Object.freeze({
     async read(actor) {
@@ -17,11 +17,12 @@ export function createSaleStaffDashboardService({ connection }) {
       }
 
       try {
-        const [{ PREPARE, AWAITING_PICKUP, RETURNING }, LOW_STOCK] = await Promise.all([
+        const [{ PREPARE, AWAITING_PICKUP, RETURNING }, LOW_STOCK, CLAIMS_TO_CHECK] = await Promise.all([
           readProductOrderTabCounts(ProductOrder),
-          countLowStockProducts(Product)
+          countLowStockProducts(Product),
+          FaultyProductClaim.countDocuments({ status: 'WAITING_CHECK' })
         ]);
-        return { counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK } };
+        return { counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK, CLAIMS_TO_CHECK } };
       } catch {
         throw new AppError(503, 'SALES_DASHBOARD_SOURCE_UNAVAILABLE', 'Could not read sale staff dashboard counts');
       }

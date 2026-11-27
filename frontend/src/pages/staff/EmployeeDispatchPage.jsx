@@ -32,12 +32,14 @@ const reviewLabel = (code) =>
   ({
     NO_ELIGIBLE_SITTER: 'Chưa có người chăm sóc đủ điều kiện nhận ca.',
     INSUFFICIENT_DISPATCH_CANDIDATES: 'Chưa đủ 5 người phù hợp để mời tự động.',
-    STAFF_REVIEW_REQUIRED: 'Các lời mời đã bị từ chối hoặc hết hạn.',
+    STAFF_REVIEW_REQUIRED: 'Ca chưa có người nhận (hết lời mời hoặc vừa được trả ra). Cần nhân viên chọn người.',
     DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Người được khách chỉ định chưa thể nhận ca.',
     TRAVEL_REVIEW_REQUIRED: 'Cần xác minh khả năng di chuyển.',
     DAY_ORIGIN_MISSING: 'Chưa có điểm xuất phát cho ngày làm việc.',
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
+    PAYMENT_REQUIRED: 'Chưa xác nhận được khoản thanh toán của lịch đặt nên chưa gửi được lời mời.',
+    VISIT_UNAVAILABLE: 'Lịch đặt chưa ở trạng thái gửi được lời mời.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
 export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, initialHandoverVisitId, initialTab, initialFilters, reassignedNotice, onReassign, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);

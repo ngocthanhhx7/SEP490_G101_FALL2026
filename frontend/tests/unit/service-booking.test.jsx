@@ -282,3 +282,64 @@ test('ST-BKG-12 shows MSG20 message when confirm rejects a booking longer than 3
   await reviewAndConfirm();
   expect(await screen.findByText('Một lịch đặt kéo dài tối đa 30 ngày.')).toBeVisible();
 });
+
+test('ST-BKG-01: the confirmation lists visits, price per visit, both discounts and the total', async () => {
+  const api = fixture();
+  api.quote.mockResolvedValue({ ...quote, baseVnd: 200000, discountVnd: 4000, tierDiscountVnd: 0, totalVnd: 196000,
+    tier: { code: 'MEMBER' }, items: [{ ...quote.items[0], serviceId: 'service', visitCount: 2, subtotalVnd: 196000 }] });
+  await chooseSchedule(api);
+  fireEvent.click(screen.getByText('Xem lại đơn'));
+  const line = label => screen.getByText(label, { selector: 'dt' }).parentElement;
+  expect(line('Chăm sóc tại nhà · 2 buổi · Giá một buổi')).toHaveTextContent('98.000 ₫');
+  expect(line('Giảm nhiều buổi')).toHaveTextContent('− 4.000 ₫');
+  expect(line('Giảm giá hạng Member')).toHaveTextContent('− 0 ₫');
+  expect(line('Tổng thanh toán')).toHaveTextContent('196.000 ₫');
+  expect(screen.queryByText('Phí bậc giá')).not.toBeInTheDocument();
+});
+
+test('ST-BKG-14: an address outside the service area cannot be used and says why', async () => {
+  const api = fixture();
+  api.addresses.mockResolvedValue({ data: [
+    { id: 'address', label: 'Nhà đã xác nhận', served: true },
+    { id: 'far', label: 'Nhà ngoài vùng', served: false, pointConfirmedAt: '2026-11-01T00:00:00Z' },
+    { id: 'draft', label: 'Nhà chưa ghim', served: false }
+  ] });
+  render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+  await screen.findByLabelText('Milo · 4 kg');
+  expect(screen.getByRole('option', { name: 'Nhà ngoài vùng — Chưa phục vụ' })).toBeDisabled();
+  expect(screen.getByRole('option', { name: 'Nhà chưa ghim — Chưa xác nhận vị trí' })).toBeDisabled();
+  expect(screen.getByText('Nhà ngoài vùng: Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.')).toBeVisible();
+  expect(screen.queryByText(/Nhà chưa ghim: Rất tiếc/)).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'far' } });
+  expect(screen.getByRole('button', { name: 'Xem báo giá' })).toBeDisabled();
+});
+
+test('ST-BKG-14: a refused service area is explained when the booking is confirmed', async () => {
+  const api = fixture(); api.confirm.mockRejectedValue({ code: 'ADDRESS_OUT_OF_SERVICE_AREA', status: 422 });
+  await chooseSchedule(api);
+  await reviewAndConfirm();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.');
+});
+
+const debtText = 'Bạn còn khoản chưa thanh toán cho lịch spa. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.';
+
+test('ST-BKG-14: unpaid grooming is shown above the form and the booking cannot be confirmed', async () => {
+  const api = fixture();
+  api.checkoutOptions.mockResolvedValue({ data: { sitters: [], groomingPaymentOutstanding: true } });
+  await chooseSchedule(api);
+  expect(screen.getByRole('alert')).toHaveTextContent(debtText);
+  fireEvent.click(screen.getByText('Xem lại đơn'));
+  fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ.'));
+  expect(screen.getByRole('button', { name: 'Xác nhận đặt dịch vụ' })).toBeDisabled();
+  expect(api.confirm).not.toHaveBeenCalled();
+});
+
+test('ST-BKG-14: a grooming debt found at confirmation shows the same message and blocks retries', async () => {
+  const api = fixture(); api.confirm.mockRejectedValue({ code: 'GROOMING_PAYMENT_OUTSTANDING', status: 409 });
+  await chooseSchedule(api);
+  await reviewAndConfirm();
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(debtText);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận đặt dịch vụ' })).toBeDisabled());
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+});

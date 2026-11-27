@@ -1,6 +1,7 @@
 import { test, expect, jest } from '@jest/globals';
 import { createHmac } from 'node:crypto';
 import { createSitterApplicationService } from '../../../src/services/sitter-application.service.js';
+import { completeChecklist } from '../../fixtures/application-assessment.js';
 const APP = '111111111111111111111111';
 const ADMIN = { userId: '222222222222222222222222', roles: ['ADMIN'], state: 'ACTIVE' };
 const SITTER = '333333333333333333333333';
@@ -36,6 +37,7 @@ function fixture({ applicationState = 'INTERVIEW', sitterStatus = 'ACTIVE', pend
     activePendingIdentityKey: duplicateIdentity ? identityKey : null,
     state: cooldown ? 'REJECTED' : applicationState, rejectedAt: cooldown ? new Date(NOW.getTime() - 29 * 86400000) : null, reapplyAt: cooldown ? new Date(NOW.getTime() + 86400000) : null,
     version: 0, ownerUserId: null, ageEligible: true, privateDocuments: body.documents,
+    assessment: { checklist: completeChecklist, callAt: NOW, outcome: 'PASSED', version: 2 },
     experience: body.experience, requestedServices: body.requestedServices, workAreas: body.workAreas,
     provisionedUserId: applicationState === 'APPROVED' ? SITTER : null, createdAt: NOW, updatedAt: NOW }],
     users: accountContact ? [{ _id: SITTER, state: 'ACTIVE', roles: ['CUSTOMER'] }]

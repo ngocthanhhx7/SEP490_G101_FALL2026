@@ -1,0 +1,207 @@
+.booking-care-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.booking-care-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.booking-care-page__header {
+  margin-bottom: 1.25rem;
+}
+
+.booking-care-page__header h1 {
+  margin: 0 0 0.35rem;
+}
+
+.booking-care-page__layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 820px) {
+  .booking-care-page__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.booking-care-page__visits {
+  background: var(--pwc-surface, #fff);
+  border: 1px solid var(--pwc-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.booking-care-page__visits h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.booking-care-page__visit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.booking-care-page__visit-btn {
+  width: 100%;
+  text-align: left;
+  background: var(--pwc-surface-subtle, #f9fafb);
+  border: 1px solid var(--pwc-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.booking-care-page__visit-btn.is-selected {
+  border-color: var(--pwc-primary, #1f6f54);
+  background: var(--pwc-primary-soft, #eef7f3);
+}
+
+.booking-care-page__visit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--pwc-muted, #4b5563);
+}
+
+.booking-care-page__badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.booking-care-page__badge--locked {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.booking-care-page__badge--cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.booking-care-page__badge--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.booking-care-page__editor {
+  background: var(--pwc-surface, #fff);
+  border: 1px solid var(--pwc-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.booking-care-page__version-box {
+  background: var(--pwc-surface-subtle, #f9fafb);
+  border: 1px solid var(--pwc-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.booking-care-page__version-box dt {
+  font-size: 0.8rem;
+  color: var(--pwc-muted, #6b7280);
+}
+
+.booking-care-page__version-box dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+.booking-care-page__pet-card {
+  border: 1px solid var(--pwc-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.booking-care-page__pet-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.booking-care-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.booking-care-page__field label {
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+
+.booking-care-page__field textarea,
+.booking-care-page__task-row input[type='text'] {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--pwc-border, #d1d5db);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.booking-care-page__hint {
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--pwc-muted, #6b7280);
+}
+
+.booking-care-page__tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.booking-care-page__task-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.booking-care-page__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+}
+
+.booking-care-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--pwc-border, #e5e7eb);
+}

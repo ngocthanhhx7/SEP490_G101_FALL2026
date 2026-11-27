@@ -20,7 +20,9 @@ function checkHistory(data) {
       || !Number.isSafeInteger(item.quantityChange)) invalid();
     if (item.kind === 'GOODS_RECEIPT') {
       if (!text(item.supplierName) || !/^\d{4}-\d{2}-\d{2}$/u.test(item.receivedOn)) invalid();
-    } else if (!Object.hasOwn(STOCK_ADJUSTMENT_REASON_LABELS,item.reason) || !text(item.recorderName) || item.quantityChange === 0) invalid();
+    } else if (item.kind === 'FAULTY_EXCHANGE') {
+      if (!text(item.recorderName) || item.quantityChange >= 0) invalid();
+    } else if (!Object.hasOwn(STOCK_ADJUSTMENT_REASON_LABELS, item.reason) || !text(item.recorderName) || item.quantityChange === 0) invalid();
   }
   return data;
 }

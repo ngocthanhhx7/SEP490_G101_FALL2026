@@ -7,6 +7,7 @@ import { createServiceAreaManagementApi } from '../services/service-area-managem
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
+import { BookingCareInstructionsPage } from '../pages/customer/BookingCareInstructionsPage.jsx';
 import { VisitSchedulePage } from '../pages/customer/visit-schedule/VisitSchedulePage.jsx';
 import { VisitStatusTrackerPage } from '../pages/customer/visit-status-tracker/VisitStatusTrackerPage.jsx';
 import { ComplaintSubmitPage } from '../pages/customer/ComplaintSubmitPage.jsx';
@@ -98,6 +99,14 @@ import { StockListPage } from '../pages/admin/StockListPage.jsx';
 import { createStockListApi } from '../services/stock-list-api.js';
 import { StockAdjustmentPage } from '../pages/admin/StockAdjustmentPage.jsx';
 import { createStockAdjustmentApi } from '../services/stock-adjustment-api.js';
+import { FaultyProductClaimsPage } from '../pages/admin/FaultyProductClaimsPage.jsx';
+import { createFaultyProductClaimApi } from '../services/faulty-product-claim-api.js';
+
+function FaultyProductClaimsRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createFaultyProductClaimApi({ getCsrfToken }), [getCsrfToken]);
+  return <FaultyProductClaimsPage key={user?.id} api={api} />;
+}
 
 function StockAdjustmentRoute() {
   const { getCsrfToken, user } = useSession();
@@ -242,6 +251,7 @@ const navigationByRole = {
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
     ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
     ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
+    ['Khiếu nại sản phẩm', '/admin/faulty-product-claims', 'Bán hàng'],
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
     ['Sản phẩm', '/admin/products', 'Cửa hàng'],
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
@@ -287,6 +297,7 @@ const navigationByRole = {
     ['Tổng quan', '/sale-staff/dashboard', 'Bán hàng'],
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
     ['Đơn hàng', '/admin/product-orders', 'Bán hàng'],
+    ['Khiếu nại sản phẩm', '/admin/faulty-product-claims', 'Bán hàng'],
     ['Nhập hàng', '/admin/goods-receipts', 'Bán hàng'],
     ['Tồn kho', '/admin/stock', 'Bán hàng']
   ],
@@ -401,6 +412,7 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['ADMIN', 'SALE_STAFF']} />}>
         <Route element={<AccountWorkspace />}>
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
+          <Route path="admin/faulty-product-claims" element={<FaultyProductClaimsRoute />} />
           <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
           <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
           <Route path="admin/stock" element={<StockListRoute />} />
@@ -430,6 +442,7 @@ export function AppRoutes({
           <Route path="account/bookings" element={<CustomerBookingsEntry mobile={phoneApp} />} />
           <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
+          <Route path="account/bookings/:bookingId/care-instructions" element={<BookingCareInstructionsPage />} />
           <Route path="account/bookings/:bookingId/visits" element={<VisitSchedulePage />} />
           <Route path="account/bookings/:bookingId/visits/:visitId" element={<VisitStatusTrackerPage />} />
           <Route path="account/bookings/:bookingId/complaints/new" element={<ComplaintSubmitPage />} />
@@ -555,7 +568,9 @@ function ServiceEntry({ booking = false }) {
   if (query.getAll('booking').length !== 1 || !/^[a-f\d]{24}$/i.test(bookingId)) {
     return <section><h1>Liên kết đơn chăm sóc không hợp lệ</h1><Link to="/account/bookings">Xem lịch hẹn</Link></section>;
   }
-  return <Navigate replace to={`/account/bookings/${bookingId}`} />;
+  const payment = query.get('payment');
+  const suffix = payment === 'returned' || payment === 'cancelled' ? `?payment=${payment}` : '';
+  return <Navigate replace to={`/account/bookings/${bookingId}${suffix}`} />;
 }
 
 function CustomerBookingsEntry({ mobile }) {

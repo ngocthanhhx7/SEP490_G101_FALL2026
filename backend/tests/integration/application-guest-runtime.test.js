@@ -9,6 +9,7 @@ import { publicPolicyVersionModel } from '../../src/models/public-policy-version
 import { userModel } from '../../src/models/user.model.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { employmentTerms } from '../fixtures/employment-terms.js';
+import { assessmentInput } from '../fixtures/application-assessment.js';
 import { createApplicationMailService } from '../../src/services/applications/application-mail.service.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 
@@ -81,8 +82,11 @@ test('UC-16 / GBR-25 / GBR-28: Guest applies, Admin approves, then the new Sitte
   const admin = { ...base, Cookie: `pwc_session=${session.token}`, 'X-CSRF-Token': session.csrfToken };
   const root = `/api/v1/applications/${created.id}`;
   await request(app).get(root).set(admin).expect(200).expect(res => expect(res.body.data.phoneNumber).toBe('+84912345678'));
-  for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) await request(app).post(`${root}/${stage}`).set(admin)
-    .set('Idempotency-Key', `synthetic-${stage}`).send({ expectedVersion }).expect(200);
+  for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    if (stage === 'interview') await request(app).patch(`${root}/assessment`).set(admin)
+      .set('Idempotency-Key', 'synthetic-review-assessment').send(assessmentInput(1, 0)).expect(200);
+    await request(app).post(`${root}/${stage}`).set(admin).set('Idempotency-Key', `synthetic-${stage}`).send({ expectedVersion }).expect(200);
+  }
   const signedOn = new Date(now + 7 * 3600000).toISOString().slice(0, 10);
   const effectiveOn = new Date(now + 86400000 + 7 * 3600000).toISOString().slice(0, 10);
   const contract = (await request(app).post(`${root}/employment-contract`).set(admin).set('Idempotency-Key', 'synthetic-contract')
@@ -91,6 +95,10 @@ test('UC-16 / GBR-25 / GBR-28: Guest applies, Admin approves, then the new Sitte
   await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'synthetic-issue').send({ action: 'ISSUE', termsHash: contract.termsHash }).expect(200);
   await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'synthetic-sign').send({ action: 'SIGN', termsHash: contract.termsHash,
     signedOn, archiveReference: 'Synthetic archive', bothPartiesSigned: true }).expect(200);
+  await request(app).patch(`${root}/assessment`).set(admin)
+    .set('Idempotency-Key', 'synthetic-passed-interview').send(assessmentInput(2, 1, {
+      callAt: new Date(now).toISOString(), outcome: 'PASSED'
+    })).expect(200);
   const approved = (await request(app).post(`${root}/decisions`).set(admin).set('Idempotency-Key', 'synthetic-approve')
     .send({ action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic review passed' }).expect(200)).body.data;
   expect(await col('users').countDocuments()).toBe(2);
@@ -125,10 +133,26 @@ test('Guest intake prevents cross-origin upload, missing capability, foreign doc
   expect(await col('users').countDocuments()).toBe(0);
 });
 
+test('an intake can recover its original receipt without exposing later status or authorizing a different intake', async () => {
+  const a = await intake(), b = await intake();
+  const created = await a.submit().expect(201);
+  await col('sitterapplications').updateOne({ _id: (await col('sitterapplications').findOne({}))._id },
+    { $set: { state: 'UNDER_REVIEW' } });
+  const replay = await a.submit().expect(200);
+  expect(replay.body.data).toEqual({ ...created.body.data, replayed: true });
+  await b.submit(a.body).expect(403).expect(response => {
+    expect(Object.keys(response.body.error).sort()).toEqual(['code', 'message']);
+    expect(response.body).not.toHaveProperty('data');
+  });
+});
+
 test('GBR-25: a pending email or phone cannot open another application, including concurrent submissions', async () => {
   const a = await intake(), b = await intake();
   const results = await Promise.all([a.submit(), b.submit({ ...b.body, email: 'other@example.test', identityNumber: '012345678902' }, 'synthetic-other-application')]);
   expect(results.map(res => res.status).sort()).toEqual([201, 409]);
+  expect(results.find(res => res.status === 409).body.error).toEqual({
+    code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time'
+  });
   expect(await col('sitterapplications').countDocuments()).toBe(1);
   expect(await col('users').countDocuments()).toBe(0);
 });

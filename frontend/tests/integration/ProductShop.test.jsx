@@ -175,12 +175,28 @@ describe('Product Details', () => {
     fireEvent.click(increase);
     expect(screen.getByText('Chỉ còn 2 sản phẩm. Vui lòng giảm số lượng.')).toBeVisible();
     expect(quantity()).toHaveTextContent('2');
-    expect(increase).toHaveAttribute('aria-disabled', 'true');
+    expect(increase).toBeEnabled();
+    expect(increase).not.toHaveAttribute('aria-disabled');
     expect(api.addToCart).not.toHaveBeenCalled();
     // The warning is about the old number, so it goes once the customer lowers it.
     fireEvent.click(screen.getByRole('button', { name: 'Giảm số lượng' }));
     expect(screen.queryByText(/Chỉ còn/)).not.toBeInTheDocument();
     expect(quantity()).toHaveTextContent('1');
+  });
+
+  test('ST-CTR-06 shows MSG58 when the cart already holds remaining stock and the customer presses +', async () => {
+    const api = fakeApi({
+      getProduct: jest.fn().mockResolvedValue({ data: product({ available: 2 }) }),
+      getCart: jest.fn().mockResolvedValue({ data: cartOf([line({ quantity: 2, available: 2 })]) })
+    });
+    show(api, '/products/p1');
+    await screen.findByRole('heading', { name: /^Thức ăn hạt cho chó/ });
+    await waitFor(() => expect(api.getCart).toHaveBeenCalled());
+    const increase = screen.getByRole('button', { name: 'Tăng số lượng' });
+    expect(increase).toBeEnabled();
+    fireEvent.click(increase);
+    expect(screen.getByRole('alert')).toHaveTextContent('Chỉ còn 2 sản phẩm. Vui lòng giảm số lượng.');
+    expect(screen.getByRole('status', { name: 'Số lượng' })).toHaveTextContent('1');
   });
 
   test('AC-13 shows MSG58 for the only sellable item instead of silently locking +', async () => {

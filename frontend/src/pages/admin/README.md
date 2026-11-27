@@ -69,6 +69,10 @@ are available only in INTERVIEW and rechecked by the backend. The progress strip
 uses recorded audit timestamps, never inferred completion of missing stages.
 Email queue state is visible separately from the application state.
 
+The Admin review page saves four checks before interview. During interview it
+records the call time in Vietnam and the outcome. The approval button requires
+saved checks, a passed interview with a call time, and contract verification.
+
 `ProductOrderManagementPage` is the `/admin/product-orders` screen for Admin and Sale Staff to process shop orders:
 tabs with counts (to prepare, awaiting pickup, in transit, returning, all), selectable through the `tab` query parameter,
 search by order code, customer name or the customer's whole phone number (the phone is also shown in the order detail), and the next step for the selected order (tracking code and

@@ -134,3 +134,5 @@ Goods receipt stock history uses the additive multikey compound index `lines.pro
 The optional AuthSession Web Push subscription follows the existing session TTL.
 Two partial indexes support sole endpoint ownership and worker claims.
 See [Web Push storage plan](../../../doc/database/pwa-web-push.md).
+
+`product.model.js` also registers `FaultyProductClaim` in `faultyproductclaims` (`KN-0001` via `ProductCounter` `FAULTY_CLAIM_CODE`): customer faulty/wrong-product claims with private image IDs, Sale Staff inspection notes, Admin exchange/refund/reject decisions, and single-use `EXCHANGE_SENT` audit fields. `SystemSettingVersion` (`system-setting-version.model.js`) adds optional `valueDays` for `FAULTY_PRODUCT_REPORT_DAYS`.

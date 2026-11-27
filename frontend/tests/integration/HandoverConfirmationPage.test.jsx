@@ -36,6 +36,28 @@ test('UC-41 shows the handover data and requires the checkbox before submitting 
   expect(api.confirmHandover).toHaveBeenCalledWith(visitId, { expectedVersion: 3, careVersion: row.care.version, acknowledged: true }, expect.any(String));
 });
 
+test('UC-19 a replacement after a suspension reads why the previous sitter left', async () => {
+  const api = apiFor();
+  api.handover.mockResolvedValue({ data: { ...row,
+    note: { reasonCode: 'SITTER_SUSPENDED', reasonText: null, previousSitterName: 'Lê Văn Minh', previousVisitCount: 0 } } });
+  show(api);
+  expect(await screen.findByText('Người chăm sóc trước tạm ngưng nhận việc')).toBeInTheDocument();
+  expect(screen.queryByText('Chưa ghi nhận')).not.toBeInTheDocument();
+});
+
+test('shows the replacement sitter the customer’s additional tasks before confirmation', async () => {
+  const api = apiFor();
+  api.handover.mockResolvedValue({ data: { ...row, care: { ...row.care,
+    tasks: ['Việc trong quy trình'],
+    additionalTasks: [{ itemId: 'custom-task-1', label: 'Thay nước sạch', required: true },
+      { itemId: 'custom-task-2', label: 'Chơi bóng', required: false }]
+  } } });
+  show(api);
+  expect(await screen.findByText('Thay nước sạch')).toBeVisible();
+  expect(screen.getByText('Chơi bóng (Tuỳ chọn)')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Xác nhận bàn giao' })).toBeDisabled();
+});
+
 test('UC-41 GBR-24 an urgent assignment asks the sitter to confirm immediately', async () => {
   show(apiFor(true));
   expect(await screen.findByText('Buổi được giao cho bạn khi còn chưa đầy 1 giờ. Hãy đọc và xác nhận ngay, trước khi check-in.')).toBeInTheDocument();
