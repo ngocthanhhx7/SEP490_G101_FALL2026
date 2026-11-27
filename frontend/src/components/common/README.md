@@ -48,6 +48,8 @@ Customer AvatarMenu distinguishes Đơn chăm sóc from Đơn mua sản phẩm a
 
 `BookingDetailsContent.jsx` renders the shared read-only terms, visits, status and saved pricing for Customer and Staff/Admin.
 
+`QuotePriceSummary.jsx` renders visit counts, per-visit prices, discounts and the final amount from the same server quote in both booking confirmation forms.
+
 `VisitEvidencePreview` renders local or authenticated private image blobs with a dialog, abort and URL cleanup. `BookingVisitReport` shows the owning customer the saved care checklist, optional customer note, real check-in/out times and evidence per visit. The customer page supplies its read port. These components do not create public media URLs or infer completion/payment.
 
 `CareProgressSteps` renders provided service/visit stages without inventing timestamps or financial state. Booking and sitter pages supply the current stage from saved operational state.

@@ -33,6 +33,8 @@ import { createPrivateImageService } from '../../src/services/private-image.serv
 import { requireSession, requireCsrf } from '../../src/middlewares/session.js';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 import { reasonsOfVisit } from '../../src/services/employee-scheduling/needs-action.service.js';
+import { finalizeExceptionalBooking } from '../../src/services/employee-scheduling/booking-terminal.service.js';
+import { readDirectedSitterPage } from '../../src/services/booking-proposals/directed-sitter-directory.service.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
@@ -592,7 +594,7 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   const body = { rating: 4, expectedVersion: credits[0].sourceVersion };
   const [a, b] = await Promise.all([rate(customer).send(body), rate(customer).send(body)]);
   expect(a.status).toBe(201); expect(b.status).toBe(201); expect(a.body.data).toEqual(b.body.data);
-  expect(a.body.data.review.state).toBe('SUBMITTED');
+  expect(a.body.data.review.state).toBe('PUBLISHED');
   const outcome = await connection.models.SitterVisitOutcome.findOne({ visitId: plan.visits[0].id }).select('+provenance').lean();
   expect(outcome).toMatchObject({ rating: 4, resolution: 'COMPLETED', sourceRef: `customer-review:${a.body.data.review.id}:0`,
     provenance: { bookingId: String(row.bookingId), creditId: String(credits[0]._id), trainingEligible: false } });
@@ -1590,4 +1592,62 @@ describe('ST-BKG-05 offer decline reason', () => {
     expect(nextBatch).toHaveLength(5);
     expect(nextBatch.map(item => item.sitterId)).not.toContain(target.sitterId);
   });
+});
+
+async function endBooking(bookingId, at) {
+  const session = await connection.startSession();
+  try {
+    await session.withTransaction(() => finalizeExceptionalBooking({
+      connection, col: name => connection.db.collection(name), bookingId, session, at
+    }));
+  } finally { await session.endSession(); }
+}
+const rateVisit = (visitId, key) => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
+  .set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+  .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', key).send({ rating: 4 });
+
+test('a booking closed after a cancelled visit is rated for seven days from its closure and counted at once (GBR-48)', async () => {
+  const sitter = await employee(), unfinished = await employee();
+  const first = await visit({ start: '2026-11-02T02:00:00Z' });
+  const second = { ...first, _id: oid(), sequence: 1, startAt: new Date('2026-11-13T02:00:00Z'), endAt: new Date('2026-11-13T03:00:00Z') };
+  await connection.collection('visits').insertOne(second);
+  await connection.collection('bookings').updateOne({ _id: first.bookingId },
+    { $set: { visitIds: [first._id, second._id], originalVisitCount: 2, careVisitCount: 2 } });
+  await connection.collection('visits').updateOne({ _id: first._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId),
+    state: 'COMPLETED', version: 3, checkInAt: first.startAt, checkOutAt: first.endAt, completedAt: first.endAt } });
+  const closedAt = new Date('2026-11-12T02:00:00Z'), deadline = closedAt.getTime() + 7 * 86400000;
+  await connection.collection('visits').updateOne({ _id: second._id },
+    { $set: { sitterId: new mongoose.Types.ObjectId(unfinished.userId), state: 'CANCELLED', cancelledAt: closedAt } });
+  await endBooking(first.bookingId, closedAt);
+  const booking = await connection.collection('bookings').findOne({ _id: first.bookingId });
+  expect(booking).toMatchObject({ state: 'CLOSED', closedAt });
+  expect(booking.completedAt).toBeUndefined();
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(first.bookingId))).ratingDeadlineAt).toEqual(new Date(deadline));
+
+  reviewNow = deadline + 1;
+  const late = await rateVisit(String(first._id), 'closed-booking-too-late').expect(409);
+  expect(late.body.error.code).toBe('REVIEW_WINDOW_EXPIRED');
+  reviewNow = deadline;
+  const cancelled = await rateVisit(String(second._id), 'closed-booking-no-visit').expect(409);
+  expect(cancelled.body.error.code).toBe('VISIT_NOT_ELIGIBLE');
+  const saved = await rateVisit(String(first._id), 'closed-booking-in-time').expect(201);
+  expect(saved.body.data.review.state).toBe('PUBLISHED');
+  await connection.collection('sitterpublicprofiles').insertOne({ userId: new mongoose.Types.ObjectId(sitter.userId), state: 'APPROVED' });
+  const directory = await readDirectedSitterPage(connection.db, serviceId);
+  expect(directory.sitters.find(row => row.id === sitter.userId)).toMatchObject({ rating: 4, reviewCount: 1 });
+});
+
+test('nobody can be rated when every visit of the booking was cancelled', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-11-04T02:00:00Z' });
+  const closedAt = new Date('2026-11-03T02:00:00Z');
+  await connection.collection('visits').updateOne({ _id: row._id },
+    { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId), state: 'CANCELLED', cancelledAt: closedAt } });
+  await endBooking(row.bookingId, closedAt);
+  expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('CANCELLED');
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(row.bookingId))).ratingDeadlineAt).toBeNull();
+  reviewNow = closedAt.getTime() + 60000;
+  const refused = await rateVisit(String(row._id), 'all-cancelled-rating').expect(409);
+  expect(refused.body.error.code).toBe('VISIT_NOT_ELIGIBLE');
 });
