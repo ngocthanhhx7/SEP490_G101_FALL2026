@@ -28,7 +28,7 @@ const asCase = row => row ? { ...row, id: ref(row._id), visitId: ref(row.visitId
 const escapeRegex = value => value.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g, '\\$&');
 
 function matchList(actor, filter) {
-  const match = { kind: 'COMPLAINT' };
+  const match = { kind: filter.proposals ? { $in: ['COMPLAINT', 'INCIDENT'] } : 'COMPLAINT' };
   if (!hasRole(actor.roles, 'STAFF') && !oid(actor.userId)) fail(403, 'FORBIDDEN');
   if (hasRole(actor.roles, 'CUSTOMER')) match.customerId = oid(actor.userId);
   else if (hasRole(actor.roles, 'PET_SITTER')) {
@@ -39,7 +39,7 @@ function matchList(actor, filter) {
     if (!oid(filter.visitId)) fail(422, 'VALIDATION_FAILED');
     match.visitId = oid(filter.visitId);
   }
-  if (filter.proposals) match['proposal.status'] = 'PENDING';
+  if (filter.proposals) match['proposal.status'] = { $in: ['PENDING', 'APPROVED', 'REDUCED', 'REJECTED'] };
   if (filter.category) match.category = filter.category === 'OTHER' ? { $in: ['OTHER', null] } : filter.category;
   return match;
 }
@@ -48,18 +48,31 @@ function join(collection, field, name, project) {
   return { $lookup: { from: collection, localField: field, foreignField: '_id', pipeline: [{ $project: project }], as: name } };
 }
 
-function listFields() {
+function listFields(filter) {
+  const orderInput = filter.proposals
+    ? (filter.proposalStatus === 'DECIDED'
+      ? { $ifNull: ['$moneyDecision.decidedAt', '$updatedAt'] }
+      : { $ifNull: ['$proposal.createdAt', '$updatedAt'] })
+    : { $ifNull: ['$createdAt', '$openedAt'] };
   return {
     rowId: { $toString: '$_id' },
     displayBookingId: { $toString: '$bookingId' },
-    submittedAt: { $convert: { input: { $ifNull: ['$createdAt', '$openedAt'] }, to: 'date', onError: new Date(0), onNull: new Date(0) } },
+    customerOid: { $convert: { input: '$customerId', to: 'objectId', onError: null, onNull: null } },
+    visitOid: { $convert: { input: '$visitId', to: 'objectId', onError: null, onNull: null } },
+    submittedAt: { $convert: { input: orderInput, to: 'date', onError: new Date(0), onNull: new Date(0) } },
+    proposalBucket: { $cond: [{ $eq: ['$proposal.status', 'PENDING'] }, 'PENDING', 'DECIDED'] },
     displayState: { $switch: { branches: [
       { case: { $eq: ['$state', 'UNDER_REVIEW'] }, then: { $cond: [{ $ifNull: ['$latestObjection.reason', false] }, 'ESCALATED', 'OPEN'] } },
       { case: { $eq: ['$state', 'CLOSED'] }, then: 'RESOLVED' }
     ], default: '$state' } },
-    displayCode: { $ifNull: ['$code', { $concat: ['KN-', { $toUpper: { $substrBytes: [
-      { $replaceAll: { input: { $toString: '$_id' }, find: '-', replacement: '' } }, 0, 12
-    ] } }] }] }
+    displayCode: { $ifNull: ['$code', { $let: {
+      vars: { cleanId: { $toUpper: { $replaceAll: { input: { $toString: '$_id' }, find: '-', replacement: '' } } } },
+      in: { $cond: [
+        { $eq: ['$kind', 'INCIDENT'] },
+        { $concat: ['SC-', { $substrBytes: ['$$cleanId', { $max: [0, { $subtract: [{ $strLenBytes: '$$cleanId' }, 12] }] }, 12] }] },
+        { $concat: ['KN-', { $substrBytes: ['$$cleanId', 0, 12] }] }
+      ] }
+    } }] }
   };
 }
 
@@ -67,6 +80,7 @@ function pageStages({ filter, cursor, context, codec, limit, stateField }) {
   const dir = filter.sort === 'oldest' ? 1 : -1;
   const cmp = dir === 1 ? '$gt' : '$lt';
   const stages = [];
+  if (filter.proposals) stages.push({ $match: { proposalBucket: filter.proposalStatus ?? 'PENDING' } });
   if (filter.state) stages.push({ $match: { [stateField]: filter.state } });
   if (cursor) {
     const position = codec.decode(cursor, context);
@@ -138,7 +152,33 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
         await holds.change({ booking, actorId, lockType: 'CASE', reference: 'case:' + complaintId, release, session });
       }
 
-      async function updateComplaint({ complaintId, expectedVersion, changes, resolution, objection, decision, actorId }) {
+      async function updateComplaint({ complaintId, expectedVersion, changes, resolution, objection, decision, actorId, kind = 'COMPLAINT', timelineEntry }) {
+        if (kind === 'INCIDENT') {
+          const incidentOid = oid(complaintId);
+          if (!incidentOid) fail(404, 'RESOURCE_NOT_FOUND');
+          const updateDoc = {
+            $set: { ...changes, version: expectedVersion + 1 },
+            ...(timelineEntry ? { $push: { timeline: timelineEntry } } : {})
+          };
+          const saved = await col('cases').findOneAndUpdate(
+            { _id: incidentOid, kind: 'INCIDENT', version: expectedVersion },
+            updateDoc,
+            { session, returnDocument: 'after' }
+          );
+          if (!saved) fail(409, 'VERSION_CONFLICT');
+          if (saved.visitId && oid(ref(saved.visitId))) {
+            const open = await col('cases').findOne(
+              { bookingId: saved.bookingId, visitId: ref(saved.visitId), kind: 'INCIDENT', state: { $in: ['OPEN', 'UNDER_REVIEW'] } },
+              { session, projection: { _id: 1 }, maxTimeMS: 2000 }
+            );
+            await col('visits').updateOne(
+              { _id: oid(ref(saved.visitId)) },
+              { $set: { incidentOpen: Boolean(open) }, $inc: { version: 1 } },
+              { session }
+            );
+          }
+          return asCase(saved);
+        }
         const legacy = changes === undefined;
         const legacyFields = resolution ?? objection ?? decision;
         const values = changes ?? { ...legacyFields, ...(objection ? { latestObjection: objection, objectionCount: 1 } : {}),
@@ -157,10 +197,13 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
         return asCase(saved);
       }
 
-      async function getComplaint(id) {
+      async function getComplaint(id, { includeIncident = false } = {}) {
         const record = asCase(await col('cases').findOne({ _id: id, kind: 'COMPLAINT' }, { session }));
-        if (!record) return null;
-        return record;
+        if (record) return record;
+        if (includeIncident && oid(id)) {
+          return asCase(await col('cases').findOne({ _id: oid(id), kind: 'INCIDENT' }, { session }));
+        }
+        return null;
       }
 
       return work({
@@ -171,6 +214,12 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
           { session, projection: { displayName: 1 } }))?.displayName ?? null,
         bookingComplaints: async bookingId => {
           const rows = await col('cases').find({ bookingId: oid(bookingId), kind: 'COMPLAINT' },
+            { session, maxTimeMS: 5000 }).limit(1001).toArray();
+          if (rows.length > 1000) fail(503, 'COMPLAINT_UNAVAILABLE');
+          return rows.map(asCase);
+        },
+        bookingIncidents: async bookingId => {
+          const rows = await col('cases').find({ bookingId: oid(bookingId), kind: 'INCIDENT' },
             { session, maxTimeMS: 5000 }).limit(1001).toArray();
           if (rows.length > 1000) fail(503, 'COMPLAINT_UNAVAILABLE');
           return rows.map(asCase);
@@ -203,6 +252,12 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
           { _id: key(identity), fingerprint: payloadHash, result, createdAt: new Date(clock()) }
         ], { session }),
         recordEvent: async ({ event, record, actorId, at }) => {
+          if (record.kind === 'INCIDENT') {
+            const eventId = 'incident-event:' + record.id + ':' + record.version;
+            await events.create([{ _id: eventId, type: event, resourceId: record.id, actorId, at }], { session });
+            await notifications.incidentRefundDecided({ eventId, record, outcome: record.moneyDecision?.outcome }, session);
+            return;
+          }
           const eventId = 'complaint-event:' + record.id + ':' + record.version;
           await events.create([{ _id: eventId, type: event, resourceId: record.id, actorId, at }], { session });
           await notifications.complaint({ eventId, event, record }, session);
@@ -218,7 +273,7 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
 
   async function listComplaints({ actor, filter, limit, cursor, asOf }) {
     const staff = hasRole(actor.roles, 'STAFF'), sitter = hasRole(actor.roles, 'PET_SITTER');
-    const stages = [{ $match: matchList(actor, filter) }, { $set: listFields() }];
+    const stages = [{ $match: matchList(actor, filter) }, { $set: listFields(filter) }];
     if (sitter) {
       stages.push(join('visits', 'visitId', 'visitRows', { sitterId: 1 }),
         { $match: { 'visitRows.sitterId': oid(actor.userId) } },
@@ -233,8 +288,18 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
     stages.push(join('bookings', 'bookingId', 'bookingRows', { state: 1, version: 1, bookingCode: 1, code: 1, customerId: 1 }),
       { $set: { joinedBooking: { $first: '$bookingRows' } } });
     if (hasRole(actor.roles, 'CUSTOMER')) stages.push({ $match: { 'joinedBooking.customerId': oid(actor.userId) } });
-    if (staff) stages.push(join('users', 'customerId', 'customerRows', { displayName: 1 }),
+    if (staff) stages.push(join('users', 'customerOid', 'customerRows', { displayName: 1 }),
       { $set: { customerName: { $first: '$customerRows.displayName' } } });
+    if (filter.proposals) {
+      stages.push({
+        $lookup: {
+          from: 'users',
+          let: { authorId: { $convert: { input: '$proposal.createdBy', to: 'objectId', onError: null, onNull: null } } },
+          pipeline: [{ $match: { $expr: { $eq: ['$_id', '$$authorId'] } } }, { $project: { displayName: 1 } }],
+          as: 'proposerRows'
+        }
+      }, { $set: { proposerName: { $first: '$proposerRows.displayName' } } });
+    }
     if (filter.q) {
       const needle = { $regex: escapeRegex(filter.q), $options: 'i' };
       stages.push({ $match: { $or: [{ displayCode: needle }, { rowId: needle }, { 'joinedBooking.code': needle },
@@ -242,10 +307,11 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
     }
     const context = { actorId: actor.userId, role: actor.roles[0], filter, limit };
     const page = pageStages({ filter, cursor, context, codec, limit, stateField: sitter ? 'sitterState' : 'displayState' });
-    const facet = { items: [...page, join('visits', 'visitId', 'detailVisits', {
+    const facet = { items: [...page, join('visits', 'visitOid', 'detailVisits', {
       state: 1, version: 1, startAt: 1, endAt: 1, 'snapshots.serviceName': 1, sitterId: 1
     })] };
     if (staff) facet.counts = [{ $group: { _id: '$displayState', count: { $sum: 1 } } }];
+    if (filter.proposals) facet.proposalCounts = [{ $group: { _id: '$proposalBucket', count: { $sum: 1 } } }];
     const [result] = await col('cases').aggregate([...stages, { $facet: facet }], { maxTimeMS: 5000 }).toArray();
     const rows = result.items.slice(0, limit);
     const last = rows.at(-1);
@@ -256,9 +322,12 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
     });
     const counts = staff ? Object.assign({ OPEN: 0, ESCALATED: 0, RESOLVED: 0 },
       Object.fromEntries(result.counts.filter(row => ['OPEN', 'ESCALATED', 'RESOLVED'].includes(row._id)).map(row => [row._id, row.count]))) : null;
+    const proposalCounts = filter.proposals ? Object.assign({ PENDING: 0, DECIDED: 0 },
+      Object.fromEntries(result.proposalCounts.filter(row => ['PENDING', 'DECIDED'].includes(row._id)).map(row => [row._id, row.count]))) : null;
     return { items, nextCursor: result.items.length > limit
       ? codec.encode({ at: +last.submittedAt, id: last.rowId }, context) : null,
-    ...(counts ? { counts } : {}) };
+    ...(counts ? { counts } : {}),
+    ...(proposalCounts ? { proposalCounts } : {}) };
   }
 
   return { run, listComplaints, runForCase: (_actor, _id, work) => run(work) };

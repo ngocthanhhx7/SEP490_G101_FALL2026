@@ -5,7 +5,10 @@ import { App } from '../../src/app/App.jsx';
 const DASHBOARD = '/sale-staff/dashboard';
 const DASHBOARD_API = '/api/v1/dashboards/sale-staff';
 const ORDERS = '/admin/product-orders';
-const COUNTS = { PREPARE: 3, AWAITING_PICKUP: 0, IN_TRANSIT: 1, RETURNING: 2 };
+const STOCK = '/admin/stock';
+const STOCK_API = '/api/v1/admin/stock-levels';
+const COUNTS = { PREPARE: 3, AWAITING_PICKUP: 0, IN_TRANSIT: 1, RETURNING: 2, LOW_STOCK: 4, CLAIMS_TO_CHECK: 5 };
+const STOCK_COUNTS = { ALL: 12, LOW_STOCK: COUNTS.LOW_STOCK };
 const CARDS = [
   ['Đơn cần chuẩn bị', 'PREPARE', 'Cần chuẩn bị'],
   ['Đơn chờ khách đến lấy', 'AWAITING_PICKUP', 'Chờ khách lấy'],
@@ -22,7 +25,8 @@ const response = (status, payload) => ({
 
 function dashboardResponse() {
   return response(200, { data: { counts: {
-    PREPARE: COUNTS.PREPARE, AWAITING_PICKUP: COUNTS.AWAITING_PICKUP, RETURNING: COUNTS.RETURNING
+    PREPARE: COUNTS.PREPARE, AWAITING_PICKUP: COUNTS.AWAITING_PICKUP, RETURNING: COUNTS.RETURNING, LOW_STOCK: COUNTS.LOW_STOCK,
+    CLAIMS_TO_CHECK: COUNTS.CLAIMS_TO_CHECK
   } } });
 }
 
@@ -48,6 +52,9 @@ beforeEach(() => {
     if (url.startsWith('/api/v1' + ORDERS + '?')) {
       return response(200, { data: { items: [], counts: COUNTS, page: 1, limit: 20, total: 0 } });
     }
+    if (url.startsWith(STOCK_API + '?')) {
+      return response(200, { data: { items: [], counts: STOCK_COUNTS, page: 1, limit: 20, total: 0 } });
+    }
     return response(200, { data: { unreadCount: 0, items: [] } });
   });
 });
@@ -65,20 +72,26 @@ async function signIn(path) {
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
 }
 
-test('UC-94 signs Sale Staff into the dashboard and shows only the three order counts', async () => {
+test('UC-94 signs Sale Staff into the dashboard and shows the three order counts and low-stock count', async () => {
   await signIn('/sign-in');
   expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeVisible();
   expect(screen.getByLabelText('Đường dẫn hiện tại')).toHaveTextContent(DASHBOARD);
   expect(screen.getByText('Việc cần làm ở cửa hàng. Bấm vào từng ô để mở danh sách.')).toBeVisible();
   const menu = screen.getByRole('navigation', { name: 'Điều hướng bán hàng' });
-  expect(within(menu).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đơn hàng', 'Nhập hàng', 'Tồn kho']);
+  expect(within(menu).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đơn hàng', 'Khiếu nại sản phẩm', 'Nhập hàng', 'Tồn kho']);
   for (const [label, key] of CARDS) {
     const card = await screen.findByRole('link', { name: new RegExp(label) });
     expect(within(card).getByText(String(COUNTS[key]))).toBeVisible();
     expect(within(card).getByText('Mở Đơn hàng')).toBeVisible();
   }
-  expect(screen.queryByText('Báo lỗi cần kiểm tra')).not.toBeInTheDocument();
-  expect(screen.queryByText('Sản phẩm sắp hết hàng')).not.toBeInTheDocument();
+  const lowStockCard = await screen.findByRole('link', { name: /Sản phẩm sắp hết hàng/ });
+  expect(within(lowStockCard).getByText(String(COUNTS.LOW_STOCK))).toBeVisible();
+  expect(within(lowStockCard).getByText('Mở Tồn kho')).toBeVisible();
+  expect(lowStockCard).toHaveAttribute('href', STOCK + '?tab=LOW_STOCK');
+  const claimsCard = await screen.findByRole('link', { name: /Báo lỗi cần kiểm tra/ });
+  expect(within(claimsCard).getByText(String(COUNTS.CLAIMS_TO_CHECK))).toBeVisible();
+  expect(within(claimsCard).getByText('Mở Khiếu nại sản phẩm')).toBeVisible();
+  expect(claimsCard).toHaveAttribute('href', '/admin/faulty-product-claims?tab=WAITING_CHECK');
 });
 
 test.each(CARDS)('UC-94 opens %s in the matching Order Management tab', async (label, key, tabLabel) => {
@@ -86,6 +99,13 @@ test.each(CARDS)('UC-94 opens %s in the matching Order Management tab', async (l
   fireEvent.click(await screen.findByRole('link', { name: new RegExp(label) }));
   expect(await screen.findByRole('button', { name: tabLabel + ' (' + COUNTS[key] + ')' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByLabelText('Đường dẫn hiện tại')).toHaveTextContent(ORDERS + '?tab=' + key);
+});
+
+test('UC-94 opens Sản phẩm sắp hết hàng in the Stock List Low Stock tab', async () => {
+  open(DASHBOARD);
+  fireEvent.click(await screen.findByRole('link', { name: /Sản phẩm sắp hết hàng/ }));
+  expect(await screen.findByRole('button', { name: 'Sắp hết hàng (' + COUNTS.LOW_STOCK + ')' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByLabelText('Đường dẫn hiện tại')).toHaveTextContent(STOCK + '?tab=LOW_STOCK');
 });
 
 test('UC-94 preserves the requested order tab through sign-in', async () => {

@@ -13,8 +13,8 @@ visit, and confirmation rechecks them transactionally. Optional MATCH snapshots
 prioritize advisory invitations; they never reserve or assign an employee.
 Private draft fields stay in memory; uncertain confirmation retains its key/body.
 Login uses role-specific workspaces and a validated authorized return path;
-Customer defaults to Home. Sitter intake keeps its
-verified-account application step. Catalogue and detail booking actions open
+Customer defaults to Home. Guests can submit a sitter application with both
+email and phone; account creation follows Admin approval. Catalogue and detail booking actions open
 the selected-service route, not the login screen.
 
 `SitterApplicationPage` collects Full-time/Part-time preference and previews
@@ -37,13 +37,25 @@ The catalog uses photo cards, price badges, server-owned scope lists and detail 
 
 `PublicServiceCards` and `service-cards.css` own the shared published-service cards on Home and the catalogue: fixed-ratio photographs, category/species, duration/location, description, server price and detail action. Home uses the full image URL without assuming a Figma asset directory and selects home care, walking and bathing when published. The catalogue also supports resetting filters and sorting by base price or Vietnamese name. Descriptions are shown once; complete scope remains on the detail page.
 
+`ServiceDetailsPage` renders the public service template. It uses the existing
+catalog response and the published customer-visible steps in `ServiceCareWorkflow`.
+Both booking entry points share `bookingActions`. The price section shows the
+active catalog unit price and sends the customer to booking for a personalized
+quote. Known legacy provisioning copy is summarized so an old number in policy
+prose cannot compete with the current catalog or quote. Custom policy copy,
+effective date and version remain visible. `service-detail.css` is scoped to the
+detail template. Service details begin with the hero across breakpoints. The
+mobile app shell owns the Back control and safe-area navigation.
+
 PublicSiteLayout handles cross-route Home anchors and focus. Responsive checks cover desktop and 320/390px widths; role dashboards keep their own layout.
 
 AboutPage adapts Figma 2:2724 to dog/cat care, the product storefront and the current five-member project team, without nutrition, donation or partner claims. ContactPage adapts the supplied help/contact references: searchable FAQs, category filters, expandable answers and a consented email form with optional phone. Messages use the same-origin contact API, retain input on failure and confirm only SMTP acceptance. The recipient comes from server configuration; no unrelated reference-brand contact details are copied. No contact data is saved to browser storage.
 
+`ContactPage` owns FAQ filters and the responsive page layout. `ContactMessageForm` owns field presentation and form state. The wide card and phone dialog share the same draft and submission state when the viewport changes.
+
 SignInPage adapts Figma 2:5284 to the existing OTP flow. Email and SMS use the session adapter; Vietnamese local phone numbers are normalized to +84 before submission. sign-in.css owns all login styling, while auth-public.css retains registration/application styling. Header/footer remain owned by PublicSiteLayout. The registration link opens /register; social/password sign-in is outside this OTP flow. See [verification](../../../../doc/testing/login-email-sms-refresh.md).
 
-RegistrationPage owns role choice and progression. CustomerRegistrationPage validates account details/consent and sends email OTP directly; SitterApplicationPage opens after the session is re-read and its intake is loaded. Sitter forms use the verified owner email, dedicated applicant-document upload adapter, policy consent and server receipts. The application-status route now uses PublicSiteLayout. See [registration flow](../../../../doc/testing/registration-sitter-flow.md).
+RegistrationPage owns role choice and progression within the shared public header/footer. CustomerRegistrationPage validates account details/consent and sends email OTP directly. SitterApplicationPage opens after loading a guest intake capability, without account registration or email OTP first. The form collects both email and phone, uses the dedicated applicant-document upload adapter, policy consent and server receipts. Switching roles keeps the public layout. The application-status route also uses PublicSiteLayout. See [registration flow](../../../../doc/testing/registration-sitter-flow.md).
 
 Application receipts show the owner's rejection reason and Vietnam-local retry
 instant. The refresh action reads the server's canReapply flag before opening a
@@ -75,3 +87,8 @@ navigator on wide screens and a single-day timeline on phones. A time cell
 sets the draft start of the selected visit. Availability and checkout validate
 the selected schedule. The basket opens the same timetable on demand. Grooming
 uses the shared date navigator with the server-provided date range and slots.
+
+BookingFlow numbers visits from earliest to latest after validating the draft,
+before availability and confirmation. The availability request and its unavailable
+visit labels use that same ordered schedule; selecting times never changes their
+values. Overlapping visits still require correction before requesting a quote.

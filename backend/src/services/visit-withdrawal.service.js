@@ -2,7 +2,7 @@ import { AppError } from '../utils/app-error.js';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 const KEY = /^[A-Za-z0-9._:-]{8,128}$/;
-const WITHDRAWAL_LEAD_MS = 60 * 60 * 1000;
+const WITHDRAWAL_LEAD_MS = 12 * 60 * 60 * 1000;
 
 function fail(status, code, message, details = {}) { throw new AppError(status, code, message, details); }
 
@@ -73,8 +73,8 @@ export function createVisitWithdrawalService({ repository, clock = Date.now } = 
         if (!Number.isFinite(startAt) || !Number.isFinite(now)) fail(503, 'WITHDRAWAL_UNAVAILABLE', 'Visit clock is unavailable');
         const remaining = startAt - now;
         if (remaining < WITHDRAWAL_LEAD_MS) {
-          fail(409, 'WITHDRAWAL_WINDOW_CLOSED', 'Staff must process a withdrawal inside the 60-minute window', {
-            route: 'STAFF', minLeadMinutes: 60
+          fail(409, 'WITHDRAWAL_WINDOW_CLOSED', 'Staff must process a withdrawal inside the 12-hour window', {
+            route: 'STAFF', minLeadMinutes: 720
           });
         }
         const saved = await transaction.withdrawAssignment({ visit, sitterId: sitter,

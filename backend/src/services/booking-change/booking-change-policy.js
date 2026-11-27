@@ -4,9 +4,10 @@ import { schedulingDate } from '../employee-scheduling/schedule-policy.service.j
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
 const MIN_OLD_VISIT_LEAD_MS = 24 * HOUR;
+const MIN_NEW_VISIT_LEAD_MS = 2 * HOUR;
 const CHANGEABLE = new Set(['SCHEDULED', 'OFFERED', 'ASSIGNED']);
 export const BOOKING_CHANGE_STATES = ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'];
-const MINIMUM_LEAD_MESSAGE = 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.';
+const MINIMUM_LEAD_MESSAGE = 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 2 giờ.';
 
 export function futureVisit(visit, now) {
   return CHANGEABLE.has(visit.state) && !visit.checkInAt && visit.startAt > now;
@@ -53,9 +54,16 @@ export function chooseChange(input, visits, now) {
 
 export function checkLeadTime(selected, now) {
   if (selected.some(({ visit, startAt }) => !futureVisit(visit, now) ||
-    !hasOldVisitChangeLeadTime(visit, now) || startAt - now < DAY)) {
+    !hasOldVisitChangeLeadTime(visit, now) || startAt - now < MIN_NEW_VISIT_LEAD_MS)) {
     throw new AppError(422, 'MSG54', MINIMUM_LEAD_MESSAGE);
   }
+}
+
+export function newVisitLeadViolation(items, now) {
+  if (items.some(item => item.newStartAt - now < MIN_NEW_VISIT_LEAD_MS)) {
+    return { code: 'MSG54', reasonCode: 'NEW_TIME_TOO_SOON', message: MINIMUM_LEAD_MESSAGE };
+  }
+  return null;
 }
 
 export function buildChangeItems(selected) {
@@ -66,7 +74,7 @@ export function buildChangeItems(selected) {
 }
 
 export function changeDeadline(items) {
-  return new Date(Math.min(...items.flatMap(item => [+item.oldStartAt, +item.newStartAt])) - 6 * HOUR);
+  return new Date(Math.min(...items.map(item => +item.oldStartAt)) - 6 * HOUR);
 }
 
 export function resultingSchedule(visits, items) {
@@ -78,6 +86,7 @@ export function resultingSchedule(visits, items) {
 }
 
 export function scheduleViolation(visits) {
+  if (!visits.length) return null;
   const days = new Map();
   for (const visit of visits) {
     const day = schedulingDate(visit.startAt);
@@ -85,7 +94,8 @@ export function scheduleViolation(visits) {
     days.get(day).push(visit);
   }
   const dates = [...days.keys()];
-  if (Date.parse(dates.at(-1)) - Date.parse(dates[0]) >= 30 * DAY)
+  const lastEnd = new Date(Math.max(...visits.map(visit => +visit.endAt)) - 1);
+  if (Date.parse(schedulingDate(lastEnd)) - Date.parse(dates[0]) > 30 * DAY)
     return { code: 'MSG20', reasonCode: 'BOOKING_TOO_LONG', message: 'Một lịch đặt kéo dài tối đa 30 ngày.' };
   if ([...days.values()].some(day => day.length > 2))
     return { code: 'MSG150', reasonCode: 'TOO_MANY_VISITS', message: 'Mỗi ngày có tối đa hai buổi thuộc lịch đặt này.' };
@@ -101,7 +111,8 @@ const staffReasons = {
   PET_OVERLAP: 'thú cưng đã có lịch khác vào giờ đó',
   VISIT_BEFORE_PREVIOUS_END: 'buổi 2 bắt đầu trước khi buổi 1 kết thúc',
   TOO_MANY_VISITS: 'một ngày có quá hai buổi',
-  BOOKING_TOO_LONG: 'lịch đặt kéo dài quá 30 ngày'
+  BOOKING_TOO_LONG: 'lịch đặt kéo dài quá 30 ngày',
+  NEW_TIME_TOO_SOON: 'giờ mới không còn cách hiện tại ít nhất 2 giờ'
 };
 
 export function assertSchedule(violation, staff) {

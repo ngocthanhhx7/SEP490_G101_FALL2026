@@ -99,6 +99,7 @@ test('UC-85 rejects and shows MSG127 while the visit keeps the old time', async 
 
 test.each([
   [{ code: 'MSG151', reasonCode: 'PET_OVERLAP' }, 422, /thú cưng đã có lịch khác vào giờ đó/],
+  [{ code: 'MSG151', reasonCode: 'NEW_TIME_TOO_SOON' }, 422, /giờ mới không còn cách hiện tại ít nhất 2 giờ/],
   [{ code: 'BOOKING_CHANGE_VISIT_CHANGED' }, 409, 'Buổi đã thay đổi sau khi khách gửi yêu cầu. Vui lòng từ chối yêu cầu.'],
   [{ code: 'BOOKING_CHANGE_NOT_PENDING', state: 'EXPIRED' }, 409, /Yêu cầu đã hết hạn/]
 ])('UC-85 shows the decision error %j in the dialog', async (error, status, expected) => {

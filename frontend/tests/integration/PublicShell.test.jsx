@@ -47,11 +47,12 @@ test('signed-in header reuses the hover/pinned account menu and hides guest acti
   expect(logout).toHaveBeenCalledTimes(1);
   expect(await screen.findByRole('link', { name: 'Đăng nhập', exact: true })).toBeVisible();
 });
-test('footer replaces newsletter signup with real policy page links', () => {
+test('footer shows one Vietnamese link to each policy page', () => {
   show(<PublicFooter />);
-  expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/policies/privacy');
-  expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/policies/terms');
+  expect(screen.getAllByRole('link').filter(link => link.getAttribute('href') === '/policies/privacy'))
+    .toEqual([screen.getByRole('link', { name: 'Chính sách bảo mật' })]);
+  expect(screen.getAllByRole('link').filter(link => link.getAttribute('href') === '/policies/terms'))
+    .toEqual([screen.getByRole('link', { name: 'Điều khoản sử dụng' })]);
   expect(screen.getByRole('link', { name: 'Tất cả chính sách dịch vụ' })).toHaveAttribute('href', '/policies');
-  expect(screen.getByRole('link', { name: 'Điều khoản sử dụng' })).toHaveAttribute('href', '/policies/terms');
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 });

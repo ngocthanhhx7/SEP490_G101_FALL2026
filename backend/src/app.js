@@ -52,8 +52,14 @@ export function createApp({
   logger = () => {},
   env = process.env,
   clock = Date.now,
-  referenceCatalog
+  referenceCatalog,
+  createOtpCode
 }) {
+  if (createOtpCode !== undefined && (config.nodeEnv !== 'development' || config.host !== '127.0.0.1'
+    || config.database !== 'pwc_council_demo' || connection?.name !== config.database
+    || connection.host !== '127.0.0.1')) {
+    throw new TypeError('Custom OTP generation requires the local council demo');
+  }
   const app = express();
   if (connection?.models) selectReferenceCatalogSource(connection, referenceCatalog);
   const basePorts = createPorts();
@@ -85,7 +91,7 @@ export function createApp({
   const ai = aiRuntimeModule(context);
   const pricing = pricingRuntimeModule(context);
   const petCare = petCareRuntimeModule(context);
-  const auth = authenticationModule({ ...context, logger });
+  const auth = authenticationModule({ ...context, logger, createOtpCode });
   if (auth && typeof connection?.model === 'function') {
     const customerRead = customerReadRuntime({ ...context, sessionService: auth.sessionService });
     auth.router.use(customerRead.router);
@@ -109,6 +115,7 @@ export function createApp({
     ? sitterManagementModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
+  app.locals.bookingPaymentExpiry = checkout?.paymentExpiry ?? null;
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
   const bookingChange = auth && checkout && employeeScheduling
     ? bookingChangeRuntimeModule({ ...context, sessionService: auth.sessionService,
@@ -117,6 +124,8 @@ export function createApp({
   if (bookingChange) auth.router.use(bookingChange.router);
   app.locals.bookingChange = bookingChange?.service ?? null;
   app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
+  app.locals.visitReminders = employeeScheduling?.visitReminders ?? null;
+  app.locals.lateCheckInAlerts = employeeScheduling?.lateCheckInAlerts ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
@@ -127,7 +136,7 @@ export function createApp({
   const suppliedModules = moduleFactories.map((factory) => factory(context))
     .filter(module => module !== null && module !== undefined);
   const sitterApplications = config.auth?.enabled && !suppliedModules.some(module => module.name === 'sitter-applications')
-    ? sitterApplicationRuntimeModule(context) : null;
+    ? sitterApplicationRuntimeModule({ ...context, requeueVisit: employeeScheduling?.dispatch?.requeueVisit }) : null;
   app.locals.applicationMail = env.EMAIL_ENABLED === 'true' ? (sitterApplications ?? suppliedModules.find(module => module.name === 'sitter-applications'))?.applicationMail : null;
 
   const catalogModules = serviceCatalogRuntimeModules(context).filter(

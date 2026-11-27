@@ -7,6 +7,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterLabel, managementDate, weekdayLabel } from '../../utils/sitter-management-format.js';
 import { ManagementState, SitterStatus } from './SitterManagementPage.jsx';
 import { EmployeeContractForm } from '../../components/payroll/EmployeeContractForm.jsx';
+import { CONTRACT_END_AFTER_START_MESSAGE, formatContractStartDateConflict } from '../../utils/contract-error-feedback.js';
 import './sitter-management.css';
 import { SitterCapabilityForm } from './SitterCapabilityForm.jsx';
 
@@ -29,11 +30,12 @@ function WorkHistory({ api, userId }) {
 }
 
 function ContractDialog({ data, api, onClose, onSaved }) {
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState(null), [locked, setLocked] = useState(false);
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState(null), [fieldErrors, setFieldErrors] = useState({});
+  const [locked, setLocked] = useState(false);
   const operation = useRef(null), inFlight = useRef(false);
   async function save(body) {
     if (inFlight.current) return false;
-    inFlight.current = true; setBusy(true); setMessage(null);
+    inFlight.current = true; setBusy(true); setMessage(null); setFieldErrors({});
     if (!operation.current) operation.current = { body, key: `payroll:${globalThis.crypto.randomUUID()}` };
     try {
       const result = await api.contract(operation.current.body, operation.current.key);
@@ -44,12 +46,18 @@ function ContractDialog({ data, api, onClose, onSaved }) {
       const uncertain = !error.status || error.status >= 500 || ['TIMEOUT', 'NETWORK_ERROR', 'INVALID_RESPONSE'].includes(error.code);
       setLocked(uncertain);
       if (!uncertain) operation.current = null;
-      setMessage(error.code === 'VERSION_CONFLICT' ? 'Hợp đồng đã thay đổi. Đóng và tải lại hồ sơ để lấy phiên bản mới.'
-        : error.code === 'BELOW_MINIMUM_WAGE' ? 'Thời lượng làm việc vượt mức được hỗ trợ bởi lương hợp đồng. Kiểm tra thời lượng và vùng lương.'
-          : error.status === 422 ? 'Thông tin hợp đồng chưa hợp lệ. Kiểm tra ngày, thời lượng và căn cứ hợp đồng.'
-            : error.status === 403 ? 'Phiên hiện tại không có quyền xác minh hợp đồng.'
-              : uncertain ? 'Chưa nhận được xác nhận. Kiểm tra lại cùng yêu cầu hoặc đóng và tải lại hồ sơ trước khi tạo yêu cầu mới.'
-                : 'Chưa lưu được hợp đồng. Kiểm tra trạng thái nhân viên và chính sách lương.');
+      if (error.fieldErrors?.endsAt) {
+        setFieldErrors({ endsAt: CONTRACT_END_AFTER_START_MESSAGE });
+        return false;
+      }
+      const startConflict = formatContractStartDateConflict(error, data.displayName);
+      setMessage(startConflict
+        ?? (error.code === 'VERSION_CONFLICT' ? 'Hợp đồng đã thay đổi. Đóng và tải lại hồ sơ để lấy phiên bản mới.'
+          : error.code === 'BELOW_MINIMUM_WAGE' ? 'Thời lượng làm việc vượt mức được hỗ trợ bởi lương hợp đồng. Kiểm tra thời lượng và vùng lương.'
+            : error.status === 422 ? 'Thông tin hợp đồng chưa hợp lệ. Kiểm tra ngày, thời lượng và căn cứ hợp đồng.'
+              : error.status === 403 ? 'Phiên hiện tại không có quyền xác minh hợp đồng.'
+                : uncertain ? 'Chưa nhận được xác nhận. Kiểm tra lại cùng yêu cầu hoặc đóng và tải lại hồ sơ trước khi tạo yêu cầu mới.'
+                  : 'Chưa lưu được hợp đồng. Kiểm tra trạng thái nhân viên và chính sách lương.'));
       return false;
     } finally { inFlight.current = false; setBusy(false); }
   }
@@ -57,7 +65,9 @@ function ContractDialog({ data, api, onClose, onSaved }) {
     <p>{data.displayName}</p>
     <p>Ghi nhận thông tin từ hợp đồng đã ký. Hợp đồng chỉ có hiệu lực trong khoảng thời gian đã xác minh.</p>
     {message && <Notice state="error" title="Chưa lưu hợp đồng">{message}</Notice>}
-    <EmployeeContractForm employeeId={data.id} expectedVersion={data.contractVersion} busy={busy} locked={locked} onSave={save} />
+    <EmployeeContractForm employeeId={data.id} expectedVersion={data.contractVersion} preferredEmploymentType={data.application?.employmentType}
+      busy={busy} locked={locked} fieldErrors={fieldErrors}
+      onClearFieldError={field => setFieldErrors(current => ({ ...current, [field]: undefined }))} onSave={save} />
   </Dialog>;
 }
 

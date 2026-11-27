@@ -1,11 +1,9 @@
 /* Figma 278:33, 277:7308, 280:7416. Scoped so role dashboards retain their own layout. */
-@font-face { font-family: 'Bricolage Grotesque'; src: url('/fonts/BricolageGrotesque-Variable.ttf') format('truetype'); font-weight: 200 800; font-display: swap; }
 @font-face { font-family: 'Nunito Sans'; src: url('/fonts/NunitoSans-Variable.ttf') format('truetype'); font-weight: 200 900; font-display: swap; }
 @font-face { font-family: 'Plus Jakarta Sans'; src: url('/fonts/PlusJakartaSans-Variable.ttf') format('truetype'); font-weight: 200 800; font-display: swap; }
 .pwc-public-root { --public-purple: #2c0050; --public-lilac: #f0dbff; --public-text: #211a13; --public-muted: #524436; --public-yellow: #ffcd34; background: #fcf9f8; color: var(--public-text); }
 .pwc-public-root .pwc-public-header { background: white; border: 0; }
 .pwc-public-root .pwc-public-header-inner { width: 100%; max-width: 1440px; padding: 16px 50px; min-height: 80px; gap: 22px; }
-.pwc-public-root .pwc-public-brand img { width: 235px; height: auto; }
 .pwc-public-root .pwc-public-navigation { flex: 1; gap: clamp(16px, 2.3vw, 48px); }
 .pwc-public-root .pwc-public-navigation a { font: 400 14px/20px 'Nunito Sans', Nunito, sans-serif; letter-spacing: 2.8px; text-transform: uppercase; white-space: nowrap; }
 .pwc-header-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
@@ -36,8 +34,6 @@
 .pwc-footer-column a:hover { text-decoration: underline; }
 .pwc-footer-bottom { grid-column: 1 / -1; border-top: 2px solid #ff9600; padding-top: 50px; display: flex; align-items: center; justify-content: space-between; gap: 24px; font: 500 14px/20px 'Plus Jakarta Sans', Nunito, sans-serif; }
 .pwc-footer-bottom p { margin: 0; }
-.pwc-footer-bottom nav { display: flex; gap: 32px; }
-.pwc-footer-bottom a { text-decoration: none; }
 .pwc-home-design { background: #fcf9f8; overflow: clip; }
 .pwc-home-design h1, .pwc-home-design h2 { font-family: 'FC DK Cool Crayon', Nunito, sans-serif; font-weight: 400; margin: 0; }
 .pwc-home-design h2 { font-size: 48px; line-height: 1.05; }
@@ -164,7 +160,6 @@
 .pwc-design-story-note { margin-top: 32px !important; font-size: 12px; text-align: center; color: #655a54; }
 @media (max-width: 1360px) {
  .pwc-public-root .pwc-public-header-inner { padding-inline: 28px; gap: 16px; }
- .pwc-public-root .pwc-public-brand img { width: 190px; }
  .pwc-public-root .pwc-public-navigation { gap: 18px; }
  .pwc-public-root .pwc-public-navigation a { font-size: 12px; letter-spacing: 1.4px; }
  .pwc-header-actions { gap: 8px; }
@@ -255,13 +250,14 @@
  .pwc-public-root .pwc-public-footer-inner { width: calc(100% - 40px); grid-template-columns: 1fr; gap: 32px; }
  .pwc-public-root .pwc-footer-identity p { margin-bottom: 24px; }
  .pwc-footer-bottom { padding-top: 24px; font-size: 12px; }
- .pwc-footer-bottom nav { gap: 20px; }
 }
 
 /* Natural SVG dimensions are retained; layout is applied to their wrappers. */
-.pwc-public-root .pwc-public-brand { gap: 12px; }
-.pwc-public-root .pwc-public-brand img { width: auto; height: auto; max-width: none; }
-.pwc-public-root .pwc-public-brand span { font: 800 36px/40px 'Bricolage Grotesque', Nunito, sans-serif; color: #2c0050; }
+.pwc-public-root .pwc-public-brand {
+  --pwc-brand-size: 36px;
+  --pwc-brand-line-height: 40px;
+  text-decoration: none;
+}
 .pwc-public-root .pwc-public-footer-inner { align-items: start; }
 .pwc-public-root .pwc-footer-bottom p { color: #1c1b1b; }
 .pwc-footer-instagram .pwc-instagram-color { width: auto; left: -35.234px; top: -5.125px; }
@@ -272,20 +268,21 @@
 .pwc-design-tape-left > img { position: absolute; top: 11.7px; left: 0; }
 .pwc-design-tape-left > span { position: absolute; inset: 0; mask-image: url('/assets/figma-public/home-Group2.svg'); mask-size: 49.3634px 201.751px; mask-position: 0 11.7px; mask-repeat: no-repeat; }
 .pwc-design-tape-left > span > img { position: absolute; left: 4.63px; top: 0; }
-@media (max-width: 1250px) { .pwc-public-root .pwc-public-brand span { font-size: 30px; } }
+@media (max-width: 1250px) { .pwc-public-root .pwc-public-brand { --pwc-brand-size: 30px; } }
 @media (max-width: 640px) {
- .pwc-public-root .pwc-public-brand .pwc-site-brandmark { gap: 5px; }
- .pwc-public-root .pwc-public-brand .pwc-site-brandmark__icon { width: 22px; }
- .pwc-public-root .pwc-public-brand span { font-size: clamp(14px, 4.3vw, 22px); line-height: 1.1; }
+ .pwc-public-root .pwc-public-brand {
+   --pwc-brand-gap: 5px;
+   --pwc-brand-icon-width: 22px;
+   --pwc-brand-size: clamp(14px, 4.3vw, 22px);
+   --pwc-brand-line-height: 1.1;
+ }
 }
 
-.pwc-public-root .pwc-public-brand { text-decoration: none; }
 .pwc-home-design { color: #211a13; }
 .pwc-public-root .pwc-public-navigation a { color: #211a13; }
 .pwc-public-root .pwc-public-main:focus { outline: none; }
 .pwc-public-root .pwc-public-footer { border: 0; }
 
-.pwc-footer-policies { background: white; padding: 20px; border-radius: 8px; }
 
 /* Signed-in public header follows the outlined account icon in the design. */
 .pwc-public-header .pwc-avatar-menu__trigger { padding: 8px; width: 44px; height: 44px; min-width: 44px; border: 0; border-radius: 8px; justify-content: center; background: transparent; color: #211a13; }
@@ -296,5 +293,5 @@
  .pwc-public-header .pwc-avatar-menu__panel,
  .pwc-public-header .pwc-avatar-menu__error { left: 16px; right: 16px; width: auto; }
 }
-.pwc-public-root .pwc-public-brand .pwc-brand-care, .pwc-public-root .pwc-footer-wordmark .pwc-brand-care { color: #8b65a4; font: inherit; }
-.pwc-public-brand > span, .pwc-footer-wordmark { white-space: nowrap; }
+.pwc-public-root .pwc-footer-wordmark .pwc-brand-care { color: #8b65a4; font: inherit; }
+.pwc-footer-wordmark { white-space: nowrap; }

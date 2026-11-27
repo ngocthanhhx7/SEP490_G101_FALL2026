@@ -281,6 +281,18 @@ describe('UC-74 Staff sitter list', () => {
     await request(app).get(root).query({ sort: 'rating' }).set(headers(staff)).expect(422);
   });
 
+  test('UC-41 GBR-29 excludes an urgent replacement and counts an equally late first assignment', async () => {
+    const startAt = new Date(+fixtureTime - 2 * 86400000), checkInAt = new Date(+startAt + 10 * 60000), assignedAt = new Date(+startAt - 40 * 60000);
+    const common = { sitterId: ids[0], startAt, checkInAt, assignedAt, state: 'COMPLETED' };
+    const result = await col('visits').insertMany([{ ...common, handoverRequired: true, handoverAccepted: true, handoverLateCheckInExempt: true }, common]);
+    try {
+      const response = await read({ search: 'NV-TEST-001' }, staff).expect(200);
+      expect(response.body.data.items).toContainEqual(expect.objectContaining({ id: String(ids[0]), lateCheckIns: 3 }));
+    } finally {
+      await col('visits').deleteMany({ _id: { $in: Object.values(result.insertedIds) } });
+    }
+  });
+
   test('UC-74 leaves withdrawals unknown and rejects withdrawal sorting when the event collection is absent', async () => {
     await col('employeescheduleevents').drop();
     try {
@@ -350,6 +362,34 @@ describe('UC-74 Staff sitter list', () => {
       expect(second.items[0]).toMatchObject({ id: String(ids[0]), withdrawals: count });
     } finally {
       await col('employeescheduleevents').deleteOne({ _id: eventId });
+    }
+  });
+
+  test('UC-74 returns upcoming days off within 30 Vietnam days merged from availability and capability', async () => {
+    const vnDay = offsetDays => new Date(Date.now() + 7 * 3600000 + offsetDays * 86400000).toISOString().slice(0, 10);
+    const yesterday = vnDay(-1);
+    const today = vnDay(0);
+    const inFiveDays = vnDay(5);
+    const day30 = vnDay(30);
+    const day31 = vnDay(31);
+    await col('employeeavailabilities').updateOne(
+      { _id: String(ids[0]) },
+      { $set: { dayOffDates: [yesterday, day30, today, day31, 'invalid'] } }
+    );
+    await col('aisitterprofiles').updateOne(
+      { userId: ids[0] },
+      { $set: { dayOffDates: [inFiveDays, today] } },
+      { upsert: true }
+    );
+    try {
+      const { items } = (await read({ search: 'NV-TEST-001' }, staff).expect(200)).body.data;
+      expect(items).toHaveLength(1);
+      expect(items[0].upcomingDaysOff).toEqual([today, inFiveDays, day30]);
+      const all = (await read({}, staff).expect(200)).body.data.items;
+      expect(all.find(item => item.id === String(ids[1])).upcomingDaysOff).toEqual([]);
+    } finally {
+      await col('employeeavailabilities').updateOne({ _id: String(ids[0]) }, { $set: { dayOffDates: [] } });
+      await col('aisitterprofiles').deleteOne({ userId: ids[0] });
     }
   });
 });

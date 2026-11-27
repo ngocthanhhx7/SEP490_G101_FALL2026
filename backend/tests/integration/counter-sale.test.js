@@ -281,11 +281,7 @@ test('IT-FE24-UC68-06 records cash once and moves the order to Paid', async () =
   expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 10, quantityHeld: 2 });
 });
 
-test.todo('IT-FE24-UC68-07 records a verified successful VietQR payment once (Counter Sale VietQR is not implemented)');
-test.todo('IT-FE24-UC68-08 leaves the order unpaid after a failed VietQR payment (Counter Sale VietQR is not implemented)');
-test.todo('IT-FE24-UC68-09 ignores duplicate payOS results for one counter order (Counter Sale VietQR is not implemented)');
-
-test('IT-FE24-UC68-10 completes only a paid order and deducts held stock exactly once', async () => {
+test('IT-FE25-UC71-15 shows reduced stock after UC-68 completes a counter sale', async () => {
   const p = await product(), order = (await save(body(p)).expect(201)).body.data;
   expect((await act(order, 'complete').expect(409)).body.error.code).toBe('ORDER_NOT_PAID');
   const paid = (await act(order, 'record-cash').expect(200)).body.data;
@@ -294,6 +290,8 @@ test('IT-FE24-UC68-10 completes only a paid order and deducts held stock exactly
   expect(replies.map(x => x.status)).toEqual([200, 200]);
   expect(replies[0].body.data).toMatchObject({ status: 'COMPLETED', paid: true, cashPayment: paid.cashPayment });
   expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 8, quantityHeld: 0, version: 2, detailsVersion: 2 });
+  expect((await get('/api/v1/admin/stock-levels').query({ search: p.code }).expect(200)).body.data.items[0])
+    .toMatchObject({ stockOnHand: 8, quantityHeld: 0, available: 8 });
   expect((await act(order, 'record-cash').expect(200)).body.data.cashPayment).toEqual(paid.cashPayment);
   expect((await get().expect(200)).body.data.total).toBe(0);
 });

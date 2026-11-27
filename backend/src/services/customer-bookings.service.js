@@ -8,13 +8,18 @@ export function createCustomerBookingsService({ connection, cursorSecret, clock 
     if (actor?.state !== 'ACTIVE') fail('UNAUTHENTICATED', 'Session required', 401);
     id(actor.userId);
     if (!actor.roles?.includes('CUSTOMER')) fail('FORBIDDEN', 'Customer required', 403);
-    exact(query, ['limit', 'cursor']);
+    exact(query, ['limit', 'cursor', 'state']);
     const limit = query.limit === undefined ? 20 : Number(query.limit);
     number(limit, 1, 50, true);
+    if (query.state !== undefined && (typeof query.state !== 'string' || !query.state.trim() || query.state.length > 40)) {
+      fail('VALIDATION_FAILED', 'Invalid booking state filter');
+    }
+    const stateFilter = query.state?.trim();
     if (!enabled) fail('BOOKING_READ_UNAVAILABLE', 'Booking source is disabled', 503);
     const registered = await connection.db.listCollections({ name: 'bookings' }, { nameOnly: true }).toArray();
     if (!registered.length) fail('BOOKING_READ_UNAVAILABLE', 'Booking storage is not provisioned', 503);
-    const context = { ownerId: actor.userId, limit }, filter = { customerId: new Types.ObjectId(actor.userId) };
+    const context = { ownerId: actor.userId, limit, ...(stateFilter ? { state: stateFilter } : {}) };
+    const filter = { customerId: new Types.ObjectId(actor.userId), ...(stateFilter ? { state: stateFilter } : {}) };
     if (query.cursor) {
       const last = cursor.decode(query.cursor, context); id(last.id);
       filter._id = { $lt: new Types.ObjectId(last.id) };
@@ -38,8 +43,7 @@ export function createCustomerBookingsService({ connection, cursorSecret, clock 
         firstByBooking.set(key, visit.startAt);
       }
     }
-    const asOf = new Date(clock());
-    return { items: page.map(row => ({ id: String(row._id), state: row.state === 'AWAITING_PAYMENT' && row.paymentDeadlineAt <= asOf ? 'PAYMENT_EXPIRED' : row.state,
+    return { items: page.map(row => ({ id: String(row._id), state: row.state,
       createdAt: row.createdAt ?? null, paymentState: row.paymentState ?? null,
       totalVnd: Number.isSafeInteger(row.paymentSnapshot?.amountVnd) && row.paymentSnapshot.amountVnd >= 0 ? row.paymentSnapshot.amountVnd : null,
       visitCount: row.checkoutSnapshot?.customerVisits?.length ?? null,

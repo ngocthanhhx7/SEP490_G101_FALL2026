@@ -1,5 +1,12 @@
 # Persistence models
 
+SitterApplication retains the existing collection and primary contact fields.
+Guest intake adds encrypted phone/lookup fields and a sparse unique multikey
+`activePendingContactKeys` index for both pending contacts. Approval/rejection
+releases these pending keys; no account contact is marked VERIFIED until OTP.
+The deployment index command provisions the additive index before rollout;
+runtime does not backfill historical applications or replace native validators.
+
 `product.model.js` also registers `StockAdjustment` in `stockadjustments`: immutable
 DC number/code, product and recorder snapshots, type, quantity, reason, timestamps
 and private idempotency key/fingerprint. Unique indexes guard code, number and
@@ -119,9 +126,13 @@ EmploymentContract adds optional supersededAt/supersededBy/supersededReason meta
 result collections. The tier document uses the customer account ID as its key.
 Goods receipt stock history uses the additive multikey compound index `lines.productId, createdAt descending, _id descending`; it preserves immutable receipts and the existing unique code/number/recorder-operation indexes. Provision explicitly with the reviewed release; runtime reads do not create it.
 
+`user.model.js` embeds the optional hidden (`select: false`) `emergencyContact` subdocument (`name`, `phone`, `relationship`) directly inside the existing `users` collection for one-to-one customer profile reads/updates without adding a separate collection.
+
 `service-workflow-version.model.js` defines only immutable history in serviceworkflowversions, unique serviceId/revision. Bounded draft/current live on services; snapshots/results live on visits. Existing caremediabindings accepts namespaced workflow kinds without changing its primary and visit/kind uniqueness. No execution/task/evidence collection is introduced.
 
 
 The optional AuthSession Web Push subscription follows the existing session TTL.
 Two partial indexes support sole endpoint ownership and worker claims.
 See [Web Push storage plan](../../../doc/database/pwa-web-push.md).
+
+`product.model.js` also registers `FaultyProductClaim` in `faultyproductclaims` (`KN-0001` via `ProductCounter` `FAULTY_CLAIM_CODE`): customer faulty/wrong-product claims with private image IDs, Sale Staff inspection notes, Admin exchange/refund/reject decisions, and single-use `EXCHANGE_SENT` audit fields. `SystemSettingVersion` (`system-setting-version.model.js`) adds optional `valueDays` for `FAULTY_PRODUCT_REPORT_DAYS`.

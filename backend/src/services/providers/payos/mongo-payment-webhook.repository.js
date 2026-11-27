@@ -4,12 +4,14 @@ import { createUnitOfWork } from '../../unit-of-work.service.js';
 import { financeSourceModels } from '../../../models/finance-source.model.js';
 import { assertFinanceSourceStorage } from '../../settlements/source-provisioning.js';
 import { createDomainNotifications } from '../../notifications/domain-notifications.service.js';
+import { createProductOrderReceipts } from '../../product-sales/product-order-receipt.service.js';
 
 // Called only after the provider signature verifier. Browser redirects cannot
 // reach this repository, and a verified signature still must match server intent.
 export function createMongoPaymentWebhookRepository({ connection, finance }) {
   const unitOfWork = createUnitOfWork(connection);
   const notifications = createDomainNotifications({ connection });
+  const orders = createProductOrderReceipts({ connection });
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
   const col = name => connection.db.collection(name);
   const id = value => Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
@@ -22,7 +24,8 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
   return Object.freeze({
     async findPaymentIntentByProviderReference(providerReference) {
       const intent = await col('paymentintents').findOne({ provider: 'PAYOS', providerReference });
-      if (!intent) return null;
+      // A reference that is no booking's may be a prepaid product order's payment link.
+      if (!intent) return orders.findIntent(providerReference);
       const booking = await col('bookings').findOne({ _id: intent.bookingId });
       return { id: String(intent._id), version: intent.version, state: intent.state, providerReference,
         amountVnd: intent.amountVnd, currency: intent.currency, expiresAt: intent.expiresAt,
@@ -34,6 +37,22 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
       const fingerprint = createHash('sha256').update(JSON.stringify(receipt)).digest('hex');
       return retry(async session => {
         if (await commands.exists({ _id: key }).session(session)) return { status: 'DUPLICATE' };
+        if (decision.kind === 'PRODUCT_ORDER') {
+          // A prepaid product order: the receipt lives on the order. Dedupe, event and command are shared with bookings.
+          const at = new Date(receipt.receivedAt);
+          const result = await orders.apply({ session, decision, receipt, at });
+          if (result.status === 'DUPLICATE') return result;
+          const reconcile = result.status === 'RECONCILIATION_REQUIRED';
+          await events.create([{ _id: key, type: reconcile ? 'PaymentReconciliationRequired' : 'PaymentVerified',
+            bookingId: null, resourceId: result.orderId, actorId: null, at }], { session });
+          // A payment that did not go through is not the shop's problem; only money that cannot be placed is.
+          if (reconcile && result.reason !== 'PROVIDER_PAYMENT_NOT_SUCCESSFUL') {
+            await notifications.payment({ eventId: key, booking: null, reconciliation: true }, session);
+          }
+          const stored = reconcile ? { status: result.status, reason: result.reason } : { status: result.status };
+          await commands.create([{ _id: key, fingerprint, result: stored, createdAt: at }], { session });
+          return stored;
+        }
         // The same bank reference arriving with a changed envelope is retained
         // for reconciliation, never applied as another payment.
         const previous = receipt.providerTransactionReference ? await col('payments').findOne({ provider: 'PAYOS',

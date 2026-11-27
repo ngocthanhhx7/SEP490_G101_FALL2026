@@ -242,9 +242,16 @@ export function createPayosProvider(options = {}) {
       uncertain: method !== 'GET'
     });
 
+    // payOS reports a missing order as a business error over HTTP 200.
+    if (method === 'GET' && response.status === 200 && payload?.code === '101'
+      && payload.desc === 'Mã thanh toán không tồn tại'
+      && (payload.data === undefined || payload.data === null)
+      && (payload.signature === undefined || payload.signature === null || payload.signature === '')) {
+      throw failure('PAYOS_LINK_NOT_FOUND', 'Payment provider has no link for this order', 404);
+    }
     if (!isRecord(payload) || payload.code !== '00' || !isRecord(payload.data)) {
       throw failure('PAYOS_REQUEST_REJECTED', 'Payment provider rejected the request', 503, {
-        uncertain: method !== 'GET'
+        uncertain: false
       });
     }
     if (!isValidPayosSignature(payload.data, payload.signature, checksumKey)) {
@@ -305,6 +312,12 @@ export function createPayosProvider(options = {}) {
       || typeof data.status !== 'string') {
       throw failure('PAYOS_RESPONSE_INVALID', 'Payment provider returned an invalid payment link', 502);
     }
+    const lookupLinkId = typeof data.id === 'string' && /^[0-9a-f]{32}$/i.test(data.id) ? data.id : undefined;
+    const paymentLinkId = lookupLinkId ?? (typeof data.paymentLinkId === 'string' ? data.paymentLinkId : undefined);
+    const suppliedUrl = validHttpUrl(data.checkoutUrl);
+    const checkoutUrl = suppliedUrl && new URL(suppliedUrl).origin === 'https://pay.payos.vn'
+      && new URL(suppliedUrl).pathname.startsWith('/web/') ? suppliedUrl
+      : (data.status === 'PENDING' && lookupLinkId ? `https://pay.payos.vn/web/${lookupLinkId}` : undefined);
     // This signed lookup is for reconciliation only; WBS-045 owns payment confirmation.
     return Object.freeze({
       orderCode: data.orderCode,
@@ -312,6 +325,8 @@ export function createPayosProvider(options = {}) {
       amountPaid: data.amountPaid,
       amountRemaining: data.amountRemaining,
       providerStatus: data.status,
+      ...(paymentLinkId ? { paymentLinkId } : {}),
+      ...(checkoutUrl ? { checkoutUrl } : {}),
       ...(typeof data.createdAt === 'string' ? { createdAt: data.createdAt } : {})
     });
   }

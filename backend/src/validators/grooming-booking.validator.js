@@ -74,10 +74,21 @@ export function groomingIdempotencyKey(value) {
 }
 
 export function groomingListQuery(query = {}) {
-  if (Object.keys(query).some(key => ![...PAGE_QUERY_KEYS, 'status'].includes(key))) fail('VALIDATION_FAILED', 'Unknown query field');
+  if (Object.keys(query).some(key => ![...PAGE_QUERY_KEYS, 'status', 'upcoming'].includes(key))) fail('VALIDATION_FAILED', 'Unknown query field');
   const page = parsePageQuery(query);
   if (query.status !== undefined && !GROOMING_APPOINTMENT_STATUSES.includes(query.status)) fail('VALIDATION_FAILED', 'Unknown status');
-  return { ...page, ...(query.status === undefined ? {} : { status: query.status }) };
+  let upcoming;
+  if (query.upcoming !== undefined) {
+    if (!['true', 'false', true, false].includes(query.upcoming)) fail('VALIDATION_FAILED', 'Valid upcoming flag required');
+    upcoming = query.upcoming === true || query.upcoming === 'true';
+  }
+  return { ...page, ...(query.status === undefined ? {} : { status: query.status }), ...(upcoming === undefined ? {} : { upcoming }) };
+}
+
+export function groomingCancelInput(body) {
+  if (body === undefined || body === null) return {};
+  exact(body, [], []);
+  return {};
 }
 
 // An id that is not an ObjectId is simply not found: nothing tells the caller whether another customer owns it.

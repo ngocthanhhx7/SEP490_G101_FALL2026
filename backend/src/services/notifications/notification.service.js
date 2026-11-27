@@ -59,6 +59,39 @@ function assertMeta(value, path = 'metadata') {
   return result;
 }
 
+function sanitizeStoredMeta(value, { logger, notificationId } = {}) {
+  if (value === null || value === undefined) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    logger?.({ event: 'notification_metadata_dropped', notificationId, reason: 'INVALID_CONTAINER' });
+    return null;
+  }
+  const result = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!SAFE_META_KEY.test(key) || SENSITIVE_KEY.test(key)) {
+      logger?.({ event: 'notification_metadata_key_dropped', notificationId, key });
+      continue;
+    }
+    if (item instanceof Date) {
+      if (Number.isFinite(item.getTime())) {
+        result[key] = item.toISOString();
+      } else {
+        logger?.({ event: 'notification_metadata_key_dropped', notificationId, key });
+      }
+    } else if (typeof item === 'string') {
+      if (item.length <= 200 && !/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(item)) {
+        result[key] = item;
+      } else {
+        logger?.({ event: 'notification_metadata_key_dropped', notificationId, key });
+      }
+    } else if (Number.isSafeInteger(item) || typeof item === 'boolean' || item === null) {
+      result[key] = item;
+    } else {
+      logger?.({ event: 'notification_metadata_key_dropped', notificationId, key });
+    }
+  }
+  return result;
+}
+
 function safeDeepLink(value) {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value !== 'string' || !SAFE_PATH.test(value) || value.startsWith('//')
@@ -74,22 +107,27 @@ function safeChannel(value) {
   return value;
 }
 
-function normalizeNotification(row, actor) {
+function normalizeNotification(row, actor, { logger } = {}) {
   if (!row || typeof row !== 'object' || Array.isArray(row)) return null;
   if (String(row.recipientId ?? row.userId) !== actor.userId) return null;
   const role = row.role ?? row.recipientRole;
   if (role !== undefined && role !== null && (!ROLES.has(role) || !actor.roles.includes(role))) return null;
   const id = row.id ?? row._id ?? row.notificationId;
   if (typeof id !== 'string') return null;
-  const createdAt = row.createdAt ? instant(row.createdAt, 'createdAt').toISOString() : null;
-  const readAt = row.readAt ? instant(row.readAt, 'readAt').toISOString() : null;
-  const data = {
-    id, eventType: safeText(row.eventType ?? 'SYSTEM', 'eventType', 80),
-    title: safeText(row.title, 'title', 120), message: safeText(row.message, 'message'),
-    channel: safeChannel(row.channel), role: role ?? null, readAt, createdAt,
-    deepLink: safeDeepLink(row.deepLink), metadata: assertMeta(row.metadata)
-  };
-  return Object.freeze(data);
+  try {
+    const createdAt = row.createdAt ? instant(row.createdAt, 'createdAt').toISOString() : null;
+    const readAt = row.readAt ? instant(row.readAt, 'readAt').toISOString() : null;
+    const data = {
+      id, eventType: safeText(row.eventType ?? 'SYSTEM', 'eventType', 80),
+      title: safeText(row.title, 'title', 120), message: safeText(row.message, 'message'),
+      channel: safeChannel(row.channel), role: role ?? null, readAt, createdAt,
+      deepLink: safeDeepLink(row.deepLink), metadata: sanitizeStoredMeta(row.metadata, { logger, notificationId: id })
+    };
+    return Object.freeze(data);
+  } catch {
+    logger?.({ event: 'notification_row_skipped', notificationId: id });
+    return null;
+  }
 }
 
 function normalizeRecipients(recipients) {
@@ -118,10 +156,10 @@ function fingerprint(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
-function normalizeResult(result, actor) {
+function normalizeResult(result, actor, { logger } = {}) {
   const source = Array.isArray(result) ? { items: result } : result || {};
   const rows = Array.isArray(source.items) ? source.items : [];
-  const items = rows.map(row => normalizeNotification(row, actor)).filter(Boolean);
+  const items = rows.map(row => normalizeNotification(row, actor, { logger })).filter(Boolean);
   return Object.freeze({
     items: Object.freeze(items),
     nextCursor: typeof source.nextCursor === 'string' ? source.nextCursor : null,
@@ -136,12 +174,17 @@ function validateLimit(value) {
   return number;
 }
 
-export function createNotificationService({ repository, clock = Date.now, pageSize = 20, pushSupport } = {}) {
+export function createNotificationService({ repository, clock = Date.now, pageSize = 20, pushSupport, logger } = {}) {
   if (!repository || typeof repository.list !== 'function' || typeof repository.markRead !== 'function'
     || typeof repository.createEvent !== 'function' || typeof clock !== 'function'
     || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
     throw new TypeError('Notification repository, clock and page size are required');
   }
+  const log = typeof logger === 'function'
+    ? logger
+    : typeof logger?.warn === 'function'
+      ? entry => logger.warn(entry)
+      : (entry => console.warn(JSON.stringify(entry)));
   const inFlight = new Map();
 
   async function list({ actor, cursor, unreadOnly = false, limit = pageSize } = {}) {
@@ -149,7 +192,7 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
     if (cursor !== undefined && cursor !== null && (typeof cursor !== 'string' || cursor.length > 512)) invalid('cursor is invalid');
     if (typeof unreadOnly !== 'boolean') invalid('unreadOnly is invalid');
     const result = await repository.list({ ...scope, cursor: cursor || null, unreadOnly, limit: validateLimit(limit), projection: 'NOTIFICATION_SAFE_V1' });
-    return normalizeResult(result, actor);
+    return normalizeResult(result, actor, { logger: log });
   }
 
   async function markRead({ actor, notificationId, idempotencyKey } = {}) {

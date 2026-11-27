@@ -115,6 +115,18 @@ test('Staff sees automatic search and only intervenes on a dispatch escalation',
   await waitFor(() => expect(api.invite).toHaveBeenCalledWith('review', 3, expect.any(String), undefined));
 });
 
+test.each([
+  ['STAFF_REVIEW_REQUIRED', 'Ca chưa có người nhận (hết lời mời hoặc vừa được trả ra). Cần nhân viên chọn người.'],
+  ['PAYMENT_REQUIRED', 'Chưa xác nhận được khoản thanh toán của lịch đặt nên chưa gửi được lời mời.'],
+  ['VISIT_UNAVAILABLE', 'Lịch đặt chưa ở trạng thái gửi được lời mời.']
+])('Staff reads why a released visit could not be offered again (%s)', async (reviewCode, text) => {
+  const api = fixture(); api.queue.mockResolvedValue({ data: { items: [
+    { id: 'released', serviceName: 'Ca được trả ra', version: 2, dispatchState: 'NEEDS_STAFF', reviewCode, startAt: '2026-11-03T03:00:00Z', endAt: '2026-11-03T04:00:00Z' }
+  ] } });
+  render(<EmployeeDispatchPage api={api} />);
+  expect(await screen.findByText(text)).toBeInTheDocument();
+});
+
 test('two registration adapters use separate endpoints, cookie transport, shared expected versions and stable keys', async () => {
   const request = jest.fn().mockResolvedValue({ data: {} }), api = createEmployeeSchedulingApi(request);
   await api.saveAvailability({ expectedVersion: 7, zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-11-03', workingWindows: [], idempotencyKey: 'time-key-001' });
@@ -131,8 +143,8 @@ test('customer confirmation keeps the same slot and key after an unknown acknowl
   const api = { confirmProposal: jest.fn().mockRejectedValueOnce({ code: 'TIMEOUT' }).mockResolvedValueOnce({ data: { offer: { state: 'PENDING' } } }) };
   render(<MemoryRouter><DirectedBookingProposalPage api={api} proposal={proposal} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('radio'));
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' }));
-  await screen.findByText('Đang chờ máy chủ xác nhận'); expect(screen.getByRole('radio')).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi lời mời' }));
+  await screen.findByText('Đang chờ xác nhận'); expect(screen.getByRole('radio')).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại xác nhận lịch' }));
   await waitFor(() => expect(api.confirmProposal).toHaveBeenCalledTimes(2));
   expect(api.confirmProposal.mock.calls[0]).toEqual(api.confirmProposal.mock.calls[1]);
@@ -178,6 +190,32 @@ test('GBR-13 tells a sitter that a concurrent acceptance took the visit and refr
   expect(await screen.findByText('Buổi đã có người nhận.')).toBeInTheDocument();
   await waitFor(() => expect(api.offers.mock.calls.length).toBeGreaterThan(1));
 });
+test('ST-BKG-05: declining an offer opens an inline form, shows MSG01 without reason, and shows MSG79 on submit', async () => {
+  const api = fixture();
+  api.respond.mockResolvedValueOnce({
+    data: { state: 'DECLINED', startAt: '2026-11-03T02:00:00.000Z', reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận lịch học', messageCode: 'MSG79' }
+  });
+  render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Từ chối' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi từ chối' }));
+  expect(await screen.findByText('Trường này là bắt buộc.')).toBeVisible();
+  expect(api.respond).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+  expect(screen.queryByRole('button', { name: 'Gửi từ chối' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+  fireEvent.change(screen.getByLabelText(/Lý do/), { target: { value: 'SCHEDULE_CONFLICT' } });
+  fireEvent.change(screen.getByLabelText(/Ghi chú thêm/), { target: { value: 'Bận lịch học' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi từ chối' }));
+
+  await waitFor(() => expect(api.respond).toHaveBeenCalledWith(
+    'offer', 'declines', 2, expect.stringMatching(/^schedule:/),
+    { reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận lịch học' }
+  ));
+  expect(await screen.findByText('Bạn đã từ chối buổi ngày 03/11/2026 lúc 09:00.')).toBeVisible();
+});
+
 test('customer sees the previous and replacement sitter before choosing to confirm', async () => {
   const proposal = { id: 'replacement', version: 0, state: 'PENDING_CUSTOMER_CONFIRMATION', sitterId: 'new',
     previousSitterId: 'old', previousSitter: { displayName: 'Người ban đầu' }, sitter: { displayName: 'Người thay thế' },
@@ -187,5 +225,5 @@ test('customer sees the previous and replacement sitter before choosing to confi
   expect(await screen.findByText('Đề xuất đổi người chăm sóc')).toBeInTheDocument();
   expect(screen.getByText(/Người đã chọn: Người ban đầu/)).toHaveTextContent('Người thay thế: Người thay thế');
   expect(api.confirmProposal).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Xác nhận lịch và gửi lời mời' })).toBeDisabled();
 });

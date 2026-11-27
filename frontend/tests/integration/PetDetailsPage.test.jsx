@@ -46,13 +46,12 @@ test('renders dog-only information, distinct field states and customer-reported 
   expect(screen.queryByText('Khay cát và cách chăm sóc')).not.toBeInTheDocument();
   expect(screen.getByText('Cần xác nhận lại')).toBeInTheDocument();
   expect(screen.queryByText('UNKNOWN')).not.toBeInTheDocument();
-  expect(screen.getByText('Customer cung cấp')).toBeInTheDocument();
+  expect(screen.getByText('Bạn cung cấp')).toBeInTheDocument();
   expect(screen.getByText(/không phải chẩn đoán hoặc xác nhận chuyên môn/i)).toBeInTheDocument();
-  expect(screen.getByText(/không có giá trị vaccine nào là điều kiện/i)).toBeInTheDocument();
+  expect(screen.getByText(/không bắt buộc có thông tin vaccine để đặt dịch vụ/i)).toBeInTheDocument();
   expect(screen.queryByText('Hướng dẫn thuốc do bạn cung cấp')).not.toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: 'PROVISIONAL · INTEGRATION_PENDING' })).toBeInTheDocument();
-  expect(screen.getByText(/quy tắc dự kiến theo P01 là sửa hồ sơ không tự đổi/i)).toBeInTheDocument();
-  expect(screen.getByText(/màn hình này chưa thể đọc hoặc xác minh snapshot/i)).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'PROVISIONAL · INTEGRATION_PENDING' })).not.toBeInTheDocument();
+  expect(screen.getByText(/không tự đổi hướng dẫn của lịch đặt đã xác nhận/i)).toBeInTheDocument();
 });
 
 test('renders cat-only information and does not expose dog-specific fields', async () => {
@@ -186,7 +185,7 @@ test('202 and lost mutation acknowledgements stay pending and require a read bef
   fireEvent.change(screen.getByRole('textbox', { name: 'Tên thú cưng' }), { target: { value: 'Mây đã được ghi nhận' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
-  expect(await screen.findByRole('heading', { name: 'Đang chờ máy chủ xác nhận' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Đang chờ xác nhận' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Hồ sơ đã được cập nhật' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeDisabled();
   expect(screen.getByRole('textbox', { name: 'Tên thú cưng' })).toBeDisabled();
@@ -221,7 +220,7 @@ test('confirms archive explicitly and renders archived only after a PetView ackn
   await screen.findByRole('heading', { name: 'Mây' });
   fireEvent.click(screen.getAllByRole('button', { name: 'Lưu trữ hồ sơ' })[0]);
   expect(screen.getByRole('alertdialog', { name: 'Lưu trữ hồ sơ thú cưng?' })).toBeInTheDocument();
-  expect(screen.getByText(/snapshot của booking\/visit đã xác nhận vẫn được giữ nguyên/i)).toBeInTheDocument();
+  expect(screen.getByText(/các lịch đặt đã xác nhận vẫn giữ nguyên thông tin đã lưu/i)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lưu trữ' }));
 
   expect(await screen.findByText('Đã lưu trữ')).toBeInTheDocument();

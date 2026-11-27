@@ -2,45 +2,60 @@ import { createSitterApplicationApi, sitterApplicationApi, sitterApplicationAdmi
 import { apiSessionAdapter } from '../../src/services/session-adapter.js';
 const response = (data, status = 200) => ({ ok: status < 400, status, json: async () => ({ meta: { schemaVersion: 1 }, data }) });
 
-test('submission sends the session CSRF and stable command key and validates receipt metadata', async () => {
-  const fetchImpl = jest.fn(async () => response({ id: 'app', state: 'PENDING', applicationCode: 'synthetic-application-code-0001' }, 201));
+test('submission sends the Guest intake token and stable command key and validates receipt metadata', async () => {
+  const fetchImpl = jest.fn(async path => path.endsWith('/intake') ? response({ csrfToken: 'a'.repeat(64) }) : response({ id: 'app', state: 'PENDING', applicationCode: 'synthetic-application-code-0001' }, 201));
   const api = createSitterApplicationApi({ fetchImpl, getCsrfToken: () => 'synthetic-csrf' });
+  await api.loadIntake();
   await expect(api.submit({ displayName: 'Synthetic' }, { key: 'synthetic-command-key' })).resolves.toMatchObject({ state: 'PENDING' });
   expect(fetchImpl).toHaveBeenCalledWith('/api/v1/applications', expect.objectContaining({ method: 'POST', credentials: 'same-origin',
-    headers: expect.objectContaining({ 'X-CSRF-Token': 'synthetic-csrf', 'Idempotency-Key': 'synthetic-command-key' }) }));
+    headers: expect.objectContaining({ 'X-Application-Token': 'a'.repeat(64), 'Idempotency-Key': 'synthetic-command-key' }) }));
   fetchImpl.mockResolvedValueOnce(response({ id: 'app' }, 201));
   await expect(api.submit({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });
 
-test('missing CSRF blocks submission before sending and injected uploads retain document type', async () => {
+test('missing intake blocks submission and upload; opening intake allows upload without an account session', async () => {
   const fetchImpl = jest.fn();
   const uploader = jest.fn(async () => ({ documentId: 'synthetic' }));
   const api = createSitterApplicationApi({ fetchImpl, getCsrfToken: () => null, uploadDocumentImpl: uploader });
-  await expect(api.submit({})).rejects.toMatchObject({ code: 'CSRF_UNAVAILABLE' });
+  await expect(api.submit({})).rejects.toMatchObject({ code: 'INTAKE_VERIFICATION_REQUIRED' });
   expect(fetchImpl).not.toHaveBeenCalled();
   const file = new globalThis.File(['synthetic'], 'test.png', { type: 'image/png' });
+  await expect(api.uploadDocument(file)).rejects.toMatchObject({ code: 'INTAKE_VERIFICATION_REQUIRED' });
+  fetchImpl.mockResolvedValueOnce(response({ csrfToken: 'a'.repeat(64) }));
+  await api.loadIntake();
   await api.uploadDocument(file, { documentType: 'IDENTITY' });
-  expect(uploader).toHaveBeenCalledWith(file, { documentType: 'IDENTITY', signal: undefined });
+  expect(uploader).toHaveBeenCalledWith(file, { documentType: 'IDENTITY', signal: undefined, intakeToken: 'a'.repeat(64) });
 });
 
 test('the real upload adapter sends raw image bytes and reuses its key for the same file', async () => {
   const original = globalThis.fetch;
-  const fetchImpl = jest.fn(async path => path.endsWith('/me')
-    ? response({ user: { id: 'synthetic-user', displayName: 'Synthetic', roles: ['CUSTOMER'] }, csrfToken: 'synthetic-upload-csrf' })
+  const fetchImpl = jest.fn(async path => path.endsWith('/intake')
+    ? response({ csrfToken: 'b'.repeat(64) })
     : response({ id: 'a'.repeat(64), state: 'READY' }, 201));
   globalThis.fetch = fetchImpl;
   try {
-    await apiSessionAdapter.resolve();
+    await sitterApplicationApi.loadIntake();
     const file = new globalThis.File(['synthetic'], 'test.png', { type: 'image/png' });
     await expect(sitterApplicationApi.uploadDocument(file)).resolves.toEqual({ documentId: 'a'.repeat(64), storageRef: 'a'.repeat(64) });
     await sitterApplicationApi.uploadDocument(file);
     const uploads = fetchImpl.mock.calls.filter(([path]) => path.endsWith('/applicant-documents'));
     expect(uploads).toHaveLength(2);
-    expect(uploads[0][1]).toMatchObject({ body: file, headers: { 'Content-Type': 'image/png', 'X-CSRF-Token': 'synthetic-upload-csrf' } });
+    expect(uploads[0][1]).toMatchObject({ body: file, headers: { 'Content-Type': 'image/png', 'X-Application-Token': 'b'.repeat(64) } });
     expect(uploads[0][1].headers['Idempotency-Key']).toBe(uploads[1][1].headers['Idempotency-Key']);
     await expect(sitterApplicationApi.uploadDocument(new globalThis.File(['pdf'], 'bad.pdf', { type: 'application/pdf' }))).rejects.toMatchObject({ code: 'INVALID_DOCUMENT' });
     expect(fetchImpl.mock.calls.filter(([path]) => path.endsWith('/applicant-documents'))).toHaveLength(2);
   } finally { globalThis.fetch = original; }
+});
+
+test('opening a historical owned application switches uploads back to session CSRF', async () => {
+  const fetchImpl = jest.fn(async path => path.endsWith('/intake') ? response({ csrfToken: 'a'.repeat(64) }) : response({ application: null }));
+  const uploader = jest.fn(async () => ({ documentId: 'synthetic' }));
+  const api = createSitterApplicationApi({ fetchImpl, getCsrfToken: () => 'synthetic-owner-csrf', uploadDocumentImpl: uploader });
+  await api.loadIntake(); await api.getMine();
+  const file = new globalThis.File(['synthetic'], 'test.png', { type: 'image/png' });
+  await api.uploadDocument(file);
+  expect(uploader).toHaveBeenCalledWith(file, expect.objectContaining({ csrfToken: 'synthetic-owner-csrf' }));
+  expect(uploader.mock.calls[0][1].intakeToken).toBeUndefined();
 });
 
 test('production Admin adapter reads session CSRF for review, interview, approve/reject and status commands', async () => {

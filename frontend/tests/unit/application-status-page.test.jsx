@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ApplicationStatusPage } from '../../src/pages/public/application-status/ApplicationStatusPage.jsx';
+import { createApplicationStatusApi } from '../../src/services/application-status-api.js';
 
 function renderPage(api, initialEntry = '/application-status') {
   return render(<MemoryRouter initialEntries={[initialEntry]}>
@@ -106,4 +107,41 @@ test.each([false, true])('verified rejection offers reapplication only when serv
   const link = screen.queryByRole('link', { name: 'Nộp lại hồ sơ ứng tuyển →' });
   if (canReapply) expect(link).toHaveAttribute('href', '/register?role=sitter');
   else expect(link).not.toBeInTheDocument();
+});
+
+test('shows MSG09 on too many wrong codes, MSG10 on hourly limit and preserves 429 fields in API client', async () => {
+  const api = {
+    requestVerification: jest.fn()
+      .mockResolvedValueOnce({ challengeId: 'challenge-lock', resendAfterSeconds: 0 })
+      .mockRejectedValueOnce({ status: 429, code: 'RATE_LIMITED', reason: 'HOURLY_LIMIT', retryAfterAt: '2026-11-24T04:45:00.000Z' }),
+    verifyAndReadStatus: jest.fn()
+      .mockRejectedValueOnce({ status: 429, code: 'RATE_LIMITED', reason: 'TOO_MANY_WRONG_CODES', retryAfterAt: '2026-11-24T03:20:00.000Z' })
+      .mockRejectedValueOnce({ status: 429, code: 'RATE_LIMITED' })
+  };
+  renderPage(api);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Mã hồ sơ' }), { target: { value: 'opaque-application-code' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã xác minh' }));
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '999999' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh và xem trạng thái' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10:20.');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh và xem trạng thái' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Bạn đã yêu cầu quá nhiều mã. Hãy chờ theo thời gian máy chủ thông báo rồi thử lại.');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi lại mã xác minh' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Bạn đã yêu cầu quá nhiều mã. Vui lòng thử lại sau 11:45.');
+
+  const client = createApplicationStatusApi({
+    fetchImpl: async () => ({
+      ok: false,
+      status: 429,
+      headers: new Headers({ 'Retry-After': '900' }),
+      json: async () => ({
+        error: { code: 'RATE_LIMITED', reason: 'TOO_MANY_WRONG_CODES', retryAfterSeconds: 900, retryAfterAt: '2026-11-24T03:20:00.000Z' },
+        meta: { schemaVersion: 1 }
+      })
+    })
+  });
+  await expect(client.verifyAndReadStatus({ applicationCode: 'code', challengeId: 'id', code: '999999' }))
+    .rejects.toMatchObject({ status: 429, code: 'RATE_LIMITED', reason: 'TOO_MANY_WRONG_CODES', retryAfterSeconds: 900, retryAfterAt: '2026-11-24T03:20:00.000Z' });
 });

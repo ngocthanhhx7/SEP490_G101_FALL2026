@@ -8,7 +8,7 @@ export function startProductPickupExpiryWorker({ enabled, createService, logger 
   const timer = globalThis.setInterval(() => {
     if (stopping || running) return;
     running = service.runBatch().then(result => {
-      if (result.cancelled || result.failed) logger({ event: 'product_pickup_expiry_batch', ...result });
+      if (result.cancelled || result.delivered || result.failed) logger({ event: 'product_pickup_expiry_batch', ...result });
     }).catch(() => logger({ event: 'product_pickup_expiry_failed' })).finally(() => { running = undefined; });
   }, INTERVAL_MS);
   timer.unref();

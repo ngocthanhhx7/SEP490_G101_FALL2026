@@ -14,6 +14,8 @@ import { createPayosProvider, loadPayosConfig } from '../services/providers/payo
 import { createFinanceSourceController } from '../controllers/finance-source.controller.js';
 import { createComplaintService } from '../services/complaints/complaint.service.js';
 import { createMongoComplaintRepository } from '../services/complaints/mongo-complaint.repository.js';
+import { createBookingRefundBilling } from '../services/complaints/booking-refund-billing.service.js';
+import { createBookingCancellationService } from '../services/booking-proposals/booking-cancellation.service.js';
 import { createComplaintRouter } from './complaint.routes.js';
 import { storageProfile } from '../config/storage-profile.js';
 import { loadR2Config } from '../config/r2.js';
@@ -33,20 +35,34 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
   const payos = loadPayosConfig(env);
   const webhook = payos ? createPayosPaymentWebhookService({ provider: createPayosProvider(payos),
     repository: createMongoPaymentWebhookRepository({ connection, finance: service }), clock: () => new Date(clock()) }) : null;
-  const controller = createFinanceSourceController({ service, webhook });
+  const bookingCancellation = createBookingCancellationService({ connection, clock });
+  const controller = createFinanceSourceController({ service, webhook, bookingCancellation });
   const router = Router();
-  const incidents = createIncidentService({ repository: createMongoIncidentRepository({ connection, finance: service, clock, compensationModel }), clock });
-  router.use(createIncidentRouter({ service: incidents, sessionPort: session, clock }));
-  router.use(createServiceWorkflowRouter({ templates: createServiceWorkflowService({ connection, clock }),
-    execution: createVisitWorkflowService({ connection, clock }), sessionService: session, clock }));
   const r2 = loadR2Config(env);
   const images = r2 && ports?.privateMedia ? createPrivateImageService({ connection, media: ports.privateMedia,
     secret: config.auth.tokenSecret, maxImagesPerUser: r2.maxImagesPerUser }) : null;
+  const incidentHotline = env.PAWWORLD_HOTLINE?.trim() || env.GROOMING_SHOP_HOTLINE?.trim() || null;
+  const bookingRefundBilling = createBookingRefundBilling({ connection });
+  const incidents = createIncidentService({
+    repository: createMongoIncidentRepository({ connection, finance: service, clock, compensationModel }),
+    billing: bookingRefundBilling,
+    clock,
+    hotline: incidentHotline,
+    readImage: images?.readScoped
+  });
+  router.use(createIncidentRouter({ service: incidents, sessionPort: session, clock }));
+  router.use(createServiceWorkflowRouter({ templates: createServiceWorkflowService({ connection, clock }),
+    execution: createVisitWorkflowService({ connection, clock }), sessionService: session, clock }));
   const { contactLookupSecret, contactEncryptionKey } = config.auth;
   const phones = contactLookupSecret && contactEncryptionKey ? createCustomerPhoneDirectory({ connection,
     contactCrypto: createContactCrypto({ lookupSecret: contactLookupSecret, encryptionKey: contactEncryptionKey }) }) : null;
-  const complaints = createComplaintService({ repository: createMongoComplaintRepository({ connection,
-    finance: service, cursorSecret: config.auth.tokenSecret, compensationModel, phones, clock }), readImage: images?.read, clock });
+  const complaints = createComplaintService({
+    repository: createMongoComplaintRepository({ connection,
+      finance: service, cursorSecret: config.auth.tokenSecret, compensationModel, phones, clock }),
+    billing: bookingRefundBilling,
+    readImage: images?.read,
+    clock
+  });
   router.use('/complaints', createComplaintRouter({ service: complaints, sessionService: session, clock }));
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
   const auth = requireSession(session, { clock }), csrf = requireCsrf(session), sitter = requireRoles('PET_SITTER');
@@ -56,6 +72,7 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
   router.patch('/visits/:id/checklists', auth, sitter, csrf, controller.checklist);
   router.post('/visits/:id/check-outs', auth, sitter, csrf, controller.checkOut);
   router.post('/bookings/:id/tax-assessments', auth, requireRoles('ADMIN'), csrf, controller.assessment);
+  router.get('/admin/booking-refunds', auth, requireRoles('ADMIN'), controller.adminBookingRefunds);
   if (webhook) router.post('/payments/payos/webhook', controller.payment);
-  return { router, service, complaints };
+  return { router, service, complaints, bookingCancellation };
 }
