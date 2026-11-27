@@ -182,7 +182,13 @@ describe('UC-94 Sale Staff dashboard', () => {
   test('IT-FE23-UC94-02 returns the parcels awaiting return inspection count', async () => {
     await returning(await placeShipped('a', [['SP-0012', 1]]));
     const dashboard = await api('saleStaff').get(DASHBOARD).expect(200);
-    expect(dashboard.body.data.counts).toEqual({ PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 1 });
+    expect(dashboard.body.data.counts).toEqual({
+      PREPARE: 0,
+      AWAITING_PICKUP: 0,
+      RETURNING: 1,
+      CLAIMS_TO_CHECK: 0,
+      LOW_STOCK: 2
+    });
   });
 
   test.todo('IT-FE23-UC94-03 returns the pending faulty product claim count (faulty product claims are not implemented)');
