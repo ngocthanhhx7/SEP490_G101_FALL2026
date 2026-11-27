@@ -11,7 +11,7 @@ let replica, connection, service, app, at = new Date('2026-10-30T09:00:00Z');
 const oid = () => new mongoose.Types.ObjectId();
 const sitter = { userId: String(oid()), roles: ['PET_SITTER'], state: 'ACTIVE' }, admin = { userId: String(oid()), roles: ['ADMIN'], state: 'ACTIVE' }, other = { ...sitter, userId: String(oid()) };
 const contract = () => ({ employeeId: sitter.userId, expectedVersion: 0, employmentType: 'PART_TIME', salaryBasis: 'GROSS', monthlyBaseVnd: 3000000,
-  payCycle: 'WEEKLY', weeklyMinutes: 1200, signedAt: '2026-10-01T00:00:00Z', effectiveAt: '2026-10-01T00:00:00Z',
+  payCycle: 'MONTHLY', weeklyMinutes: 1200, signedAt: '2026-10-01T00:00:00Z', effectiveAt: '2026-10-01T00:00:00Z',
   contractReference: 'synthetic-contract-reference', workplaceRegion: 1, workplaceReference: 'synthetic-workplace' });
 const advance = () => ({ amountVnd: 1500000, reason: 'Synthetic requested advance', settlementPeriod: '2026-11', settlementConsentReference: 'synthetic-agreed-settlement' });
 beforeAll(async () => {
@@ -65,7 +65,7 @@ test('HTTP session, role and CSRF protections apply', async () => {
   await request(app).get('/api/v1/payroll/me').set('x-test-actor', 'sitter').expect(200).expect('Cache-Control', 'private, no-store');
 });
 
-test('real completion credits feed weekly payroll without partner fee/tax; salary survives zero customer payments', async () => {
+test('real completion credits feed prorated monthly payroll without partner fee/tax; salary survives zero customer payments', async () => {
   at = new Date('2026-11-01T03:00:00Z');
   await service.models.PayrollServiceCredit.create({ visitId: oid(), bookingId: oid(), employeeId: sitter.userId,
     completedAt: new Date('2026-10-26T04:00:00Z'), serviceNetVnd: 1000000, careMinutes: 60,
@@ -75,6 +75,7 @@ test('real completion credits feed weekly payroll without partner fee/tax; salar
     overtimeVnd: 0, employeeInsuranceVnd: 0, incomeTaxVnd: 0, otherLawfulDeductionsVnd: 0,
     assessmentReference: 'synthetic-approved-timecard-tax-assessment', deductionConsentReference: 'synthetic-no-deductions', advanceRepayments: [] };
   const saved = await service.prepareStatement(admin, assessment, 'prepare-statement-001');
+  expect(saved.payCycle).toBe('MONTHLY');
   expect(saved.breakdown).toMatchObject({ baseVnd: 750000, commissionVnd: 50000, bonusVnd: 300000, payableVnd: 1100000 });
   expect(await service.prepareStatement(admin, assessment, 'prepare-statement-001')).toEqual(saved);
   await expect(service.prepareStatement(admin, assessment, 'prepare-statement-002')).rejects.toMatchObject({ code: 'PAYROLL_PERIOD_OVERLAP' });

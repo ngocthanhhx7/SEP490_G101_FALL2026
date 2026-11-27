@@ -9,7 +9,7 @@ independent approval still requires a non-contributor.
 - PawWorld Care operates for one employer. Approved sitters are employees with signed contracts.
 - Employment types: FULL_TIME and PART_TIME.
 - Full-time base salary: 10,000,000 VND; monthly payroll.
-- Part-time base salary: 3,000,000 VND; weekly or monthly payment as stated in the contract.
+- Part-time base salary: 3,000,000 VND; monthly payroll.
 - Both receive commission and KPI bonuses under the approved policy below.
 - Both can request a salary advance once per month, subject to Admin approval.
   Rejection requires a reason. Only Admin records salary payments.
@@ -40,7 +40,7 @@ bonus disputes and lawful wage deductions need separate reviewed rules.
 
 ## Further approval in this session
 
-- Both bases are monthly GROSS, including part-time 3m paid weekly or monthly per contract.
+- Both bases are monthly GROSS. Both employment types are paid monthly (UC-21, GBR-31, GBR-44, confirmed 2026-11-28).
 - Part-time is 20 hours/week. Do not pay 3m each week or divide every month into four weeks.
 - Commission: 5% directly performed service money after combo, before tax; exclude veterinary bills/third-party disbursements.
 - KPI monthly thresholds 90/100/110% of approved target care minutes. Full-time bonus 500k/1m/1.5m;
@@ -52,6 +52,21 @@ bonus disputes and lawful wage deductions need separate reviewed rules.
 - 2026-11-28 update (SAL-IN-03-UTCID01). Admin must enter a nonblank reason before
   approving or rejecting a salary advance. Both decisions store the reason on the advance.
 - Policy version `PWC-EMPLOYEE-PAYROLL-2026-10-30-v1`.
+
+### Monthly payroll and historical records
+
+`weeklyMinutes` records working hours per week. `payCycle` records the payment
+cycle and must be `MONTHLY` for new Pet Sitter contracts and payroll statements.
+An employee who works only part of a month can be assessed with verified paid
+minutes against the scheduled minutes of that month.
+
+Existing signed contracts and payroll statements retain their recorded terms,
+amounts and payment references. A legacy nonmonthly contract blocks new payroll
+preparation and automatic previews until the applicable signed monthly terms
+have been verified. If legacy data is found, review the signed terms and affected
+periods with payroll Admins, record a new effective contract version after
+approval, and reconcile existing prepared or paid statements without rewriting
+them. No automatic conversion or backfill is part of this change.
 
 ## History Pagination
 

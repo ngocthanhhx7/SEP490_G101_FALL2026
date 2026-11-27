@@ -42,7 +42,7 @@ async function fixture() {
     provisionedUserId: new mongoose.Types.ObjectId(sitter.userId) });
   await col('sitterstatuses').insertOne({ _id: oid(), userId: new mongoose.Types.ObjectId(sitter.userId), status: 'ACTIVE', version: 0, changedAt: at });
   await payroll.recordContract(admin, { employeeId: sitter.userId, expectedVersion: 0, employmentType: 'PART_TIME', salaryBasis: 'GROSS',
-    monthlyBaseVnd: 3000000, payCycle: 'WEEKLY', weeklyMinutes: 1200, signedAt: '2026-10-01T00:00:00Z', effectiveAt: '2026-10-01T00:00:00Z',
+    monthlyBaseVnd: 3000000, payCycle: 'MONTHLY', weeklyMinutes: 1200, signedAt: '2026-10-01T00:00:00Z', effectiveAt: '2026-10-01T00:00:00Z',
     contractReference: 'synthetic-private-contract', workplaceRegion: 1, workplaceReference: 'synthetic-workplace' }, 'synthetic-contract');
   const bookingId = oid(), visitId = oid();
   await col('bookings').insertOne({ _id: bookingId, customerId: new mongoose.Types.ObjectId(customer.userId), state: 'COMPLETED',
