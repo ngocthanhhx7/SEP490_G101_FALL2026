@@ -38,8 +38,9 @@ Needs action and uses an exact visit filter on the All tab for the Staff notific
 5 minutes: each assigned visit of the Vietnam day without check-in 15 minutes after
 its start sends one in-app notification to Staff, linking to that visit. The
 `lateCheckInAlert.alertedAt` marker is saved on the visit in the same transaction
-as the notification. A failed save can be retried on the next run. The marker
-and notification key follow the visit ID across reschedules.
+as the notification. The bounded scan rotates by start time and visit ID, so a
+failing visit cannot block later ones and is retried after the scan wraps. The
+marker and notification key follow the visit ID across reschedules.
 
 A visit released by withdrawal or suspension ends with new offers or a Needs action
 entry: when automatic dispatch is off, and when an offer to a released visit is

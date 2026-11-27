@@ -134,3 +134,26 @@ test('JOB-07: bounded batches progress past alerted visits', async () => {
   expect((await service.runBatch({ limit: 2 })).alerted).toBe(1);
   await expect(service.runBatch({ limit: 0 })).rejects.toThrow(TypeError);
 });
+
+test('JOB-07: a failing visit does not block later visits and is retried after the scan wraps', async () => {
+  const oldest = await seed({ startAt: new Date(START - MINUTE) });
+  const next = await seed();
+  let failOldest = true;
+  const worker = createLateCheckInAlerts({ clock: () => now, repository: { ...repository, models: {
+    ...repository.models,
+    EmployeeScheduleEvent: {
+      async create(events, options) {
+        if (failOldest && events[0].visitId === String(oldest._id)) throw new Error('Synthetic notification failure');
+        return repository.models.EmployeeScheduleEvent.create(events, options);
+      }
+    }
+  } } });
+
+  expect(await worker.runBatch({ limit: 1 })).toEqual({ alerted: 0, failed: 1 });
+  expect(await worker.runBatch({ limit: 1 })).toEqual({ alerted: 1, failed: 0 });
+  expect(await col('employeescheduleevents').distinct('visitId')).toEqual([String(next._id)]);
+  failOldest = false;
+  expect(await worker.runBatch({ limit: 1 })).toEqual({ alerted: 1, failed: 0 });
+  expect(await worker.runBatch({ limit: 1 })).toEqual({ alerted: 0, failed: 0 });
+  expect(await col('employeescheduleevents').countDocuments({ type: 'VisitCheckInLate' })).toBe(2);
+});
