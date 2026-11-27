@@ -378,7 +378,7 @@ describe('customer phone (AC-19, D-217)', () => {
 });
 
 describe('handing a delivery order to the carrier', () => {
-  test('needs a tracking code (MSG103) and changes nothing without one', async () => {
+  test('IT-FE23-UC64-01 requires a tracking code (MSG103) and changes nothing without one', async () => {
     const order = await placeDelivery('a', 'SP-0012', 2);
     for (const body of [{}, { trackingCode: '   ' }]) {
       const res = await act(order, 'hand-to-carrier', body);
@@ -534,7 +534,7 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 14, quantityHeld: 0 });
   });
 
-  test('AC-04 everything resellable returns the whole line to stock', async () => {
+  test('IT-FE23-UC66-01 returns the whole resellable line to stock', async () => {
     const order = await returning(await placeShipped('a', [['SP-0012', 3]]));
     await act(order, 'confirm-returned', await confirmBody([['SP-0012', 3]], { reason: 'CARRIER_UNDELIVERABLE' })).expect(200);
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 15, quantityHeld: 0 });
@@ -573,7 +573,7 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 13 });
   });
 
-  test('AC-04 (AC-19) only an order that is being returned can be confirmed, and two requests apply once', async () => {
+  test('IT-FE23-UC66-02 only a returned order can be confirmed, and concurrent requests apply once', async () => {
     const shipped = await placeShipped('a', [['SP-0012', 2]]);
     expect((await act(shipped, 'confirm-returned', await confirmBody([['SP-0012', 2]]))).body.error.code).toBe('ORDER_STATE_CONFLICT');
     const order = await returning(await placeShipped('b', [['SP-0020', 2]]));
