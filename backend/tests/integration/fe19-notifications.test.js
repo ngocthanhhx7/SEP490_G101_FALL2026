@@ -147,7 +147,7 @@ describe('FE-19 UC-88 - View Notifications', () => {
     expect(response.body.data).toEqual({ to: `/account/bookings/${bookingId}` });
   });
 
-  test('IT-FE19-UC88-12 creates an Admin notification for rejected goods', async () => {
+  test('IT-FE19-UC88-12 lists an existing rejected-goods notification for Admin', async () => {
     const notifications = await connection.db.collection('notifications');
     await notifications.insertOne({
       _id: 'fe19-goods-rejected', eventId: 'goods-receipt:GR-FE19:product-01', recipientId: admin.user.id,
@@ -226,8 +226,14 @@ describe('FE-19 JOB-01 - Visit reminders', () => {
   });
 
   test('IT-FE19-UC88-18 sends the next schedule version to the replacement Pet Sitter only', async () => {
-    const { job, send } = makeJob({ candidate: visit({ scheduleVersion: 2, customerId: owner.user.id, sitterId: 'replacement-sitter', recipients: ['replacement-sitter'] }) });
+    const { job, send, repository } = makeJob();
+    repository.findUpcomingVisits
+      .mockResolvedValueOnce([visit({ scheduleVersion: 1 })])
+      .mockResolvedValueOnce([visit({ scheduleVersion: 2, sitterId: 'replacement-sitter', recipients: ['replacement-sitter'] })]);
+
     await expect(job.runOnce()).resolves.toMatchObject({ reminded: 1 });
-    expect(send).toHaveBeenCalledWith(expect.objectContaining({ recipients: ['replacement-sitter'], scheduleVersion: 2 }));
+    await expect(job.runOnce()).resolves.toMatchObject({ reminded: 1 });
+    expect(send).toHaveBeenNthCalledWith(1, expect.objectContaining({ recipients: [owner.user.id, other.user.id], scheduleVersion: 1 }));
+    expect(send).toHaveBeenNthCalledWith(2, expect.objectContaining({ recipients: ['replacement-sitter'], scheduleVersion: 2 }));
   });
 });
