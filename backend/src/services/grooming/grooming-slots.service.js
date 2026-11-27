@@ -2,13 +2,14 @@ import { Types } from 'mongoose';
 import { groomingModels } from '../../models/grooming-appointment.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import {
-  GROOMING_BLOCKING_APPOINTMENT_STATUSES, GROOMING_MIN_LEAD_MINUTES, GROOMING_RELEASED_PET_STATUS
+  GROOMING_MIN_LEAD_MINUTES, GROOMING_RELEASED_PET_STATUS
 } from '../../constants/grooming.js';
 import {
   groomingCoveredSlots, groomingLocalTime, groomingSlotKey, groomingSlotStarts, groomingWindow
 } from '../../utils/grooming-slot-time.js';
 import { fail } from '../../validators/pet-care.validator.js';
 import { reserveGroomingEmployees } from './grooming-reservation.service.js';
+import { readBusyGroomingAppointments } from './grooming-pet-occupancy.service.js';
 
 export function createGroomingSlots({ connection, clock = Date.now, shopServices, shiftSource }) {
   const { Pet } = petCareModels(connection);
@@ -31,12 +32,7 @@ export function createGroomingSlots({ connection, clock = Date.now, shopServices
     const allSlotKeys = [...new Set(eligibleStarts.flatMap(start =>
       pets.flatMap(pet => groomingCoveredSlots(start, pet.durationMinutes).map(groomingSlotKey))
     ))];
-    const busyAppointments = allSlotKeys.length
-      ? await GroomingAppointment.find({
-        status: { $in: GROOMING_BLOCKING_APPOINTMENT_STATUSES },
-        pets: { $elemMatch: { petId: { $in: petObjectIds }, status: { $ne: GROOMING_RELEASED_PET_STATUS }, slotKeys: { $in: allSlotKeys } } }
-      }).select('pets.petId pets.status pets.slotKeys').limit(201).maxTimeMS(5000).lean()
-      : [];
+    const busyAppointments = await readBusyGroomingAppointments(GroomingAppointment, petObjectIds, allSlotKeys);
     const bookedKeysByPet = new Map();
     for (const doc of busyAppointments) {
       for (const row of doc.pets ?? []) {

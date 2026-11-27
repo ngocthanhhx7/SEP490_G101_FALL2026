@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Types } from 'mongoose';
 import { groomingModels } from '../../models/grooming-appointment.model.js';
 import {
-  GROOMING_BLOCKING_APPOINTMENT_STATUSES, GROOMING_CANCEL_MIN_LEAD_MINUTES, GROOMING_MIN_LEAD_MINUTES, GROOMING_RELEASED_PET_STATUS
+  GROOMING_CANCEL_MIN_LEAD_MINUTES, GROOMING_MIN_LEAD_MINUTES, GROOMING_RELEASED_PET_STATUS
 } from '../../constants/grooming.js';
 import { groomingCoveredSlots, groomingLocalDate, groomingLocalTime, groomingSlotKey, groomingWindow } from '../../utils/grooming-slot-time.js';
 import {
@@ -14,6 +14,7 @@ import { createUnitOfWork } from '../unit-of-work.service.js';
 import { paginate } from '../pagination.service.js';
 import { createEmployeeScheduleRepository } from '../employee-scheduling/employee-schedule.repository.js';
 import { assertGroomingReservations } from './grooming-reservation.service.js';
+import { readBusyGroomingAppointments } from './grooming-pet-occupancy.service.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { payrollModels } from '../../models/payroll.model.js';
 import { assertNoUnpaidGrooming } from './grooming-unpaid.service.js';
@@ -70,11 +71,7 @@ export function createGroomingBooking({ connection, clock = Date.now, pricing, s
   // and a pet released with no charge no longer does.
   async function assertPetsFree(pets, session = null) {
     const ids = pets.map(pet => pet.petId), keys = [...new Set(pets.flatMap(pet => pet.slotKeys))];
-    const found = await GroomingAppointment.find({
-      status: { $in: GROOMING_BLOCKING_APPOINTMENT_STATUSES },
-      pets: { $elemMatch: { petId: { $in: ids }, status: { $ne: GROOMING_RELEASED_PET_STATUS }, slotKeys: { $in: keys } } }
-    }).select('pets.petId pets.status pets.slotKeys').limit(201).maxTimeMS(5000).session(session).lean();
-    if (found.length > 200) fail('GROOMING_ROSTER_REVIEW_REQUIRED', 'Pet booking history exceeds review budget', 503);
+    const found = await readBusyGroomingAppointments(GroomingAppointment, ids, keys, session);
     for (const pet of pets) {
       const busy = found.some(doc => doc.pets.some(other => String(other.petId) === String(pet.petId)
         && other.status !== GROOMING_RELEASED_PET_STATUS && other.slotKeys.some(key => pet.slotKeys.includes(key))));
