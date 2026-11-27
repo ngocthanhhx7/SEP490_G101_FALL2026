@@ -13,7 +13,10 @@ owner-declared note contract via `utils/pet-vaccinations.js`. No medical inferen
 or migration is performed. Health import retains consent and explicit review.
 
 `CustomerDashboardPage` owns the Customer care overview, separate from operational
-dashboards: authoritative counters, visit list, date filters and server cursors.
+dashboards: authoritative counters, visit list, upcoming shop grooming appointments
+(with customer cancellation via `useUpcomingGrooming`, `GroomingUpcomingRow` and
+`GroomingCancelDialog`), date filters and server cursors. `MobileCareHome` shares the
+same upcoming grooming list and cancellation flow on the mobile Customer home screen.
 `CustomerProfilePage` shares the versioned personal profile form across Customer,
 Pet Sitter, Admin, Staff and Sale Staff. The adapter selects the role-specific API. Verified contacts
 are masked and managed through the separate OTP settings flow. Account navigation/layout
@@ -33,7 +36,9 @@ belongs in layouts and routes; see the Customer account UI plan under doc/ui-ux.
   location/area/pin resets confirmation. Owner management uses
   `/pet-care/addresses/manage`; the matching list stays minimal.
 - `CustomerBookingsPage` reads owner-scoped `/bookings` across all states with
-  cursor pagination; details open the existing checkout confirmation.
+  cursor pagination; details open the existing checkout confirmation, and
+  `visit-schedule/VisitSchedulePage.jsx` serves `/account/bookings/:bookingId/visits`
+  (`UC-28`) using the same owner-scoped booking details read.
   `/account/notifications` uses durable notifications and read receipts.
 - `CustomerProfilePage` uses `/me/profile` and session/CSRF. The separate
   `CustomerUnpaidBookingsPage` displays unpaid projections/payment intents;
@@ -46,8 +51,10 @@ old `/pets` and `/addresses` contracts are not the current management source.
 
 `RecommendationCheckout.jsx` bridges supported home-care shortlist selections to
 the ordinary quote/checkout API with a MATCH reference. Specialized clinic,
-distance and boarding plans retain Staff review. `VerifiedVisitRating.jsx` uses
-the verified completed-visit command and preserves uncertain retry payloads.
+distance and boarding plans retain Staff review. `BookingSitterRatings.jsx` shows one
+rating button per pet sitter who finished a visit while the server returns a
+`ratingDeadlineAt` for the booking, and opens `VerifiedVisitRating.jsx` in a dialog.
+That form uses the verified completed-visit command and preserves uncertain retry payloads.
 
 `SitterRecommendationsPage` displays an advisory shortlist from shared owned
 pets/confirmed addresses; it never sets prices or sends offers.

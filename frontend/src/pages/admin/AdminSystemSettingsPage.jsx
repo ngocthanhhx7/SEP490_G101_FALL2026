@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { BrandLogo, Button, Input, Notice, Select } from '../../components/ui/index.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BrandLogo, Button, Input, Notice, Select, Toast } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
@@ -16,6 +16,76 @@ const errorMessage = error => {
   return 'Không thể hoàn tất yêu cầu. Hãy tải lại và thử lại sau.';
 };
 
+function PickupSettings({ apiRequest }) {
+  const load = useCallback(async options => {
+    const [current, history] = await Promise.all([
+      apiRequest('/system-settings/pickup', options), apiRequest('/system-settings/pickup/history', options)
+    ]);
+    return { data: { current: current.data, versions: history.data?.versions ?? [] }, pending: current.pending || history.pending };
+  }, [apiRequest]);
+  const resource = useApiResource(load);
+  return <section className="admin-settings-card admin-settings-history" aria-label="Đón thú">
+    <h2>Đón thú</h2>
+    {resource.status === 'loading' && <Notice state="loading" title="Đang tải cài đặt" />}
+    {resource.status === 'error' && <Notice state="error" title="Không tải được cài đặt đón thú" action={<Button onClick={resource.retry}>Thử lại</Button>} />}
+    {resource.status === 'success' && <PickupSettingsForm key={resource.data.versions[0]?.version ?? 0} data={resource.data} apiRequest={apiRequest} onSaved={resource.retry} />}
+  </section>;
+}
+
+function PickupSettingsForm({ data, apiRequest, onSaved }) {
+  const [tiers, setTiers] = useState(() => (data.versions[0]?.tiers ?? data.current?.tiers ?? [{ fromKm: 0, toKm: '', feeVnd: '' }]).map(tier => ({ ...tier })));
+  const [reason, setReason] = useState('');
+  const [effectiveAt, setEffectiveAt] = useState(localDateTime);
+  const [pending, setPending] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const maxKm = tiers.at(-1)?.toKm ?? '';
+  const change = (index, key, value) => setTiers(old => old.map((tier, i) => i === index ? { ...tier, [key]: value } : tier));
+  const valid = tiers.length > 0 && tiers.every((tier, i) =>
+    [tier.fromKm, tier.toKm, tier.feeVnd].every(value => String(value).trim() !== '' && Number.isFinite(Number(value))) &&
+    Number(tier.fromKm) === (i ? Number(tiers[i - 1].toKm) : 0) &&
+    Number(tier.toKm) > Number(tier.fromKm) && Number.isSafeInteger(Number(tier.feeVnd)) && Number(tier.feeVnd) >= 0);
+  const save = async event => {
+    event.preventDefault();
+    if (!valid || pending) return;
+    setPending(true); setFeedback('');
+    try {
+      const result = await apiRequest('/system-settings/pickup', { method: 'POST', body: {
+        expectedVersion: data.versions[0]?.version ?? 0, effectiveAt: new Date(effectiveAt).toISOString(), reason: reason.trim(),
+        maxKm: Number(maxKm), tiers: tiers.map(tier => ({ fromKm: Number(tier.fromKm), toKm: Number(tier.toKm), feeVnd: Number(tier.feeVnd) }))
+      } });
+      if (result.pending) setFeedback('Yêu cầu đang xử lý. Tải lại để xác nhận.');
+      else onSaved();
+    } catch (error) { setFeedback(errorMessage(error)); }
+    finally { setPending(false); }
+  };
+  return <>
+    <p>{data.current ? 'Đang áp dụng phiên bản ' + data.current.version : 'Chưa có cài đặt; không cho chọn đón.'}</p>
+    <form className="admin-settings-form" onSubmit={save}>
+      <h3>Bậc khoảng cách</h3>
+      {tiers.map((tier, index) => <fieldset key={index}>
+        <legend>Bậc {index + 1}</legend>
+        <Input label="Từ (km)" type="number" min="0" step="any" required value={tier.fromKm} onChange={event => change(index, 'fromKm', event.target.value)} />
+        <Input label="Đến (km)" type="number" min="0" step="any" required value={tier.toKm} onChange={event => change(index, 'toKm', event.target.value)} />
+        <Input label="Phí (VND)" type="number" min="0" step="1" required value={tier.feeVnd} onChange={event => change(index, 'feeVnd', event.target.value)} />
+        <Button type="button" variant="secondary" disabled={tiers.length === 1} onClick={() => setTiers(old => old.filter((_, i) => i !== index))}>Xóa dòng</Button>
+      </fieldset>)}
+      <Button type="button" variant="secondary" onClick={() => setTiers(old => [...old, { fromKm: old.at(-1).toKm, toKm: '', feeVnd: '' }])}>Thêm dòng</Button>
+      <Input label="Khoảng cách đón tối đa (km)" value={maxKm} readOnly />
+      {!valid && <p>Các bậc phải bắt đầu từ 0, nối liền và có phí nguyên không âm.</p>}
+      <Input label="Thời điểm hiệu lực đón thú" type="datetime-local" required value={effectiveAt} onChange={event => setEffectiveAt(event.target.value)} />
+      <Input label="Lý do thay đổi phí đón" required minLength={3} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} />
+      <Button type="submit" disabled={!valid} loading={pending}>Lưu phiên bản phí đón</Button>
+      {feedback && <Notice state="error" title="Chưa hoàn tất">{feedback}</Notice>}
+    </form>
+    <h3>Lịch sử phiên bản đón thú</h3>
+    <ol className="admin-settings-history-list">{data.versions.map(item => <li key={item.version}>
+      <strong>Phiên bản {item.version}</strong><p>{item.reason} · {item.maxKm} km</p>
+      <p>{item.tiers.map(tier => tier.fromKm + '–' + tier.toKm + ' km: ' + tier.feeVnd.toLocaleString('vi-VN') + ' VND').join(' · ')}</p>
+      <small>{new Date(item.effectiveAt).toLocaleString('vi-VN')} · Actor ID {item.changedBy}</small>
+    </li>)}</ol>
+  </>;
+}
+
 export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
   const session = useSession();
   const isAdmin = session.user?.roles?.includes('ADMIN');
@@ -25,6 +95,10 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
   const [reason, setReason] = useState('');
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [faultyDays, setFaultyDays] = useState('7');
+  const [faultyDaysError, setFaultyDaysError] = useState('');
+  const [savingFaultyDays, setSavingFaultyDays] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const apiRequest = useMemo(() => suppliedRequest ?? createApiClient({
     getCsrfToken: session.getCsrfToken, onUnauthorized: session.invalidate
   }), [suppliedRequest, session.getCsrfToken, session.invalidate]);
@@ -32,6 +106,39 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
   const resource = useApiResource(load);
   const overview = resource.data;
   const current = overview?.catalogVisibility;
+  const currentFaultyDays = overview?.faultyProductReportDays;
+
+  useEffect(() => {
+    if (currentFaultyDays?.days !== undefined) {
+      setFaultyDays(String(currentFaultyDays.days));
+    }
+  }, [currentFaultyDays?.days, currentFaultyDays?.version]);
+
+  const saveFaultyDays = async event => {
+    event.preventDefault();
+    if (!isAdmin || savingFaultyDays) return;
+    const trimmed = String(faultyDays).trim();
+    const parsed = Number(trimmed);
+    if (!/^[1-9]\d*$/.test(trimmed) || !Number.isSafeInteger(parsed) || parsed < 1 || parsed > 365) {
+      setFaultyDaysError('Vui lòng nhập số nguyên lớn hơn 0.');
+      return;
+    }
+    setSavingFaultyDays(true);
+    setFaultyDaysError('');
+    setFeedback(null);
+    try {
+      await apiRequest('/system-settings/faulty-product-report-days', {
+        method: 'PUT',
+        body: { expectedVersion: currentFaultyDays?.version ?? 0, days: parsed }
+      });
+      setToastMessage('Đã lưu thay đổi.');
+      resource.retry();
+    } catch (error) {
+      setFaultyDaysError(error?.status === 422 ? 'Vui lòng nhập số nguyên lớn hơn 0.' : errorMessage(error));
+    } finally {
+      setSavingFaultyDays(false);
+    }
+  };
 
   const save = async event => {
     event.preventDefault();
@@ -76,6 +183,7 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
       <p>Cấu hình công khai danh mục và xem quy ước tiền tệ đang áp dụng.</p>
       <span className="admin-settings-provisional">Đề xuất · Figma chưa đối chiếu</span>
     </header>
+    <Toast message={toastMessage} onClose={() => setToastMessage('')} />
     {feedback && <Notice state={feedback.state} title={feedback.state === 'success' ? 'Đã lưu' : 'Chưa hoàn tất'}>{feedback.text}</Notice>}
     <section id="settings-content" className="admin-settings-grid">
       <section className="admin-settings-card" aria-labelledby="currency-heading">
@@ -119,6 +227,37 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
         </form>}
         {!isAdmin && <p className="admin-settings-help">Nhân viên có thể xem cấu hình. Thay đổi chỉ dành cho quản trị viên.</p>}
       </section>
+      <section className="admin-settings-card" aria-labelledby="faulty-days-heading">
+        <p className="admin-settings-eyebrow">CỬA HÀNG</p>
+        <h2 id="faulty-days-heading">Báo sản phẩm lỗi</h2>
+        <p className="admin-settings-help">
+          Thời hạn khách được báo sản phẩm lỗi hoặc giao sai tính từ ngày giao hàng hoặc ngày nhận tại cửa hàng (mặc định 7 ngày).
+        </p>
+        <p className="admin-settings-effective">
+          Đang áp dụng: <strong>{currentFaultyDays?.days ?? 7} ngày</strong>.
+        </p>
+        {isAdmin && resource.status === 'success' && (
+          <form className="admin-settings-form" onSubmit={saveFaultyDays} noValidate>
+            <Input
+              label="Thời hạn báo sản phẩm lỗi (ngày)"
+              type="number"
+              min={1}
+              max={365}
+              step={1}
+              required
+              value={faultyDays}
+              onChange={event => {
+                setFaultyDays(event.target.value);
+                if (faultyDaysError) setFaultyDaysError('');
+              }}
+            />
+            {faultyDaysError && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{faultyDaysError}</p>}
+            <Button type="submit" loading={savingFaultyDays} loadingLabel="Đang lưu…">
+              Lưu thời hạn báo lỗi
+            </Button>
+          </form>
+        )}
+      </section>
       <section className="admin-settings-card admin-settings-history" aria-labelledby="settings-history-heading">
         <div className="admin-settings-card-heading"><div><p className="admin-settings-eyebrow">KIỂM TOÁN</p>
           <h2 id="settings-history-heading">Lịch sử thay đổi</h2></div><Button variant="secondary" onClick={resource.retry}>Tải lại</Button></div>
@@ -130,6 +269,7 @@ export function AdminSystemSettingsPage({ apiRequest: suppliedRequest }) {
             <small>Hiệu lực {new Date(item.effectiveAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} · Actor ID {item.changedBy}</small>
           </li>)}</ol>}
       </section>
+      {isAdmin && <PickupSettings apiRequest={apiRequest} />}
     </section>
   </main>;
 }

@@ -4,6 +4,7 @@ import { ApiError, createApiClient } from './api-client.js';
 const RECEIVE_METHODS = ['DELIVERY', 'PICKUP'];
 const PAYMENT_METHODS = ['COD', 'PAY_AT_SHOP', 'PREPAID'];
 const TABS = ['PREPARE', 'AWAITING_PICKUP', 'IN_TRANSIT', 'RETURNING', 'ALL'];
+const PAYOS_CHECKOUT = /^https:\/\/pay\.payos\.vn\/web\//u;
 const money = (value) => Number.isSafeInteger(value) && value >= 0;
 const text = (value) => typeof value === 'string' && value.length > 0;
 const invalid = () => { throw new ApiError('INVALID_RESPONSE', 200); };
@@ -45,6 +46,12 @@ export function createProductOrderManagementApi(options) {
     },
     handToCarrier: (orderId, trackingCode) => act(orderId, 'hand-to-carrier', { trackingCode }),
     markReady: (orderId) => act(orderId, 'mark-ready'),
+    readOrder: async (orderId, { signal } = {}) => checkOrder((await request(`/admin/product-orders/${id(orderId)}`, { signal })).data),
+    async createPaymentLink(orderId) {
+      const response = notPending(await request(`/admin/product-orders/${id(orderId)}/payment-link`, { method: 'POST', body: {} }));
+      if (!PAYOS_CHECKOUT.test(response.data?.checkoutUrl ?? '')) invalid();
+      return response.data;
+    },
     recordPayment: (orderId) => act(orderId, 'record-payment'),
     handToCustomer: (orderId) => act(orderId, 'hand-to-customer'),
     markDelivered: (orderId) => act(orderId, 'mark-delivered'),

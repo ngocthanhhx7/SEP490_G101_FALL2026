@@ -6,6 +6,7 @@ import {
   GROOMING_SKIN_ANSWERS
 } from '../constants/grooming.js';
 import { isGroomingDate } from '../utils/grooming-slot-time.js';
+import { pickupSelection } from './pickup.validator.js';
 
 function serviceIds(value) {
   if (!Array.isArray(value) || !value.length || value.length > GROOMING_MAX_SERVICES_PER_PET || new Set(value).size !== value.length) {
@@ -59,13 +60,14 @@ const priced = row => {
 
 // The start must be the exact ISO string the slots endpoint returned (an hour boundary in UTC is one in +07:00 too).
 export function groomingBookingInput(body) {
-  exact(body, ['startAt', 'pets', 'expectedTotalVnd'], ['startAt', 'pets', 'expectedTotalVnd']);
+  exact(body, ['startAt', 'pets', 'expectedTotalVnd', 'pickup'], ['startAt', 'pets', 'expectedTotalVnd']);
   const start = typeof body.startAt === 'string' ? new Date(body.startAt) : null;
   if (!start || !Number.isFinite(start.getTime()) || start.toISOString() !== body.startAt || start.getTime() % 3600000 !== 0) {
     fail('VALIDATION_FAILED', 'Valid slot start required');
   }
   if (!Number.isSafeInteger(body.expectedTotalVnd) || body.expectedTotalVnd < 0) fail('VALIDATION_FAILED', 'Expected total must be a whole number of dong');
-  return { startAt: start, pets: pets(body.pets, priced), expectedTotalVnd: body.expectedTotalVnd };
+  return { startAt: start, pets: pets(body.pets, priced), expectedTotalVnd: body.expectedTotalVnd,
+    ...(body.pickup !== undefined ? { pickup: pickupSelection(body.pickup) } : {}) };
 }
 
 export function groomingIdempotencyKey(value) {
@@ -74,10 +76,21 @@ export function groomingIdempotencyKey(value) {
 }
 
 export function groomingListQuery(query = {}) {
-  if (Object.keys(query).some(key => ![...PAGE_QUERY_KEYS, 'status'].includes(key))) fail('VALIDATION_FAILED', 'Unknown query field');
+  if (Object.keys(query).some(key => ![...PAGE_QUERY_KEYS, 'status', 'upcoming'].includes(key))) fail('VALIDATION_FAILED', 'Unknown query field');
   const page = parsePageQuery(query);
   if (query.status !== undefined && !GROOMING_APPOINTMENT_STATUSES.includes(query.status)) fail('VALIDATION_FAILED', 'Unknown status');
-  return { ...page, ...(query.status === undefined ? {} : { status: query.status }) };
+  let upcoming;
+  if (query.upcoming !== undefined) {
+    if (!['true', 'false', true, false].includes(query.upcoming)) fail('VALIDATION_FAILED', 'Valid upcoming flag required');
+    upcoming = query.upcoming === true || query.upcoming === 'true';
+  }
+  return { ...page, ...(query.status === undefined ? {} : { status: query.status }), ...(upcoming === undefined ? {} : { upcoming }) };
+}
+
+export function groomingCancelInput(body) {
+  if (body === undefined || body === null) return {};
+  exact(body, [], []);
+  return {};
 }
 
 // An id that is not an ObjectId is simply not found: nothing tells the caller whether another customer owns it.

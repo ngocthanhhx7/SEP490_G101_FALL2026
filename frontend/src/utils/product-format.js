@@ -33,6 +33,14 @@ export function formatOrderDate(value) {
   return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(time);
 }
 
+// 24/11/2026 11:00, the way a payment deadline is shown (Vietnam time).
+export function formatOrderDateTime(value) {
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return '';
+  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    hourCycle: 'h23', timeZone: 'Asia/Ho_Chi_Minh' }).format(time);
+}
+
 // A day such as 2026-11-04 (a goods receipt's day) as 04/11/2026. Anything else is shown as it was.
 export function formatDay(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(typeof value === 'string' ? value : '');
@@ -50,9 +58,12 @@ export function productErrorText(error, { available } = {}) {
   if (key) return productMessage(key, { n: available ?? 0 });
   if (error?.code === 'UNAUTHENTICATED') return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
   if (error?.code === 'PRODUCT_UNAVAILABLE' || error?.code === 'RESOURCE_NOT_FOUND') return 'Sản phẩm này không còn được bán.';
+  if (error?.code === 'PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE') return 'Tổng tiền quá lớn. Vui lòng giảm số lượng.';
   if (error?.code === 'CART_FULL') return 'Giỏ hàng có quá nhiều sản phẩm khác nhau.';
   if (error?.code === 'ADDRESS_NOT_FOUND') return 'Không tìm thấy địa chỉ đã chọn. Vui lòng chọn lại.';
   if (error?.code === 'IDEMPOTENCY_CONFLICT') return 'Yêu cầu đặt hàng đã thay đổi. Vui lòng thử lại.';
+  if (error?.code === 'ORDER_PAYMENT_EXPIRED') return 'Đơn hàng đã quá hạn thanh toán.';
+  if (error?.code === 'ORDER_PAYMENT_IN_PROGRESS') return 'Thanh toán của bạn đã được nhận và đang được ghi nhận. Vui lòng tải lại sau ít phút.';
   if (error?.code === 'ORDER_STATE_CONFLICT') return 'Đơn hàng đã đổi trạng thái. Danh sách sẽ được tải lại.';
   if (error?.code === 'ORDER_STOCK_MISMATCH') return 'Tồn kho của đơn này không khớp nên chưa thay đổi gì. Vui lòng kiểm tra lại kho.';
   if (error?.code === 'FORBIDDEN') return 'Bạn không có quyền xử lý đơn hàng.';

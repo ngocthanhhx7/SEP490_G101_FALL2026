@@ -8,6 +8,9 @@ export class RegistrationApiError extends Error {
     this.code = code;
     this.status = status;
     this.retryAfterSeconds = Number.isSafeInteger(details.retryAfterSeconds) && details.retryAfterSeconds > 0 ? details.retryAfterSeconds : undefined;
+    this.retryAfterAt = typeof details.retryAfterAt === 'string' && Number.isFinite(Date.parse(details.retryAfterAt)) ? details.retryAfterAt : undefined;
+    this.remainingAttempts = Number.isSafeInteger(details.remainingAttempts) && details.remainingAttempts >= 0 ? details.remainingAttempts : undefined;
+    this.reason = typeof details.reason === 'string' ? details.reason : undefined;
     this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
     this.fieldErrors = details.fieldErrors;
   }
@@ -59,6 +62,9 @@ export function createCustomerRegistrationApi({ fetchImpl = (...args) => fetch(.
     if (!response.ok) {
       throw new RegistrationApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
         retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
+        retryAfterAt: envelope?.error?.retryAfterAt,
+        remainingAttempts: envelope?.error?.remainingAttempts,
+        reason: envelope?.error?.reason,
         correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         fieldErrors: envelope?.error?.fieldErrors,
       });

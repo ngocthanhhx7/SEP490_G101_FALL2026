@@ -2,7 +2,7 @@ import { productSalesModels } from '../../models/product.model.js';
 import { createProductPricingEligibility } from './product-pricing-eligibility.service.js';
 import { PRODUCT_LIMITS, PRODUCT_DEMO_SHIPPING_FEE_VND } from '../../constants/product-fields.js';
 import { parseAddCartLine, parseSetCartLine, parseRemoveCartLine } from '../../validators/product-cart.validator.js';
-import { priceProductOrder, sellableQuantity } from './product-order-pricing.js';
+import { priceProductOrder, ProductOrderAmountError, sellableQuantity } from './product-order-pricing.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 
@@ -10,11 +10,11 @@ export function createProductCartService({ connection, eligibility = createProdu
   const { Product, ProductCart } = productSalesModels(connection);
   const unitOfWork = createUnitOfWork(connection);
 
-  async function view(customerId) {
-    const cart = await ProductCart.findOne({ customerId }).lean();
+  async function view(customerId, session = null) {
+    const cart = await ProductCart.findOne({ customerId }).session(session).lean();
     const lines = cart?.lines ?? [];
     const products = lines.length
-      ? await Product.find({ _id: { $in: lines.map((line) => line.productId) } }).lean() : [];
+      ? await Product.find({ _id: { $in: lines.map((line) => line.productId) } }).session(session).lean() : [];
     const byId = new Map(products.map((product) => [String(product._id), product]));
     const items = lines.map((line) => {
       const product = byId.get(String(line.productId));
@@ -35,8 +35,14 @@ export function createProductCartService({ connection, eligibility = createProdu
         exceedsAvailable: line.quantity > available
       };
     });
-    const pricing = await eligibility.read(customerId);
-    const totals = priceProductOrder({ lines: items, discountBps: pricing.discountBps, allowEmpty: true });
+    const pricing = await eligibility.read(customerId, { session });
+    let totals;
+    try {
+      totals = priceProductOrder({ lines: items, discountBps: pricing.discountBps, allowEmpty: true });
+    } catch (error) {
+      if (error instanceof ProductOrderAmountError) throw productSalesErrors.amountOutOfRange();
+      throw error;
+    }
     const pricedItems = items.map((item, index) => {
       const unitDiscount = totals.unitDiscounts[index];
       return { ...item, unitDiscount, discountedUnitPrice: item.unitPrice - unitDiscount,
@@ -66,15 +72,16 @@ export function createProductCartService({ connection, eligibility = createProdu
       const customerId = requireCustomer(actor);
       const { productId, quantity } = parseAddCartLine(body);
       const { available } = await sellableProduct(productId);
+      if (quantity > available) throw productSalesErrors.exceedsAvailable(productId, available);
       try {
         await ProductCart.updateOne({ customerId }, { $setOnInsert: { customerId, lines: [], version: 0 } }, { upsert: true });
       } catch (error) { if (error?.code !== 11000) throw error; }
-      await unitOfWork.run(async (session) => {
+      return unitOfWork.run(async (session) => {
         const cart = await ProductCart.findOne({ customerId }).session(session).lean();
-        const existing = cart.lines.find((line) => String(line.productId) === productId);
-        const next = (existing?.quantity ?? 0) + quantity;
-        parseAddCartLine({ productId, quantity: next });
-        if (next > available) throw productSalesErrors.exceedsAvailable(productId, available);
+        const existing = cart.lines.find((line) => String(line.productId) === productId.toLowerCase());
+        const currentQuantity = existing?.quantity ?? 0;
+        if (quantity > available - currentQuantity) throw productSalesErrors.exceedsAvailable(productId, available);
+        const next = currentQuantity + quantity;
         if (existing) {
           await ProductCart.updateOne({ customerId, 'lines.productId': productId },
             { $set: { 'lines.$.quantity': next }, $inc: { version: 1 } }, { session, runValidators: true });
@@ -83,18 +90,20 @@ export function createProductCartService({ connection, eligibility = createProdu
           await ProductCart.updateOne({ customerId, 'lines.productId': { $ne: productId } },
             { $push: { lines: { productId, quantity } }, $inc: { version: 1 } }, { session, runValidators: true });
         }
+        return view(customerId, session);
       });
-      return view(customerId);
     },
     async setLine(actor, productId, body) {
       const customerId = requireCustomer(actor);
       const input = parseSetCartLine(productId, body);
       const { available } = await sellableProduct(input.productId);
       if (input.quantity > available) throw productSalesErrors.exceedsAvailable(input.productId, available);
-      const result = await ProductCart.updateOne({ customerId, 'lines.productId': input.productId },
-        { $set: { 'lines.$.quantity': input.quantity }, $inc: { version: 1 } });
-      if (result.matchedCount === 0) throw productSalesErrors.cartLineNotFound();
-      return view(customerId);
+      return unitOfWork.run(async (session) => {
+        const result = await ProductCart.updateOne({ customerId, 'lines.productId': input.productId },
+          { $set: { 'lines.$.quantity': input.quantity }, $inc: { version: 1 } }, { session, runValidators: true });
+        if (result.matchedCount === 0) throw productSalesErrors.cartLineNotFound();
+        return view(customerId, session);
+      });
     },
     // Removing an absent line is a no-op, so retries are safe.
     async removeLine(actor, productId) {

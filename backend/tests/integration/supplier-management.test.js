@@ -64,7 +64,7 @@ beforeEach(async () => {
 });
 
 describe('access (AC-34)', () => {
-  test('AC-34 a guest gets 401 and a Customer, Staff or Pet Sitter gets 403 on every supplier call', async () => {
+  test('IT-FE25-UC69-14 rejects every Supplier Management call from a non-Admin', async () => {
     const { id } = await made();
     const calls = [['get', SUPPLIERS], ['get', `${SUPPLIERS}/${id}`], ['post', SUPPLIERS], ['patch', `${SUPPLIERS}/${id}`],
       ['post', `${SUPPLIERS}/${id}/stop`], ['post', `${SUPPLIERS}/${id}/resume`]];
@@ -95,7 +95,7 @@ describe('access (AC-34)', () => {
 });
 
 describe('list (UC-69)', () => {
-  test('lists suppliers by name per tab with the size of every tab, and no products, only how many', async () => {
+  test('IT-FE25-UC69-15 lists the correct ACTIVE, STOPPED and ALL suppliers', async () => {
     const a = await made({ name: 'Synthetic Bravo', phone: '0911000001', productIds: [await productId('SP-0012'), await productId('SP-0014')] });
     const c = await made({ name: 'Synthetic Charlie', phone: '0911000003' });
     await made({ name: 'Synthetic Alpha', phone: '0911000002' });
@@ -157,7 +157,7 @@ describe('list (UC-69)', () => {
 });
 
 describe('create (AC-30)', () => {
-  test('AC-30 saves a supplier as Đang hợp tác with the phone as ten digits and the products chosen, hidden ones included', async () => {
+  test('IT-FE25-UC69-01 Admin creates a valid supplier and it is stored in the database', async () => {
     const res = await create(valid({ phone: ' 0936 452 118 ', name: '  Synthetic   Pet  Food Co ', productIds: [await productId('SP-0036')] })).expect(201);
     expect(res.body.data).toMatchObject({ name: 'Synthetic Pet Food Co', phone: '0936452118', status: 'ACTIVE', version: 0, productCount: 1,
       products: [{ code: 'SP-0036', visible: false }] });
@@ -173,17 +173,27 @@ describe('create (AC-30)', () => {
     expect(await models.Supplier.countDocuments()).toBe(0);
   });
 
-  test('AC-30 MSG125: a phone number or an email is needed, and either one alone is enough', async () => {
+  test('IT-FE25-UC69-04 rejects a supplier without phone and email', async () => {
     const res = await create(valid({ phone: '', email: '' })).expect(422);
     expect(fieldsOf(res)).toEqual({ phone: 'CONTACT_REQUIRED', email: 'CONTACT_REQUIRED' });
     expect(fieldsOf(await create(valid({ phone: undefined, email: undefined })).expect(422))).toEqual({ phone: 'CONTACT_REQUIRED', email: 'CONTACT_REQUIRED' });
     expect(fieldsOf(await create(valid({ phone: '  ', email: ' ', contactName: undefined })).expect(422)).phone).toBe('CONTACT_REQUIRED');
-    await create(valid({ name: 'Synthetic Only Phone', email: '' })).expect(201);
-    await create(valid({ name: 'Synthetic Only Email', phone: '' })).expect(201);
-    expect(await models.Supplier.countDocuments()).toBe(2);
+    expect(await models.Supplier.countDocuments()).toBe(0);
   });
 
-  test('AC-30 MSG03: a phone is ten digits starting with 0, with spaces, dots and hyphens dropped; +84 forms and landlines are not', async () => {
+  test('IT-FE25-UC69-07 creates a supplier with a valid phone and no email', async () => {
+    const saved = (await create(valid({ name: 'Synthetic Only Phone', email: '' })).expect(201)).body.data;
+    expect(saved).toMatchObject({ phone: '0936452118', email: '', status: 'ACTIVE' });
+    expect(await models.Supplier.countDocuments({ phone: '0936452118', email: '' })).toBe(1);
+  });
+
+  test('IT-FE25-UC69-08 creates a supplier with a valid email and no phone', async () => {
+    const saved = (await create(valid({ name: 'Synthetic Only Email', phone: '' })).expect(201)).body.data;
+    expect(saved).toMatchObject({ phone: '', email: 'synthetic@example.test', status: 'ACTIVE' });
+    expect(await models.Supplier.countDocuments({ phone: '', email: 'synthetic@example.test' })).toBe(1);
+  });
+
+  test('IT-FE25-UC69-05 rejects an invalid phone', async () => {
     for (const phone of ['0936 452 118', '0936.452.118', '0936-452-118', '0936452118', '0243825123']) {
       const res = await create(valid({ name: `Synthetic ${phone}`, phone })).expect(201);
       expect(res.body.data.phone).toBe(phone.replace(/[\s.-]/g, ''));
@@ -193,7 +203,7 @@ describe('create (AC-30)', () => {
     }
   });
 
-  test('AC-30 MSG02: an email that is not valid is INVALID; a bad phone or email is not reported as missing contact', async () => {
+  test('IT-FE25-UC69-06 rejects an invalid email', async () => {
     for (const email of ['not-an-email', 'a@b', '@example.test', 'a b@example.test', `${'x'.repeat(250)}@example.test`, 7]) {
       expect(fieldsOf(await create(valid({ name: 'Synthetic Bad Email', email })).expect(422))).toEqual({ email: 'INVALID' });
     }
@@ -207,12 +217,17 @@ describe('create (AC-30)', () => {
     expect(fieldsOf(await create({ name: 'x'.repeat(201), phone: '0911000009' }).expect(422))).toEqual({ name: 'TOO_LONG' });
   });
 
-  test('AC-30 MSG116: a name already used is refused, also when the other supplier stopped, ignoring case, spaces and the tone mark in oa, oe, uy', async () => {
-    const first = await made({ name: 'Công ty Hoà Bình' });
+  test('IT-FE25-UC69-02 rejects a duplicate supplier name and does not create a record', async () => {
+    await made({ name: 'Công ty Hoà Bình' });
     for (const name of ['Công ty Hoà Bình', 'CÔNG TY HOÀ BÌNH', 'công ty  hòa bình', '  Công ty Hòa Bình  ']) {
       const res = await create(valid({ name })).expect(409);
       expect(res.body.error.code).toBe('SUPPLIER_NAME_TAKEN');
     }
+    expect(await models.Supplier.countDocuments()).toBe(1);
+  });
+
+  test('IT-FE25-UC69-03 rejects the name of an inactive supplier', async () => {
+    const first = await made({ name: 'Công ty Hoà Bình' });
     await stop(first.id, first.version).expect(200);
     expect((await create(valid({ name: 'Công ty Hòa Bình' })).expect(409)).body.error.code).toBe('SUPPLIER_NAME_TAKEN');
     expect(await models.Supplier.countDocuments()).toBe(1);
@@ -258,7 +273,7 @@ describe('create (AC-30)', () => {
 });
 
 describe('edit (AC-30)', () => {
-  test('AC-30 changes only the fields sent, moves the version on and leaves the status and the other fields alone', async () => {
+  test('IT-FE25-UC69-10 edits supplier information and stores the update', async () => {
     const supplier = await made({ productIds: [await productId('SP-0012')] });
     const res = await admin.patch(`${SUPPLIERS}/${supplier.id}`).send({ version: 0, contactName: 'Synthetic New Contact', phone: '0912 345 678' }).expect(200);
     expect(res.body.data).toMatchObject({ name: 'Synthetic Pet Food Co', contactName: 'Synthetic New Contact', phone: '0912345678',
@@ -297,14 +312,26 @@ describe('edit (AC-30)', () => {
     expect((await models.Supplier.findById(phoneOnly.id).lean()).phone).toBe('0936452118');
   });
 
-  test('products can be added and removed, a hidden one included, and an unknown one is refused', async () => {
+  test('IT-FE25-UC69-09 adds products to Products supplied and stores the relationship', async () => {
     const { id } = await made({ productIds: [await productId('SP-0012')] });
-    const added = await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 0, productIds: [await productId('SP-0012'), await productId('SP-0036'), await productId('SP-0014')] }).expect(200);
+    const productIds = [await productId('SP-0012'), await productId('SP-0036'), await productId('SP-0014')];
+    const added = await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 0, productIds }).expect(200);
     expect(added.body.data.products.map((product) => product.code)).toEqual(['SP-0012', 'SP-0036', 'SP-0014']);
-    const removed = await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 1, productIds: [await productId('SP-0014')] }).expect(200);
+    expect((await models.Supplier.findById(id).lean()).productIds.map(String)).toEqual(productIds);
+  });
+
+  test('IT-FE25-UC69-11 removes a product from Products supplied and stores the relationship', async () => {
+    const keptId = await productId('SP-0014');
+    const { id } = await made({ productIds: [await productId('SP-0012'), await productId('SP-0036'), keptId] });
+    const removed = await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 0, productIds: [keptId] }).expect(200);
     expect(removed.body.data.products.map((product) => product.code)).toEqual(['SP-0014']);
-    expect((await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 2, productIds: [String(oid())] }).expect(422)).body.error.code).toBe('PRODUCT_NOT_FOUND');
-    expect((await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 2, productIds: [] }).expect(200)).body.data.productCount).toBe(0);
+    expect((await models.Supplier.findById(id).lean()).productIds.map(String)).toEqual([keptId]);
+  });
+
+  test('products: an unknown product is refused and an empty Products supplied list is allowed', async () => {
+    const { id } = await made({ productIds: [await productId('SP-0012')] });
+    expect((await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 0, productIds: [String(oid())] }).expect(422)).body.error.code).toBe('PRODUCT_NOT_FOUND');
+    expect((await admin.patch(`${SUPPLIERS}/${id}`).send({ version: 0, productIds: [] }).expect(200)).body.data.productCount).toBe(0);
   });
 
   test('the products of a supplier are a record only: they leave the catalog and the stock of the products alone', async () => {
@@ -347,7 +374,7 @@ describe('edit (AC-30)', () => {
 });
 
 describe('stop and resume working with a supplier (AC-30)', () => {
-  test('AC-30 stopping keeps the supplier, its name and its products, moves it to the other tab and moves the version on', async () => {
+  test('IT-FE25-UC69-12 stops working with a supplier and stores status STOPPED', async () => {
     const supplier = await made({ productIds: [await productId('SP-0012')] });
     const res = await stop(supplier.id, 0).expect(200);
     expect(res.body.data).toMatchObject({ status: 'STOPPED', version: 1, productCount: 1, name: supplier.name });
@@ -359,7 +386,7 @@ describe('stop and resume working with a supplier (AC-30)', () => {
     expect((await create(valid({ name: supplier.name })).expect(409)).body.error.code).toBe('SUPPLIER_NAME_TAKEN');
   });
 
-  test('AC-30 Hợp tác lại puts a stopped supplier back to Đang hợp tác, and a second Admin repeating a step gets a conflict', async () => {
+  test('IT-FE25-UC69-13 resumes working with a supplier and stores status ACTIVE', async () => {
     const { id } = await made();
     await stop(id, 0).expect(200);
     const again = await stop(id, 1).expect(409);

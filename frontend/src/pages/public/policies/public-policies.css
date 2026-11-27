@@ -188,3 +188,11 @@
 .pwc-phone-app .pwc-public-root--policy .pwc-footer-contact { display: inline-flex; align-items: center; min-height: var(--pwc-target); }
 .pwc-phone-app .pwc-public-root--policy .pwc-footer-bottom { grid-column: 1 / -1; padding: .65rem 0 0; }
 .pwc-phone-app .pwc-public-root--policy .pwc-footer-bottom p { margin: 0; font-size: var(--pwc-text-small); }
+
+
+.pwc-phone-app .public-policies { padding: 1rem; }
+.policy-article > .policy-contents { position: static; margin-block: 1rem; }
+.policy-article-content h2 { scroll-margin-top: calc(4.25rem + env(safe-area-inset-top, 0px)); }
+.policy-article-content h2:focus-visible { outline: 2px solid #784ca4; outline-offset: .25rem; }
+.policy-reader-dialog .policy-article-content h2 { scroll-margin-top: 1rem; }
+.pwc-phone-app .policy-context-links a { min-height: 48px; }

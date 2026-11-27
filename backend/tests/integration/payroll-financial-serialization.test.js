@@ -7,6 +7,7 @@ import { provisionFinanceSources } from '../../src/services/settlements/source-p
 import { createBookingFinanceSourceService } from '../../src/services/settlements/booking-finance-source.service.js';
 import { createComplaintService } from '../../src/services/complaints/complaint.service.js';
 import { createMongoComplaintRepository } from '../../src/services/complaints/mongo-complaint.repository.js';
+import { createBookingRefundBilling } from '../../src/services/complaints/booking-refund-billing.service.js';
 import { recordEmployeeServiceCompletion } from '../../src/services/payroll/completion-payroll-source.service.js';
 import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
 
@@ -23,8 +24,12 @@ beforeEach(async () => {
   payroll = createPayrollService({ connection, policy: employeePayrollPolicyResolver, clock: () => at,
     cursorSecret: 'synthetic-serialization-cursor-secret' });
   const finance = createBookingFinanceSourceService({ connection, compensationModel: 'EMPLOYEE', clock: () => at });
-  complaints = createComplaintService({ repository: createMongoComplaintRepository({ connection, finance, compensationModel: 'EMPLOYEE',
-    cursorSecret: 'synthetic-complaint-serialization-secret' }), clock: () => at });
+  complaints = createComplaintService({
+    repository: createMongoComplaintRepository({ connection, finance, compensationModel: 'EMPLOYEE',
+      cursorSecret: 'synthetic-complaint-serialization-secret', clock: () => at }),
+    billing: createBookingRefundBilling({ connection }),
+    clock: () => at
+  });
   for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
 });
 afterAll(async () => { await connection?.close(); await replica?.stop(); });
@@ -37,7 +42,7 @@ async function fixture() {
     provisionedUserId: new mongoose.Types.ObjectId(sitter.userId) });
   await col('sitterstatuses').insertOne({ _id: oid(), userId: new mongoose.Types.ObjectId(sitter.userId), status: 'ACTIVE', version: 0, changedAt: at });
   await payroll.recordContract(admin, { employeeId: sitter.userId, expectedVersion: 0, employmentType: 'PART_TIME', salaryBasis: 'GROSS',
-    monthlyBaseVnd: 3000000, payCycle: 'WEEKLY', weeklyMinutes: 1200, signedAt: '2026-10-01T00:00:00Z', effectiveAt: '2026-10-01T00:00:00Z',
+    monthlyBaseVnd: 3000000, payCycle: 'MONTHLY', weeklyMinutes: 1200, signedAt: '2026-10-01T00:00:00Z', effectiveAt: '2026-10-01T00:00:00Z',
     contractReference: 'synthetic-private-contract', workplaceRegion: 1, workplaceReference: 'synthetic-workplace' }, 'synthetic-contract');
   const bookingId = oid(), visitId = oid();
   await col('bookings').insertOne({ _id: bookingId, customerId: new mongoose.Types.ObjectId(customer.userId), state: 'COMPLETED',
@@ -142,4 +147,46 @@ test('raw and aggregate-backed payroll/case DTOs retain ownership, role and priv
   await expect(complaints.get({ actor: { ...f.customer, userId: String(oid()) }, complaintId: opened.complaintId }))
     .rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
   expect(statement.breakdown.commissionVnd).toBe(50000);
+});
+
+test('ST-CAS-10 payroll 5% commission is held while a complaint refund proposal is pending and released once decided and finalized (RECORDED refund does not hold commission)', async () => {
+  const f = await fixture();
+  const staff = { userId: String(oid()), roles: ['STAFF'], state: 'ACTIVE', expiresAt: +at + 86400000 };
+  await col('users').insertMany([
+    { _id: new mongoose.Types.ObjectId(staff.userId), state: 'ACTIVE', roles: ['STAFF'], displayName: 'Staff' },
+    { _id: new mongoose.Types.ObjectId(f.admin.userId), state: 'ACTIVE', roles: ['ADMIN'], displayName: 'Admin' }
+  ]);
+  await col('payments').insertOne({
+    _id: oid(), bookingId: f.bookingId, intentId: oid(), provider: 'PAYOS', providerEventId: 'evt-payroll-refund',
+    providerTransactionReference: 'tx-payroll-refund', state: 'VERIFIED',
+    receiptMoney: { amountVnd: 1000000, currency: 'VND' }, receivedAt: completedAt, verifiedAt: completedAt,
+    version: 0, storageContractVersion: 1
+  });
+  const statement = await f.prepare();
+  expect(statement.breakdown.commissionVnd).toBe(50000);
+
+  // Customer opens complaint and Staff proposes 200,000 VND -> pending Admin decision -> 5% commission MUST be held
+  const opened = await f.open();
+  await complaints.resolve({
+    actor: staff, complaintId: opened.complaintId, expectedVersion: 0, idempotencyKey: 'payroll-propose-refund',
+    handlingNotes: 'Xác minh sự việc.', customerResult: 'Hoàn một phần phí.',
+    proposal: { amountVnd: 200000, reason: 'Hoàn theo thỏa thuận.', evidenceRefs: [] }
+  });
+  await expect(payroll.decideStatement(f.admin, statement.id, { action: 'APPROVE', expectedVersion: 0 }, 'payroll-hold-while-pending'))
+    .rejects.toMatchObject({ code: 'PAYROLL_COMMISSION_HELD' });
+
+  // Admin approves -> writes refunds record with state: 'RECORDED'; once complaint is final, 5% commission is released
+  await complaints.decideRefund({
+    actor: f.admin, complaintId: opened.complaintId, expectedVersion: 1, idempotencyKey: 'payroll-decide-refund',
+    outcome: 'APPROVE'
+  });
+  const refundRow = await col('refunds').findOne({ bookingId: f.bookingId });
+  expect(refundRow).toMatchObject({ state: 'RECORDED', amountVnd: 200000 });
+
+  // Finalize the complaint (simulate 72h appeal window elapsed -> finalAt <= now)
+  await col('cases').updateOne({ _id: opened.complaintId }, { $set: { finalAt: new Date(+at - 1000) } });
+
+  const approved = await payroll.decideStatement(f.admin, statement.id, { action: 'APPROVE', expectedVersion: 0 }, 'payroll-approve-after-recorded');
+  expect(approved.status).toBe('APPROVED');
+  expect(approved.breakdown.commissionVnd).toBe(50000);
 });

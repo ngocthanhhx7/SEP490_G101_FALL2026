@@ -16,6 +16,26 @@ export function createSystemSettingsController({ service } = {}) {
           body: req.body,
           actor: req.auth
         })
+      ),
+    getFaultyProductReportDays: async (req, res) =>
+      respond(res, req, 200, await service.currentFaultyProductReportDays()),
+    updateFaultyProductReportDays: async (req, res) =>
+      respond(
+        res,
+        req,
+        200,
+        await service.updateFaultyProductReportDays({
+          body: req.body,
+          actor: req.auth
+        })
       )
+  };
+}
+
+export function createPickupSettingsController(pickup) {
+  return {
+    current: async (req, res) => respond(res, req, 200, await pickup.current()),
+    history: async (req, res) => respond(res, req, 200, await pickup.history()),
+    update: async (req, res) => respond(res, req, 201, await pickup.update(req.auth, req.body))
   };
 }

@@ -41,12 +41,8 @@ export function aiRuntimeModule({
   });
 
   router.use(requireSession(session, { clock }));
-  const customer = requireRoles('CUSTOMER'),
-    admin = requireRoles('ADMIN'),
+  const admin = requireRoles('ADMIN'),
     csrf = requireCsrf(session);
-
-  router.post('/recommendations', customer, csrf, c.recommend);
-  router.get('/decisions/:decisionId', customer, c.decision);
 
   router.post('/admin/ranking-policies', admin, csrf, c.ranking);
   router.put('/admin/sitters/:userId', admin, csrf, c.sitter);

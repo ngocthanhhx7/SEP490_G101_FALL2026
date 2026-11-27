@@ -15,7 +15,7 @@ export function createApplicationMailService({ connection, contactCrypto, delive
       ? contactCrypto.decrypt(application.contactCiphertext) : null;
     const verified = email && application.ownerUserId && await Contact.exists({ userId: application.ownerUserId,
       channel: 'EMAIL', state: 'VERIFIED', lookupKey: contactCrypto.lookup('EMAIL', email).lookupKey }).session(session);
-    const hasEmail = !!verified;
+    const hasEmail = !!verified || (!!email && !application.ownerUserId);
     await Mail.updateOne({ _id: `${application._id}:${application.version}` }, { $setOnInsert: {
       applicationId: application._id, applicationVersion: application.version, applicationState: application.state,
       ownerUserId: application.ownerUserId ?? null,
@@ -38,7 +38,7 @@ export function createApplicationMailService({ connection, contactCrypto, delive
       if (!row) break;
       result.processed++;
       const recipient = contactCrypto.decrypt(row.contactCiphertext);
-      const verified = await Contact.exists({ userId: row.ownerUserId, channel: 'EMAIL', state: 'VERIFIED',
+      const verified = !row.ownerUserId || await Contact.exists({ userId: row.ownerUserId, channel: 'EMAIL', state: 'VERIFIED',
         lookupKey: contactCrypto.lookup('EMAIL', recipient).lookupKey });
       if (!verified) {
         await Mail.updateOne({ _id: row._id, deliveryState: 'SENDING' }, { $set: { deliveryState: 'SKIPPED',

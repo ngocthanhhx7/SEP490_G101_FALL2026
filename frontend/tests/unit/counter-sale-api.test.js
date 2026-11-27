@@ -24,10 +24,28 @@ test.each([
   { ...order, status: 'PLACED' }, { ...order, channel: 'ONLINE' }, { ...order, total: 1.5 },
   { ...order, tierDiscount: 100 }, { ...order, paid: true, cashPayment: null },
   { ...order, paid: true, cashPayment: { amount: 119000, receivedAt: '2026-11-08T03:20:00Z', receivedBy: 'a1' } },
+  { ...order, paymentMethod: 'COUNTER_VIETQR', paid: true, vietqrPayment: null },
+  { ...order, paymentMethod: 'COUNTER_VIETQR', paid: true, vietqrPayment: { amount: 119000, paidAt: '2026-11-25T03:20:00Z' } },
+  { ...order, paymentLink: { state: 'READY', checkoutUrl: 'https://evil.example/web/1' } },
   { ...order, lines: [{ ...line, quantity: 0 }] }, { ...order, customer: {} }
 ])('rejects incompatible or unsafe order data %j', async data => {
   const api = createCounterSaleApi({ fetchImpl: async () => response(data) });
   await expect(api.read('o1')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
+test('accepts COUNTER_VIETQR paid orders and validates payOS payment links', async () => {
+  const paidVietqr = { ...order, status: 'PAID', paid: true, paymentMethod: 'COUNTER_VIETQR', cashPayment: null,
+    vietqrPayment: { amount: 120000, paidAt: '2026-11-25T03:20:00Z', providerOrderCode: '123456' } };
+  const fetchImpl = jest.fn()
+    .mockResolvedValueOnce(response(paidVietqr))
+    .mockResolvedValueOnce(response({ checkoutUrl: 'https://pay.payos.vn/web/123456', expiresAt: '2026-11-25T03:35:00Z', orderCode: '123456' }))
+    .mockResolvedValueOnce(response({ checkoutUrl: 'https://evil.example/web/123456' }));
+  const api = createCounterSaleApi({ fetchImpl, getCsrfToken: () => 'synthetic-token' });
+  expect(await api.read('o1')).toEqual(paidVietqr);
+  const link = await api.createPaymentLink('o1');
+  expect(link.checkoutUrl).toBe('https://pay.payos.vn/web/123456');
+  expect(fetchImpl.mock.calls[1][0]).toBe('/api/v1/admin/counter-orders/o1/payment-link');
+  expect(fetchImpl.mock.calls[1][1].headers.get('X-CSRF-Token')).toBe('synthetic-token');
+  await expect(api.createPaymentLink('o1')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });
 test('open order and product paging retain backend totals even on an empty page', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(response({ items: [], page: 2, limit: 20, total: 21 }));

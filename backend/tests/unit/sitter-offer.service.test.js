@@ -110,10 +110,18 @@ describe('sitter offer projections and commands', () => {
     expect(repo.state.accepted).toBe(false);
   });
 
-  test('deadline is exclusive and decline remains an operational offer decision', async () => {
+  test('deadline is exclusive and decline requires a valid reason code', async () => {
     const repo = repository();
     const service = createSitterOfferService({ repository: repo, clock: () => now });
-    await expect(service.decline(actor, OFFER, 1, 'decline-offer-1')).resolves.toMatchObject({ state: 'DECLINED' });
+    await expect(service.decline(actor, OFFER, 1, 'decline-missing-reason'))
+      .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED', details: { messageCode: 'MSG01' } });
+    await expect(service.decline(actor, OFFER, 1, 'decline-invalid-reason', { reasonCode: 'UNKNOWN_REASON' }))
+      .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
+    await expect(service.decline(actor, OFFER, 1, 'decline-free-text', 'Free text reason'))
+      .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
+    expect(repo.state.declined).toBe(false);
+    await expect(service.decline(actor, OFFER, 1, 'decline-offer-1', { reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận việc riêng' }))
+      .resolves.toMatchObject({ state: 'DECLINED', reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận việc riêng', messageCode: 'MSG79' });
     expect(repo.state.calls).toEqual(['decline', 'OfferDeclined']);
   });
 

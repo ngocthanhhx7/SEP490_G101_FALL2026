@@ -6,8 +6,12 @@ export function normalizeCustomerDisplayName(value) {
   if (typeof value !== 'string' || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)) {
     throw new AppError(422, 'VALIDATION_FAILED', 'Registration details are invalid');
   }
-  const displayName = value.trim().replace(/\s+/gu, ' ');
-  if (!displayName || displayName.length > 100) {
+  const normalized = value.normalize('NFC');
+  if (/[^\p{L} \t\r\n\u00a0]/u.test(normalized)) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'Registration details are invalid');
+  }
+  const displayName = normalized.trim().replace(/[ \t\r\n\u00a0]+/gu, ' ');
+  if (displayName.length < 2 || displayName.length > 50) {
     throw new AppError(422, 'VALIDATION_FAILED', 'Registration details are invalid');
   }
   return displayName;
@@ -34,7 +38,8 @@ export function createCustomerRegistrationHandler({ connection, User, models = i
     }
 
     const policyConsents = await registrationPolicyService.validateAndBuildReceipt({ policyVersions, session: mongoSession, now });
-    const existing = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })
+    const existing = await models.Contact.findOne({ channel, lookupKey: contactLookup,
+      state: { $in: ['VERIFIED', 'UNVERIFIED'] } })
       .session(mongoSession).lean();
     if (existing) {
       throw new AppError(409, 'CONTACT_ALREADY_LINKED', 'Contact verification could not be completed');

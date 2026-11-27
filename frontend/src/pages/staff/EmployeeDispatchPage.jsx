@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { RefreshCw, Send } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
-import { Button, Dialog } from '../../components/ui/index.js';
+import { Button, Dialog, Notice } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { DispatchRanking } from './DispatchRanking.jsx';
@@ -32,14 +32,16 @@ const reviewLabel = (code) =>
   ({
     NO_ELIGIBLE_SITTER: 'Chưa có người chăm sóc đủ điều kiện nhận ca.',
     INSUFFICIENT_DISPATCH_CANDIDATES: 'Chưa đủ 5 người phù hợp để mời tự động.',
-    STAFF_REVIEW_REQUIRED: 'Các lời mời đã bị từ chối hoặc hết hạn.',
+    STAFF_REVIEW_REQUIRED: 'Ca chưa có người nhận (hết lời mời hoặc vừa được trả ra). Cần nhân viên chọn người.',
     DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Người được khách chỉ định chưa thể nhận ca.',
     TRAVEL_REVIEW_REQUIRED: 'Cần xác minh khả năng di chuyển.',
     DAY_ORIGIN_MISSING: 'Chưa có điểm xuất phát cho ngày làm việc.',
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
+    PAYMENT_REQUIRED: 'Chưa xác nhận được khoản thanh toán của lịch đặt nên chưa gửi được lời mời.',
+    VISIT_UNAVAILABLE: 'Lịch đặt chưa ở trạng thái gửi được lời mời.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, initialHandoverVisitId, initialTab, initialFilters, reassignedNotice, onReassign, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const [bookingChangesRevision, setBookingChangesRevision] = useState(0);
@@ -51,7 +53,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
     return result;
   }, [api]);
   const queue = useApiResource(load);
-  const [tab, setTab] = useState('needs');
+  const [tab, setTab] = useState(initialHandoverVisitId ? 'all' : initialTab ?? 'needs');
   const [board, setBoard] = useState({ ids: new Set(), filtering: false });
   const [selected, setSelected] = useState(initialVisitId ?? null);
   const [addingInvitation, setAddingInvitation] = useState(false);
@@ -117,7 +119,9 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
             : 'Đang chờ số liệu từ hệ thống.'
         }
       />
-      {!active && command.message && <p role="status">{command.message}</p>}
+      {!active && command.message && (command.message.startsWith('Đã giao buổi cho')
+        ? <Notice state="success" title="Giao buổi thành công">{command.message}</Notice>
+        : <p role="status">{command.message}</p>)}
       {selected && !active && selectedDetails.status === 'loading' && <p role="status">Đang tải chi tiết ca…</p>}
       {selected && !active && ['error', 'forbidden', 'pending'].includes(selectedDetails.status) && <p role="alert">
         Chưa tải được ca này. <button onClick={selectedDetails.retry}>Thử lại</button>{' '}
@@ -128,9 +132,10 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
           Kiểm tra lại yêu cầu
         </Button>
       )}
+      {reassignedNotice && <Notice state="success" title="Đã đổi người chăm sóc">{reassignedNotice}</Notice>}
       {proposal && <p role="status">Đã gửi đề xuất lịch mới, đang chờ khách xác nhận.</p>}
       {queue.status === 'loading' && <p role="status">Đang tải ca…</p>}
-      <VisitBoard initialWorkflowId={initialWorkflowId} api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
+      <VisitBoard initialFilters={initialFilters} onReassign={onReassign} initialHandoverVisitId={initialHandoverVisitId} initialWorkflowId={initialWorkflowId} api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
         openableIds={queue.data && new Set(rows.map((row) => row.id))} onOpenDispatch={setSelected} onChanged={queue.retry} onState={setBoard}
         initialWithdrawalId={initialWithdrawalId} initialClosureId={initialClosureId} canVerifyClosure={canVerifyClosure} requestedWithdrawalId={withdrawalToReview} onWithdrawalDismiss={() => setWithdrawalToReview(null)} refreshKey={queue.data} />
       {['error', 'forbidden', 'pending'].includes(queue.status) && (
@@ -172,7 +177,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
               label: 'Buổi chăm sóc',
               render: (r) => <VisitBoardSummary row={r} />,
             },
-            { key: 'customerName', label: 'Khách hàng', render: (r) => r.customerName ?? 'Chưa có tên' },
+            { key: 'customerName', label: 'Khách hàng', render: (r) => <VisitBoardCustomer row={r} /> },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
             {
               key: 'reason',
@@ -319,7 +324,9 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
               onProposed={setProposal}
             />
           )}
-          {command.message && <p role="status">{command.message}</p>}
+          {command.message && (command.message.startsWith('Đã giao buổi cho')
+            ? <Notice state="success" title="Giao buổi thành công">{command.message}</Notice>
+            : <p role="status">{command.message}</p>)}
           {command.pending && (
             <Button disabled={command.busy} onClick={command.retry}>
               Kiểm tra lại yêu cầu

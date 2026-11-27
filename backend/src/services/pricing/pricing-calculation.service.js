@@ -89,6 +89,38 @@ export function validatePricingPolicy(policy) {
     )
       fail('VALIDATION_FAILED', 'Invalid weight interval');
   }
+  const weightRules = policy.rules.filter(
+    (r) =>
+      r.scope === 'PET' &&
+      !r.when.traitCode &&
+      (r.when.minWeightKg !== undefined || r.when.maxWeightKg !== undefined)
+  );
+  for (let i = 0; i < weightRules.length; i++) {
+    for (let j = i + 1; j < weightRules.length; j++) {
+      const a = weightRules[i].when;
+      const b = weightRules[j].when;
+      if (a.species && b.species && a.species !== b.species) continue;
+      if (
+        a.breedCodes?.length &&
+        b.breedCodes?.length &&
+        !a.breedCodes.some((code) => b.breedCodes.includes(code))
+      )
+        continue;
+      const lowA = a.minWeightKg ?? 0;
+      const highA = a.maxWeightKg ?? Infinity;
+      const lowB = b.minWeightKg ?? 0;
+      const highB = b.maxWeightKg ?? Infinity;
+      const aMaxInc = a.maxWeightKg === undefined || Boolean(a.maxWeightInclusive);
+      const bMaxInc = b.maxWeightKg === undefined || Boolean(b.maxWeightInclusive);
+      const aMinInc = !a.minWeightExclusive;
+      const bMinInc = !b.minWeightExclusive;
+      const overlaps =
+        (lowA < highB && lowB < highA) ||
+        (highA === lowB && aMaxInc && bMinInc) ||
+        (highB === lowA && bMaxInc && aMinInc);
+      if (overlaps) fail('VALIDATION_FAILED', 'Overlapping weight intervals');
+    }
+  }
   return policy;
 }
 const safe = (value) => {

@@ -69,6 +69,21 @@ test('contract legal bounds reject missing terms, below-floor pay, excess hours 
   for(const over of [{employerName:''},{monthlyBaseVnd:1000000},{weekdays:[1,2,3,4,5]},{termType:'FIXED',effectiveOn:'2026-11-06',endsOn:'2030-11-06'}])
     expect(()=>employmentTermsInput(employmentTerms(over),clock())).toThrow();
 });
+test('activating a legacy signed WEEKLY document keeps the signed snapshot and creates no contract', async () => {
+  const applicationId = oid(), employeeId = oid();
+  const terms = { ...employmentTermsInput(employmentTerms({ employmentType: 'PART_TIME', monthlyBaseVnd: 3000000 }), clock()), payCycle: 'WEEKLY' };
+  const termsHash = createHash('sha256').update(JSON.stringify(terms)).digest('hex');
+  const encryptedTerms = crypto.encrypt(JSON.stringify(terms));
+  const { EmploymentDocument } = employmentDocumentModels(connection);
+  const row = await EmploymentDocument.create({ applicationId, applicationVersion: 2, revision: 1,
+    reference: 'SYNTHETIC-LEGACY-CONTRACT', employeeCode: 'NV-LEGACY', state: 'SIGNED',
+    termsHash, encryptedTerms, signedAt: new Date(clock()), createdAt: new Date(clock()) });
+  await expect(connection.transaction(session => service.activate({ _id: applicationId, version: 2 }, employeeId, admin, session)))
+    .rejects.toMatchObject({ code: 'PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED', status: 409 });
+  expect(await connection.models.EmploymentContract.countDocuments({ employeeId })).toBe(0);
+  expect(await EmploymentDocument.findById(row._id).select('+encryptedTerms').lean())
+    .toMatchObject({ state: 'SIGNED', termsHash, encryptedTerms });
+});
 test('payroll derives calendar and allowances without treating absent service work as absent attendance; source changes conflict',async()=>{
   const payroll=createPayrollService({connection,clock:()=>new Date('2026-12-01T03:00:00Z'),policy:employeePayrollPolicyResolver});
   const employeeId=oid();await connection.collection('users').insertOne({_id:employeeId,roles:['PET_SITTER'],state:'ACTIVE',displayName:'Synthetic payroll employee'});
@@ -112,6 +127,30 @@ test('minimum-hours payroll pays whole month without registration; partial/unpai
   await expect(payroll.previewStatement(admin,{...input,periodStart:'2026-11-02'})).rejects.toMatchObject({code:'PAYROLL_ATTENDANCE_REVIEW_REQUIRED'});
   expect((await payroll.prepareAutomaticStatement(admin,{input,sourceHash:preview.sourceHash},'synthetic-minimum-payroll')).status).toBe('PREPARED');
 });
+
+test.each([['FULL_TIME', 10_000_000, 2400], ['PART_TIME', 3_000_000, 1200]])(
+  '%s legacy WEEKLY contract stays readable but cannot create an automatic statement', async (employmentType, monthlyBaseVnd, weeklyMinutes) => {
+    const payroll = createPayrollService({ connection, clock: () => new Date('2026-12-01T03:00:00Z'), policy: employeePayrollPolicyResolver });
+    const employeeId = oid();
+    await connection.collection('users').insertOne({ _id: employeeId, roles: ['PET_SITTER'], state: 'ACTIVE', displayName: 'Synthetic legacy employee' });
+    const record = await payroll.models.EmploymentContract.create({ employeeId, version: 1, employmentType, salaryBasis: 'GROSS',
+      monthlyBaseVnd, payCycle: 'WEEKLY', weeklyMinutes, effectiveAt: new Date('2026-10-01'), signedAt: new Date('2026-09-30'),
+      contractReference: 'SYNTHETIC-WEEKLY', workplaceRegion: 1, workplaceReference: 'Synthetic I', verifiedBy: admin.userId,
+      recordedAt: new Date(), schedule: { weekdays: [1, 2, 3, 4, 5], dailyMinutes: weeklyMinutes / 5 } });
+    const input = { employeeId: String(employeeId), periodStart: '2026-11-02', periodEnd: '2026-11-09', dueAt: '2026-11-10',
+      unpaidMinutes: 0, attendanceReference: 'synthetic-timecard', attendanceConfirmed: true, statutoryReference: 'synthetic-statutes',
+      statutoryConfirmed: true, overtimeVnd: 0, employeeInsuranceVnd: 0, incomeTaxVnd: 0, otherLawfulDeductionsVnd: 0,
+      deductionConsentReference: 'synthetic-none' };
+    const rejected = { code: 'PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED', status: 409 };
+    await expect(payroll.previewStatement(admin, input)).rejects.toMatchObject(rejected);
+    await expect(payroll.prepareAutomaticStatement(admin, { input, sourceHash: 'synthetic-stale-preview' }, 'synthetic-legacy-payroll'))
+      .rejects.toMatchObject(rejected);
+    expect((await payroll.payrollEmployees(admin)).items.find(row => row.id === String(employeeId)))
+      .toMatchObject({ payCycle: 'WEEKLY', automaticReady: false });
+    expect(await payroll.models.EmploymentContract.findById(record._id).lean()).toMatchObject({ payCycle: 'WEEKLY', version: 1 });
+    expect(await payroll.models.PayrollStatement.countDocuments({ employeeId })).toBe(0);
+  }
+);
 
 test('contract prefill decrypts the applicant snapshot and only the current Admin and owned verified contacts',async()=>{
   const applicantId=oid(),owner=oid(),identity='123456789012';
