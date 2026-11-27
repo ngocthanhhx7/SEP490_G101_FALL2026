@@ -39,6 +39,14 @@ describe('payment reminder hourly sweep', () => {
     expect(notifier.mock.calls[0][0].idempotencyKey).not.toContain('synthetic-payment-001');
   });
 
+  test('JOB-PAY-01-UTCID01 includes a payment due at the exact sweep time', async () => {
+    const { job, notifier } = createJob({ candidates: [duePayment({ dueAt: AS_OF })] });
+
+    await expect(job.runOnce()).resolves.toEqual({ queried: 1, reminded: 1, skipped: 0, failed: 0 });
+    expect(notifier).toHaveBeenCalledTimes(1);
+    expect(notifier).toHaveBeenCalledWith(expect.objectContaining({ dueAt: AS_OF }));
+  });
+
   test('does not notify paid, future, held, pending, uncertain, or malformed candidates', async () => {
     const candidates = [
       duePayment({ paymentStatus: 'PAID' }),
