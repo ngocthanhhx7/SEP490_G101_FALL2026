@@ -136,6 +136,27 @@ test('the appointment panel names the tier of the discount like the price panel'
   expect((await screen.findByText('Ưu đãi hạng Bạc')).closest('div')).toHaveTextContent('− 10.000 đ');
 });
 
+test('MSG21 is shown when grooming options report an unpaid appointment', async () => {
+  const api = fixture({ options: jest.fn(async () => ({ ...makeOptions(), groomingPaymentOutstanding: true })) });
+  show(api);
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Bạn còn khoản chưa thanh toán cho lịch spa. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.'
+  );
+  expect(confirmButton()).toBeDisabled();
+});
+
+test('MSG21 is shown when the grooming confirmation detects an unpaid appointment', async () => {
+  const api = fixture({ book: jest.fn().mockRejectedValue(new ApiError('GROOMING_PAYMENT_OUTSTANDING', 409)) });
+  await fillMilo(api);
+  await waitFor(() => expect(confirmButton()).toBeEnabled());
+  fireEvent.click(confirmButton());
+
+  expect(await screen.findByText(
+    'Bạn còn khoản chưa thanh toán cho lịch spa. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.'
+  )).toBeVisible();
+});
+
 test('the confirm button waits for a pet, a service, both answers and a time slot', async () => {
   const api = fixture();
   show(api);

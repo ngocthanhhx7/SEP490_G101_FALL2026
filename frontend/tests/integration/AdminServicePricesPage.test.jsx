@@ -36,7 +36,7 @@ test('Admin writes an integer VND price with explicit unit and effective time', 
       expectedVersion: 0, amountVnd: 95000, unitLabel: 'mỗi lượt', reason: 'Bảng giá đã được duyệt',
       effectiveAt: expect.stringMatching(/Z$/)
     }) })));
-  expect(await screen.findByText('Máy chủ đã ghi nhận phiên bản giá mới.')).toBeVisible();
+  expect(await screen.findByText('Đã lưu phiên bản giá mới.')).toBeVisible();
 });
 
 test('Staff can view price history without a price editor', async () => {

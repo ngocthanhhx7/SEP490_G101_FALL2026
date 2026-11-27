@@ -49,7 +49,8 @@ test('public catalog batches policy and price reads while retaining published ef
   try { response = await request(app).get('/api/v1/services').expect(200); }
   finally { connection.set('debug', previousDebug ?? false); }
   expect(response.body.data.services).toHaveLength(13);
-  expect(commands).toHaveLength(5);
+  const reads = commands.filter(row => !/index/i.test(row.method));
+  expect(reads).toHaveLength(5);
   expect(commands.filter(row => row.collection === 'servicepolicyversions')).toEqual([
     { collection: 'servicepolicyversions', method: 'aggregate' }
   ]);

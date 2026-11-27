@@ -16,7 +16,7 @@ function formatDate(value) {
 
 function amount(value) {
   const raw = value?.amountVnd ?? value?.amount;
-  return Number.isSafeInteger(raw) ? money.format(raw) : 'Theo snapshot máy chủ';
+  return Number.isSafeInteger(raw) ? money.format(raw) : 'Theo thông tin đã lưu';
 }
 
 function idempotencyKey(seed) {
@@ -26,11 +26,11 @@ function idempotencyKey(seed) {
 }
 
 function actionMessage(error) {
-  if (error?.code === 'PROPOSAL_EXPIRED') return 'Đề xuất đã hết hạn. Hãy yêu cầu máy chủ tạo lịch mới.';
+  if (error?.code === 'PROPOSAL_EXPIRED') return 'Đề xuất đã hết hạn. Vui lòng yêu cầu đề xuất lịch mới.';
   if (error?.code === 'VERSION_CONFLICT' || error?.code === 'SLOT_NOT_PROPOSED') return 'Lịch đã thay đổi. Hãy tải lại đề xuất trước khi xác nhận.';
   if (error?.code === 'PROPOSAL_NOT_CONFIRMABLE') return 'Đề xuất không còn chờ xác nhận; hãy tải lại để xem trạng thái mới.';
   if (error?.code === 'CSRF_NOT_READY') return 'Phiên bảo mật chưa sẵn sàng. Vui lòng đăng nhập lại.';
-  if (error?.code === 'TIMEOUT' || error?.code === 'NETWORK_ERROR') return 'Chưa nhận được xác nhận từ máy chủ. Tải lại trước khi gửi lại.';
+  if (error?.code === 'TIMEOUT' || error?.code === 'NETWORK_ERROR') return 'Chưa nhận được xác nhận. Tải lại trước khi gửi lại.';
   return 'Không thể xác nhận lịch lúc này. Hãy thử lại sau.';
 }
 
@@ -82,15 +82,15 @@ function ProposalDetails({ api, proposalId: suppliedProposalId, proposal: suppli
   }
 
   return <main className="directed-proposal" aria-labelledby="directed-proposal-title">
-    {resource.status === 'loading' && <Notice state="loading" title="Đang tải đề xuất lịch">Đang đọc khung giờ và snapshot từ máy chủ.</Notice>}
-    {resource.status === 'pending' && <Notice state="pending" title="Đang chờ máy chủ xác nhận">Đề xuất chưa được xác nhận; dữ liệu chờ không được coi là đã đặt lịch.</Notice>}
-    {resource.status === 'forbidden' && <Notice state="forbidden" title="Không thể xem đề xuất">Đề xuất này không thuộc phiên Customer hiện tại.</Notice>}
+    {resource.status === 'loading' && <Notice state="loading" title="Đang tải đề xuất lịch">Đang tải khung giờ đề xuất.</Notice>}
+    {resource.status === 'pending' && <Notice state="pending" title="Đang chờ xác nhận">Đề xuất chưa được xác nhận; dữ liệu chờ không được coi là đã đặt lịch.</Notice>}
+    {resource.status === 'forbidden' && <Notice state="forbidden" title="Không thể xem đề xuất">Đề xuất này không thuộc tài khoản hiện tại.</Notice>}
     {resource.status === 'error' && <Notice state="error" title="Không tải được đề xuất" action={<Button variant="secondary" onClick={resource.retry}>Tải lại</Button>}>Đề xuất có thể đã hết hạn hoặc mã không hợp lệ.</Notice>}
     {proposal && <>
       <header className="directed-proposal__header">
-        <div><p className="directed-proposal__eyebrow">Paw World Care · Đề xuất sitter</p>
-          <h1 id="directed-proposal-title">Xác nhận lịch với sitter</h1>
-          <p>{proposal.state === 'CONFIRMED' ? 'Lịch mới đã được xác nhận. Người chăm sóc vẫn cần nhận lời mời.' : 'Lịch hiện tại được giữ đến khi bạn xác nhận lịch thay thế.'}</p></div>
+        <div><p className="directed-proposal__eyebrow">Paw World Care · Đề xuất pet sitter</p>
+          <h1 id="directed-proposal-title">Xác nhận lịch với pet sitter</h1>
+          <p>{proposal.state === 'CONFIRMED' ? 'Lịch mới đã được xác nhận. Pet sitter vẫn cần nhận lời mời.' : 'Lịch hiện tại được giữ đến khi bạn xác nhận lịch thay thế.'}</p></div>
         <span className="directed-proposal__state">{({ PENDING_CUSTOMER_CONFIRMATION: 'Chờ bạn xác nhận', CONFIRMED: 'Đã xác nhận lịch', EXPIRED: 'Đã hết hạn', CANCELLED: 'Đã hủy' })[proposal.state] ?? 'Cần kiểm tra trạng thái'}</span>
       </header>
       <section className="directed-proposal__panel" aria-labelledby="directed-proposal-summary-title">
@@ -100,17 +100,17 @@ function ProposalDetails({ api, proposalId: suppliedProposalId, proposal: suppli
           Chỉ khi bạn xác nhận, hệ thống mới gửi lời mời cho người thay thế; người đó vẫn cần chấp nhận ca.
         </Notice>}
         <dl className="directed-proposal__facts">
-          <div><dt>Visit</dt><dd>{visit?.localDate || formatDate(visit?.startAt || proposal.slots?.[0]?.startAt)}</dd></div>
+          <div><dt>Buổi chăm sóc</dt><dd>{visit?.localDate || formatDate(visit?.startAt || proposal.slots?.[0]?.startAt)}</dd></div>
           {proposal.areaCode && <div><dt>Khu vực tại địa chỉ đã đặt</dt><dd>{proposal.areaLabel ?? proposal.areaCode}{proposal.previousAreaCode !== proposal.areaCode && ' · Đề xuất xác nhận khu vực cụ thể hơn, giữ nguyên vị trí ghim'}</dd></div>}
-          <div><dt>Sitter</dt><dd>{proposal.sitter?.displayName || proposal.sitter?.name || proposal.sitterId || 'Đã chọn sitter'}</dd></div>
-          <div><dt>Giá snapshot</dt><dd>{amount(proposal.priceSnapshot || booking?.serviceSnapshot?.price)}</dd></div>
-          <div><dt>Thanh toán</dt><dd>{proposal.paymentState || (proposal.paymentRequired ? 'Cần theo chính sách prepay' : 'Theo xác nhận máy chủ')}</dd></div>
+          <div><dt>Pet sitter</dt><dd>{proposal.sitter?.displayName || proposal.sitter?.name || proposal.sitterId || 'Đã chọn pet sitter'}</dd></div>
+          <div><dt>Giá đã lưu</dt><dd>{amount(proposal.priceSnapshot || booking?.serviceSnapshot?.price)}</dd></div>
+          <div><dt>Thanh toán</dt><dd>{proposal.paymentState || (proposal.paymentRequired ? 'Thanh toán trả trước' : 'Theo đơn đã đặt')}</dd></div>
         </dl>
-        <p className="directed-proposal__pets"><strong>Thú cưng:</strong> {pets.length ? pets.map(snapshotPet).join(', ') : 'Theo snapshot máy chủ'}</p>
+        <p className="directed-proposal__pets"><strong>Thú cưng:</strong> {pets.length ? pets.map(snapshotPet).join(', ') : 'Theo thông tin đã lưu'}</p>
       </section>
       <section className="directed-proposal__panel" aria-labelledby="directed-proposal-slots-title">
         <h2 id="directed-proposal-slots-title">Khung giờ được đề xuất</h2>
-        {!slots.length && <Notice state="empty" title="Chưa có khung giờ">Sitter chưa có slot phù hợp; hãy yêu cầu máy chủ đề xuất lại.</Notice>}
+        {!slots.length && <Notice state="empty" title="Chưa có khung giờ">Pet sitter chưa có khung giờ phù hợp. Vui lòng yêu cầu đề xuất lại.</Notice>}
         {slots.length > 0 && <fieldset className="directed-proposal__slots"><legend>Chọn một khung giờ</legend>{slots.map(item => {
           const value = `${item.startAt}/${item.endAt}`;
           return <label key={value} className="directed-proposal__slot"><input type="radio" name="directed-slot" value={value}
@@ -118,12 +118,12 @@ function ProposalDetails({ api, proposalId: suppliedProposalId, proposal: suppli
             disabled={['submitting', 'pending', 'success'].includes(commandState.status) || !isConfirmable}
             onChange={() => { setSelectedSlot(item); operationRef.current = null; keyRef.current = idempotencyKey(); }} /><span><strong>{formatDate(item.startAt)}</strong><small> đến {formatDate(item.endAt)}</small></span></label>;
         })}</fieldset>}
-        {proposal.expiresAt && <p className="directed-proposal__expiry">Hạn xác nhận: {formatDate(proposal.expiresAt)}. Máy chủ sẽ kiểm tra lại hạn và slot.</p>}
+        {proposal.expiresAt && <p className="directed-proposal__expiry">Hạn xác nhận: {formatDate(proposal.expiresAt)}. Hệ thống sẽ kiểm tra lại thời hạn và khung giờ khi xác nhận.</p>}
         {commandState.status === 'error' && <Notice state="error" title="Chưa xác nhận được lịch">{commandState.message}</Notice>}
-        {commandState.status === 'pending' && <Notice state="pending" title="Đang chờ máy chủ xác nhận">Chưa nhận được kết quả. Bạn có thể kiểm tra lại cùng yêu cầu.</Notice>}
+        {commandState.status === 'pending' && <Notice state="pending" title="Đang chờ xác nhận">Chưa nhận được kết quả. Bạn có thể kiểm tra lại cùng yêu cầu.</Notice>}
         {proposal.state === 'CONFIRMED' && <Notice state="success" title="Đã gửi lời mời nhận ca">Theo dõi đơn để biết khi người chăm sóc nhận lời. <Link to={`/services?booking=${encodeURIComponent(proposal.bookingId || '')}`}>Xem đơn chăm sóc</Link></Notice>}
         {proposal.state !== 'CONFIRMED' && <Button onClick={confirm} loading={commandState.status === 'submitting'} disabled={!isConfirmable || !selectedSlot || commandState.status === 'success'}>
-          {commandState.status === 'pending' ? 'Kiểm tra lại xác nhận lịch' : 'Xác nhận lịch và gửi offer'}
+          {commandState.status === 'pending' ? 'Kiểm tra lại xác nhận lịch' : 'Xác nhận lịch và gửi lời mời'}
         </Button>}
         {commandState.status === 'error' && <Button variant="secondary" onClick={() => { setSelectedSlot(null); keyRef.current = idempotencyKey(); resource.retry(); }}>Tải lại đề xuất</Button>}
       </section>
