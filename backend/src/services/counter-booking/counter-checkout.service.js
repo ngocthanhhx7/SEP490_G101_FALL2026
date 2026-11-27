@@ -348,9 +348,15 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
         );
         return saved.matchedCount ? { ...view, checkoutUrl: href } : view;
       } catch (error) {
+        // PAYOS_REQUEST_REJECTED means payOS responded but rejected the business request (HTTP 200 with
+        // non-00 code). The POST reached payOS and may have created the link (e.g., duplicate orderCode
+        // when the previous response was lost). It must go through lookup before retrying, so it belongs
+        // in RECONCILIATION_REQUIRED, not FAILED.
+        // Only PAYOS_INVALID_REQUEST (request never submitted — client-side validation) and
+        // PAYOS_CONFIGURATION_INVALID (bad credentials, request never attempted) are truly deterministic
+        // "link not created" failures that may skip the lookup.
         const deterministicRefusal = !providerResponded && (
-          error?.details?.uncertain === false ||
-          ['PAYOS_INVALID_REQUEST', 'PAYOS_CONFIGURATION_INVALID', 'PAYOS_REQUEST_REJECTED'].includes(error?.code)
+          ['PAYOS_INVALID_REQUEST', 'PAYOS_CONFIGURATION_INVALID'].includes(error?.code)
         );
         await intents.updateOne(
           { _id: claimed._id, state: 'PENDING', linkState: 'CREATING', linkRequestedAt: claimed.linkRequestedAt },

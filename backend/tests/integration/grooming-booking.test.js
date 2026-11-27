@@ -761,6 +761,43 @@ describe('VietQR link recovery and expiry regression', () => {
     expect(crashedStatus.checkoutUrl).toBe(existingUrl);
     expect(lookupCalls).toBe(2);
     expect(createCalls).toBe(1);
+
+    // PAYOS_REQUEST_REJECTED from createPaymentLink must classify as RECONCILIATION_REQUIRED, not FAILED.
+    // payOS responded with a business-level rejection (e.g. duplicate orderCode) so the POST reached payOS
+    // and a link may already exist. The next status() must do lookup-first and restore the link without
+    // sending another POST.
+    await db.collection('paymentintents').updateOne(
+      { _id: after._id },
+      { $unset: { linkState: '', linkRequestedAt: '', checkoutUrl: '', paymentLinkId: '' } }
+    );
+    let rejectedCreateCalls = 0, rejectedLookupCalls = 0;
+    const rejectedUrl = 'https://pay.payos.vn/web/rejected-duplicate-link';
+    const rejectedProvider = {
+      createPaymentLink: async () => {
+        rejectedCreateCalls++;
+        throw Object.assign(new Error('Mã đơn hàng đã tồn tại'), { code: 'PAYOS_REQUEST_REJECTED', details: { uncertain: false } });
+      },
+      getPaymentLink: async orderCode => {
+        rejectedLookupCalls++;
+        return { orderCode, amount: pending.totalVnd, amountPaid: 0, providerStatus: 'PENDING',
+          checkoutUrl: rejectedUrl, paymentLinkId: 'rejected-link-id' };
+      },
+    };
+    // First status(): createPaymentLink called; payOS rejects with PAYOS_REQUEST_REJECTED.
+    // Intent must land on RECONCILIATION_REQUIRED (lookup can still recover the link).
+    const rejectedCounter = makeCounter(() => tick, rejectedProvider);
+    await rejectedCounter.status(actors.ADMIN, pending.receiptId);
+    expect(rejectedCreateCalls).toBe(1);
+    const rejectedIntent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(rejectedIntent.linkState).toBe('RECONCILIATION_REQUIRED'); // must NOT be 'FAILED'
+
+    // Second status(): lookup runs first, link found at payOS, restored — no additional POST.
+    const rejectedStatus2 = await rejectedCounter.status(actors.ADMIN, pending.receiptId);
+    expect(rejectedStatus2.checkoutUrl).toBe(rejectedUrl);
+    expect(rejectedLookupCalls).toBe(1);
+    expect(rejectedCreateCalls).toBe(1); // no extra create after rejection
+    const recoveredIntent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(recoveredIntent).toMatchObject({ linkState: 'READY', checkoutUrl: rejectedUrl, paymentLinkId: 'rejected-link-id' });
   });
 
   test('JOB-CT-03: expiry with no link ever requested — expireBatch releases booking and spa without calling payOS', async () => {
