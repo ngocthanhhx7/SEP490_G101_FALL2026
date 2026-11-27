@@ -51,7 +51,8 @@ const errors = {
   WITHDRAWAL_ALREADY_REQUESTED: 'Buổi này đã có yêu cầu rút đang chờ nhân viên.',
   SITTER_WITHDREW: 'Người chăm sóc này vừa rút khỏi buổi.',
   OFFER_EXPIRED: 'Lời mời đã hết hạn.', VERSION_CONFLICT: 'Dữ liệu đã thay đổi. Hãy tải lại.',
-  SCHEDULING_STORAGE_NOT_READY: 'Chức năng lịch làm việc chưa được kích hoạt đầy đủ.'
+  SCHEDULING_STORAGE_NOT_READY: 'Chức năng lịch làm việc chưa được kích hoạt đầy đủ.',
+  ACTION_CHANGED: 'Điều kiện giao ca đã thay đổi. Hãy kiểm tra lại danh sách rồi xác nhận.'
 };
 export function useSchedulingCommand(onSuccess) {
   const operation = useRef(null), locked = useRef(false);
@@ -65,7 +66,11 @@ export function useSchedulingCommand(onSuccess) {
     try {
       const result = await operation.current.work(operation.current.key);
       if (result?.pending || result?.status === 202) { setPending(true); setMessage('Đang chờ xác nhận.'); return; }
-      operation.current = null; setPending(false); setMessage('Đã xác nhận.'); onSuccess?.(result);
+      operation.current = null; setPending(false);
+      setMessage(result?.data?.state === 'ASSIGNED' && result.data.sitterName
+        ? `Đã giao buổi cho ${result.data.sitterName}. Người chăm sóc và khách đã được thông báo.`
+        : 'Đã xác nhận.');
+      onSuccess?.(result);
     } catch (error) {
       const uncertain = !error.status || error.status >= 500 || ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'INVALID_RESPONSE'].includes(error.code);
       setPending(uncertain);

@@ -46,8 +46,13 @@ export function workAreasInput(value) {
   return value;
 }
 export function invitationInput(value) {
-  exact(value, ['expectedVersion', 'sitterId'], ['expectedVersion']);
+  exact(value, ['expectedVersion', 'sitterId', 'expectedAction'], ['expectedVersion']);
   number(value.expectedVersion, 0, 1000000, true); if (value.sitterId !== undefined) id(value.sitterId);
+  if (value.expectedAction !== undefined) {
+    if (!['DIRECT_ASSIGN', 'INVITE'].includes(value.expectedAction))
+      fail('VALIDATION_FAILED', 'expectedAction must be DIRECT_ASSIGN or INVITE');
+    if (!value.sitterId) fail('VALIDATION_FAILED', 'expectedAction requires a selected sitterId');
+  }
   return value;
 }
 export function decisionInput(value) {

@@ -126,7 +126,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       return result;
     }) });
   // allowStarted is only for staff replacing the sitter of a visit that has not ended; invitations and automatic dispatch never set it.
-  async function eligible(sitterId, visit, session, { requireOrigin = false, excludeVisitIds = [], proposedVisits = [], allowStarted = false } = {}) {
+  async function eligible(sitterId, visit, session, { requireOrigin = false, excludeVisitIds = [], proposedVisits = [], allowStarted = false, allowOutsideWorkingHours = false } = {}) {
     const start = new Date(visit.startAt), end = new Date(visit.endAt), date = schedulingDate(start);
     if ((allowStarted ? end <= new Date(clock()) : start <= new Date(clock())) || end <= start || end - start > 480 * 60000) fail('SHIFT_REVIEW_REQUIRED', 'Future care shifts must not exceed eight hours', 409);
     const contract = await contractAt(sitterId, start, end, session), record = await find(sitterId, session);
@@ -151,12 +151,17 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       $or: [{ state: 'CONFIRMED' }, { state: 'HOLD', holdExpiresAt: { $gt: new Date(clock()) } }] }, { session }))
       fail('SLOT_UNAVAILABLE', 'Employee has another confirmed schedule block', 409);
     const revision = await revisionAt(sitterId, date, session);
-    if (!windowsCover(revision?.workingWindows, start, end)) fail('OUTSIDE_WORKING_HOURS', 'Visit is outside registered shifts', 409);
+    let workingHoursCovered = windowsCover(revision?.workingWindows, start, end);
+    const mayInviteOutsideWorkingHours = allowOutsideWorkingHours && contract.employmentType === 'FULL_TIME';
+    if (!workingHoursCovered && !mayInviteOutsideWorkingHours) fail('OUTSIDE_WORKING_HOURS', 'Visit is outside registered shifts', 409);
     const lastDate = schedulingDate(new Date(end.getTime() - 1));
     if (lastDate !== date) {
       const next = await revisionAt(sitterId, lastDate, session);
-      if (next?.version !== revision?.version && !windowsCover(next?.workingWindows, new Date(`${lastDate}T00:00:00+07:00`), end))
-        fail('OUTSIDE_WORKING_HOURS', 'Shift crosses an availability change', 409);
+      if (next?.version !== revision?.version && !windowsCover(next?.workingWindows, new Date(`${lastDate}T00:00:00+07:00`), end)) {
+        if (!mayInviteOutsideWorkingHours) fail('OUTSIDE_WORKING_HOURS', 'Shift crosses an availability change', 409);
+        // A crossing availability revision never qualifies for direct assignment.
+        workingHoursCovered = false;
+      }
     }
     const week = schedulingWeekStart(start), until = new Date(schedulingWeekStart(new Date(end.getTime() - 1)).getTime() + 7 * DAY);
     const loadFrom = new Date(week.getTime() - DAY), loadUntil = new Date(until.getTime() + DAY);
@@ -215,7 +220,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       if (occupiedMinutes(all, at, at + 7 * DAY) > contract.weeklyMinutes) fail('CONTRACT_HOURS_EXCEEDED', 'Contract weekly hours exceeded', 409);
     for (let at = Date.parse(`${date}T00:00:00+07:00`); at < end.getTime(); at += DAY)
       if (occupiedMinutes(all, at, at + DAY) > 480) fail('CONTRACT_HOURS_EXCEEDED', 'Eight ordinary work hours per day exceeded', 409);
-    return { eligible: true, arrivalTravelMinutes, adjacentTravelMinutes: verifiedLegs ? adjacentTravelMinutes : null,
+    return { eligible: true, workingHoursCovered, arrivalTravelMinutes, adjacentTravelMinutes: verifiedLegs ? adjacentTravelMinutes : null,
       routingSource: routingProvider?.source ?? 'OSRM_STATIC_ROAD_ETA', weeklyWorkMinutes: occupiedMinutes(rows, week, until) };
   }
   return { models, payroll, uow, col, availability, areas, employeeGuard, eligible, runGuard, find, contractAt, registrationContract,

@@ -115,6 +115,18 @@ test('Staff sees automatic search and only intervenes on a dispatch escalation',
   await waitFor(() => expect(api.invite).toHaveBeenCalledWith('review', 3, expect.any(String), undefined));
 });
 
+test('legacy dispatch fallback button "Mời người đã chọn" omits DIRECT_ASSIGN', async () => {
+  const api = fixture();
+  const sitterId = 'a'.repeat(24);
+  api.queue.mockResolvedValue({ data: { items: [
+    { id: 'review', serviceName: 'Ca cần xử lý', version: 3, dispatchState: 'NEEDS_STAFF', reviewCode: 'STAFF_REVIEW_REQUIRED', startAt: '2026-11-03T03:00:00Z', endAt: '2026-11-03T04:00:00Z' }
+  ] } });
+  render(<MemoryRouter><EmployeeDispatchPage api={api} selectedSitter={sitterId} /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Xem / xử lý' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mời người đã chọn' }));
+  await waitFor(() => expect(api.invite).toHaveBeenCalledWith('review', 3, expect.any(String), sitterId));
+});
+
 test.each([
   ['STAFF_REVIEW_REQUIRED', 'Ca chưa có người nhận (hết lời mời hoặc vừa được trả ra). Cần nhân viên chọn người.'],
   ['PAYMENT_REQUIRED', 'Chưa xác nhận được khoản thanh toán của lịch đặt nên chưa gửi được lời mời.'],

@@ -119,7 +119,9 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
             : 'Đang chờ số liệu từ hệ thống.'
         }
       />
-      {!active && command.message && <p role="status">{command.message}</p>}
+      {!active && command.message && (command.message.startsWith('Đã giao buổi cho')
+        ? <Notice state="success" title="Giao buổi thành công">{command.message}</Notice>
+        : <p role="status">{command.message}</p>)}
       {selected && !active && selectedDetails.status === 'loading' && <p role="status">Đang tải chi tiết ca…</p>}
       {selected && !active && ['error', 'forbidden', 'pending'].includes(selectedDetails.status) && <p role="alert">
         Chưa tải được ca này. <button onClick={selectedDetails.retry}>Thử lại</button>{' '}
@@ -322,7 +324,9 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
               onProposed={setProposal}
             />
           )}
-          {command.message && <p role="status">{command.message}</p>}
+          {command.message && (command.message.startsWith('Đã giao buổi cho')
+            ? <Notice state="success" title="Giao buổi thành công">{command.message}</Notice>
+            : <p role="status">{command.message}</p>)}
           {command.pending && (
             <Button disabled={command.busy} onClick={command.retry}>
               Kiểm tra lại yêu cầu

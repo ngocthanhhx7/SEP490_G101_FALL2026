@@ -5,6 +5,8 @@ import { vietnamTimeDate } from '../../utils/vietnam-date.js';
 
 const dayTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', hourCycle: 'h23' });
 
+const assignedTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const assignedDate = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 // Recipient-specific wording where one event reaches people with different roles.
 const roleMessages = {
@@ -27,6 +29,7 @@ const messages = {
   VisitCompletionReviewRequired: ['Cần xác minh kết thúc buổi', 'Buổi đã quá giờ kết thúc 2 giờ nhưng chưa có check-out. Cần nhân viên hoặc quản trị xác minh; chưa tự xác nhận hoàn thành.'],
   OfferCreated: ['Lời mời chăm sóc mới', 'Bạn có lời mời nhận ca đang chờ phản hồi.'],
   OfferAccepted: ['Đã nhận ca chăm sóc', 'Người chăm sóc đã xác nhận nhận ca.'],
+  VisitAssignedDirectly: ['Đã giao buổi chăm sóc', 'Buổi chăm sóc đã có người phụ trách.'],
   DispatchReviewRequired: ['Ca chăm sóc cần điều phối', 'Hệ thống chưa tìm được người nhận ca. Vui lòng kiểm tra và sắp xếp người chăm sóc.'],
   ScheduleProposed: ['Xác nhận lịch chăm sóc mới', 'Nhân viên đã đề xuất lịch thay thế. Vui lòng kiểm tra và xác nhận.'],
   CustomerScheduleConfirmed: ['Đã xác nhận lịch thay thế', 'Khách hàng đã xác nhận lịch mới. Lời mời nhận ca đã được tạo.']
@@ -54,8 +57,10 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
       recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
     if (event.type === 'OfferCreated' || event.type === 'CustomerScheduleConfirmed') recipients.push({ id: event.sitterId, role: 'PET_SITTER',
       to: /^[a-f0-9]{24}$/.test(event.offerId ?? '') ? '/sitter/invitations?offerId=' + event.offerId : '/sitter/invitations' });
-    if (['OfferAccepted', 'ScheduleProposed'].includes(event.type) && booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER',
+    if (['OfferAccepted', 'ScheduleProposed', 'VisitAssignedDirectly'].includes(event.type) && booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER',
       to: event.type === 'ScheduleProposed' ? '/account/schedule-proposals/' + event.detail.proposalId : '/account/bookings/' + String(booking._id) });
+    if (event.type === 'VisitAssignedDirectly') recipients.push({ id: event.sitterId, role: 'PET_SITTER',
+      to: '/sitter/visits/' + String(event.visitId) });
     if (event.type === 'VisitReassigned') {
       if (event.detail?.previousSitterId) recipients.push({ id: String(event.detail.previousSitterId), role: 'PET_SITTER', to: '/sitter/schedule' });
       if (booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
@@ -76,7 +81,9 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
       ? digest([event.type, event.visitId])
       : digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId ?? event.detail?.noticeKey ?? event.detail?.version]);
     const [title, defaultMessage] = messages[event.type];
-    const message = event.type === 'VisitHandoverRequired' ? (lateCheckInExempt(visit)
+    const message = event.type === 'VisitAssignedDirectly'
+      ? `Bạn được giao buổi ${visit.snapshots?.serviceName ?? 'chăm sóc'} lúc ${assignedTime.format(new Date(visit.startAt))} ngày ${assignedDate.format(new Date(visit.startAt))}.`
+      : event.type === 'VisitHandoverRequired' ? (lateCheckInExempt(visit)
       ? 'Buổi được giao khi còn chưa đầy 1 giờ. Hãy xác nhận ngay, trước khi check-in.'
       : `Hãy xác nhận bàn giao trước ${dayTime.format(new Date(+visit.startAt - HANDOVER_WINDOW_MS))}.`)
       : event.type === 'VisitCheckInLate' ? await lateCheckInMessage(visit, booking, session)
@@ -84,7 +91,8 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
     for (const recipient of recipients) {
       await col('notifications').updateOne({ _id: digest([eventId, recipient.id, recipient.role]) }, { $setOnInsert: {
         eventId, recipientId: recipient.id, role: recipient.role, eventType: event.type, title,
-        message: roleMessages[event.type]?.[recipient.role] ?? (recipient.role === 'PET_SITTER' && ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'].includes(event.type)
+        message: roleMessages[event.type]?.[recipient.role] ?? (event.type === 'VisitAssignedDirectly' && recipient.role === 'CUSTOMER'
+          ? defaultMessage : recipient.role === 'PET_SITTER' && ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'].includes(event.type)
           ? `${message} Lý do: ${event.detail.reason}` : message),
         channel: 'IN_APP', deepLink: recipient.to, metadata: { visitId: String(event.visitId), ...(event.offerId ? { offerId: String(event.offerId) } : {}) }, createdAt: new Date(clock()), readAt: null
       } }, { upsert: true, session });
