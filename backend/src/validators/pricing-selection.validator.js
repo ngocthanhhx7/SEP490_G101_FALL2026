@@ -7,8 +7,8 @@ export function validatePricingSelection(body) {
   number(body.visitCount ?? 1, 1, 60, true);
   if (body.dayCount !== undefined) number(body.dayCount, 1, 60, true);
   if (body.distanceMeters !== undefined) number(body.distanceMeters, 1, 1000000, true);
-  if (!Array.isArray(body.petIds) || !body.petIds.length || body.petIds.length > 10 || new Set(body.petIds).size !== body.petIds.length)
-    fail('VALIDATION_FAILED', 'Unique owned pets required');
+  if (!Array.isArray(body.petIds) || body.petIds.length !== 1)
+    fail('VALIDATION_FAILED', 'Exactly one owned pet is required per booking');
   body.petIds.forEach(id);
   return { ...body, visitCount: body.visitCount ?? 1 };
 }

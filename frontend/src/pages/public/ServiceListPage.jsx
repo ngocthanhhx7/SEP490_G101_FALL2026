@@ -11,7 +11,6 @@ import {
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
 import './service-catalog.css';
 import { CatalogLayout } from '../../components/public/CatalogLayout.jsx';
-import { ServiceBasket } from './ServiceBasket.jsx';
 
 function normalizeSearch(value) {
   return value
@@ -156,7 +155,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
       )}
 
       </CatalogLayout>
-      {catalog.data?.available && <><p className="pwc-photo-credits"><a href="/assets/services/credits.html">Nguồn ảnh dịch vụ</a></p><ServiceBasket services={services} /></>}
+      {catalog.data?.available && <p className="pwc-photo-credits"><a href="/assets/services/credits.html">Nguồn ảnh dịch vụ</a></p>}
       <section className="pwc-catalog-help">
         <div>
           <h2>Bạn cần tìm dịch vụ phù hợp?</h2>

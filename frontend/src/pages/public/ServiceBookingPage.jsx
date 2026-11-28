@@ -15,14 +15,15 @@ import { serviceVisual } from './service-visuals.js';
 import { RecurringSchedule } from '../../components/calendar/RecurringSchedule.jsx';
 import { BookingDateTime } from '../../components/calendar/BookingDateTime.jsx';
 import { vietnamDate, vietnamDateTime } from '../../utils/calendar-date.js';
-import { BookingConfirmation } from './BookingCheckout.jsx';
+import { BookingConfirmation, markBookingSavedToast } from './BookingCheckout.jsx';
 import { QuotePriceSummary } from '../../components/common/QuotePriceSummary.jsx';
 import { ADDRESS_NOT_SERVED, GROOMING_DEBT_BLOCKS_BOOKING } from '../../constants/booking-messages.js';
 import './service-booking.css';
 
-import { homeNoticeVisitIndex } from '../../utils/booking-presentation.js';
+import { bookingNoticeVisitIndex } from '../../utils/booking-presentation.js';
 
-const homeNoticeMs = 2 * 60 * 60 * 1000;
+const bookingNoticeMs = 2 * 60 * 60 * 1000;
+const MSG01 = 'Trường này là bắt buộc.';
 const MSG19 = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
 const scheduleLabel = value => new Date(value + '+07:00').toLocaleString('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short', timeStyle: 'short'
@@ -44,6 +45,7 @@ function errorText(error) {
   return ({ QUOTE_CHANGED: 'Hồ sơ, giá hoặc điều kiện đã thay đổi. Vui lòng lấy báo giá mới.',
     PRICING_REVIEW_REQUIRED: 'Một đặc điểm chăm sóc của thú cưng chưa có quy tắc giá được duyệt. Vui lòng liên hệ PawWorld để rà soát giá trước khi đặt dịch vụ.',
     PRICING_POLICY_UNAVAILABLE: 'Dịch vụ chưa có chính sách giá có hiệu lực. Vui lòng liên hệ PawWorld hoặc thử lại sau.',
+    BOOKING_NOTICE_REQUIRED: MSG19,
     HOME_BOOKING_NOTICE_REQUIRED: MSG19,
     SLOT_INVALID: 'Lịch chăm sóc cần đặt trước ít nhất 2 giờ. Vui lòng kiểm tra lại thời gian.',
     PREFERRED_SITTER_HISTORY_REQUIRED: 'Bạn chỉ có thể chọn người chăm sóc đã từng chăm thú cưng này trước đó.',
@@ -74,13 +76,13 @@ export function BookingFlow({ service, api, onBooked }) {
   const setup = useApiResource(load);
   const pets = useMemo(() => (setup.data?.pets ?? []).filter(pet => service.species.includes(pet.species)), [setup.data, service.species]);
   const addresses = useMemo(() => setup.data?.addresses ?? [], [setup.data]);
-  const [petIds, setPetIds] = useState([]), [location, setLocation] = useState(() => homeLocations(service)[0] || 'HOME');
+  const [petId, setPetId] = useState(''), [location, setLocation] = useState(() => homeLocations(service)[0] || 'HOME');
   const [addressId, setAddressId] = useState(''), [units, setUnits] = useState('1'), [count, setCount] = useState('1');
   const [starts, setStarts] = useState(['']), [activeVisit, setActiveVisit] = useState(0), [editingRepeat, setEditingRepeat] = useState(false);
   const [step, setStep] = useState(0), [quote, setQuote] = useState(null);
   const [available, setAvailable] = useState(null), [selected, setSelected] = useState(''), [consent, setConsent] = useState(false);
   const [msg162Dialog, setMsg162Dialog] = useState(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [scheduleError, setScheduleError] = useState(null), [uncertain, setUncertain] = useState(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [petError, setPetError] = useState(''), [scheduleError, setScheduleError] = useState(null), [uncertain, setUncertain] = useState(false);
   const [debtReported, setDebtReported] = useState(false);
   const generation = useRef(0), command = useRef(null), locked = useRef(false);
   const durationMinutes = unit === 'tiếng' ? Number(units) * 60 : unit === '30 phút' ? Number(units) * 30 : service.details?.durationMinutes ?? 60;
@@ -95,6 +97,7 @@ export function BookingFlow({ service, api, onBooked }) {
     setConsent(false);
     setMsg162Dialog(null);
     setError('');
+    setPetError('');
     setScheduleError(null);
   }
 
@@ -108,7 +111,7 @@ export function BookingFlow({ service, api, onBooked }) {
   }
 
   const prepayNotice = Number(count) > 1 || boarding && Number(units) > 1 ? 15 * 60000 : 0;
-  const leadMs = location === 'HOME' ? homeNoticeMs : prepayNotice;
+  const leadMs = Math.max(bookingNoticeMs, prepayNotice);
   const minimum = vietnamDateTime(new Date(Math.ceil((Date.now() + Math.max(leadMs, 1)) / 60000) * 60000));
 
   async function loadPreviousSitters(activeQuote, selectedStarts = starts) {
@@ -159,20 +162,19 @@ export function BookingFlow({ service, api, onBooked }) {
   async function price(event) {
     event.preventDefault();
     if (locked.current || editingRepeat) return;
-    if (!petIds.length) { setError('Chọn ít nhất một thú cưng.'); return; }
+    if (!petId) { setPetError(MSG01); setError(''); return; }
+    setPetError('');
     const now = Date.now();
     const invalid = starts.findIndex(start => !start || Date.parse(start + '+07:00') <= now + prepayNotice
-      || location === 'HOME' && Date.parse(start + '+07:00') < now + homeNoticeMs);
+      || Date.parse(start + '+07:00') < now + bookingNoticeMs);
     if (invalid !== -1) {
       setActiveVisit(invalid);
-      if (starts[invalid] && location === 'HOME' && Date.parse(starts[invalid] + '+07:00') < now + homeNoticeMs) {
-        setScheduleError({ index: invalid, message: MSG19 });
+      if (!starts[invalid]) {
+        setScheduleError({ index: invalid, message: `Buổi ${invalid + 1}. Chọn ngày và giờ bắt đầu.` });
         setError('');
         return;
       }
-      const instruction = !starts[invalid] ? 'Chọn ngày và giờ bắt đầu.'
-        : 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
-      setScheduleError({ index: invalid, message: `Buổi ${invalid + 1}. ${instruction}` });
+      setScheduleError({ index: invalid, message: MSG19 });
       setError('');
       return;
     }
@@ -188,7 +190,7 @@ export function BookingFlow({ service, api, onBooked }) {
     try {
       const value = await api.quote([{
         serviceId: service.id,
-        petIds,
+        petIds: [petId],
         durationMinutes,
         visitCount: Number(count),
         ...(boarding ? { dayCount: Number(units) } : {}),
@@ -244,7 +246,7 @@ export function BookingFlow({ service, api, onBooked }) {
       const value = await api.confirm(command.current.body, command.current.key);
       onBooked(value);
     } catch (failure) {
-      const visitIndex = homeNoticeVisitIndex(failure, command.current.body.visits);
+      const visitIndex = bookingNoticeVisitIndex(failure, command.current.body.visits);
       if (visitIndex >= 0) {
         setActiveVisit(visitIndex);
         setStep(0);
@@ -308,7 +310,7 @@ export function BookingFlow({ service, api, onBooked }) {
       <div className="booking-compose">
         <fieldset className="booking-compose__schedule" disabled={busy}>
           <legend>Lịch chăm sóc</legend>
-          <p className="booking-schedule-hint">{location === 'HOME' ? 'Giờ Việt Nam · Đặt trước ít nhất 2 giờ.' : 'Giờ Việt Nam'}</p>
+          <p className="booking-schedule-hint">Giờ Việt Nam · Đặt trước ít nhất 2 giờ.</p>
           {starts.length > 1 && <p className="booking-schedule-hint">Các buổi sẽ được đánh số theo thời gian từ sớm đến muộn khi xem báo giá.</p>}
           {location === 'HOME' && !boarding && <>
             <button type="button" className="booking-repeat-trigger" aria-haspopup="dialog" onClick={() => setEditingRepeat(true)}>
@@ -343,9 +345,13 @@ export function BookingFlow({ service, api, onBooked }) {
         </fieldset>
         <div className="booking-compose__details">
           <fieldset disabled={busy}><legend>Thú cưng của bạn</legend>
-            {pets.map(pet => <label className="booking-check" key={pet.id || pet._id}><input type="checkbox" checked={petIds.includes(pet.id || pet._id)} onChange={event => { invalidate(); const id = pet.id || pet._id; setPetIds(current => event.target.checked ? [...current, id] : current.filter(value => value !== id)); }} />{pet.name} · {pet.weightKg} kg</label>)}
+            {pets.map(pet => {
+              const id = pet.id || pet._id;
+              return <label className="booking-check" key={id}><input type="radio" name="booking-pet" value={id} checked={petId === id} aria-invalid={Boolean(petError)} aria-describedby={petError ? 'booking-pet-error' : undefined} onChange={() => { invalidate(); setPetId(id); }} />{pet.name} · {pet.weightKg} kg</label>;
+            })}
+            {petError && <p id="booking-pet-error" role="alert" className="booking-error">{petError}</p>}
             {!pets.length && <p>Chưa có hồ sơ {service.species.map(value => value === 'DOG' ? 'chó' : 'mèo').join(' / ')} phù hợp. <Link to="/account/pets" target="_blank">Thêm thú cưng</Link></p>}
-            {pets.some(pet => petIds.includes(pet.id || pet._id) && pet.traits?.includes('extended-play')) && <p role="status">Chơi cùng bé nằm trong thời lượng dịch vụ đã chọn; hệ thống không tự cộng thêm phút. Chọn thời lượng phù hợp trước khi lấy báo giá.</p>}
+            {pets.some(pet => (pet.id || pet._id) === petId && pet.traits?.includes('extended-play')) && <p role="status">Chơi cùng bé nằm trong thời lượng dịch vụ đã chọn; hệ thống không tự cộng thêm phút. Chọn thời lượng phù hợp trước khi lấy báo giá.</p>}
             <Link to="/account/pets" target="_blank">Cập nhật hồ sơ chăm sóc</Link>
             <button type="button" className="booking-refresh" onClick={setup.retry}><RefreshCw size={16} />Tải lại hồ sơ</button>
           </fieldset>
@@ -381,7 +387,7 @@ export function BookingFlow({ service, api, onBooked }) {
       ) : previousSitters.length > 0 ? (
         <fieldset className="booking-preferred-sitter" disabled={busy}>
           <legend>Người chăm sóc mong muốn</legend>
-          <p>Không bắt buộc. Chỉ liệt kê người chăm sóc đã từng chăm một trong các thú cưng bạn chọn.</p>
+          <p>Không bắt buộc. Chỉ liệt kê người chăm sóc đã từng chăm thú cưng bạn chọn.</p>
           <div className="booking-sitters">
             <label>
               <input type="radio" name="preferred-sitter" value="" checked={selected === ''} onChange={() => { setSelected(''); setError(''); }} />
@@ -415,7 +421,7 @@ export function BookingFlow({ service, api, onBooked }) {
     </section>}
     {step === 2 && <form onSubmit={confirm}><h2>Xác nhận đặt dịch vụ</h2><fieldset disabled={busy || uncertain}>
       <dl className="booking-review">
-        <div><dt>Thú cưng</dt><dd>{pets.filter(pet => petIds.includes(pet.id || pet._id)).map(pet => pet.name).join(', ')}</dd></div>
+        <div><dt>Thú cưng</dt><dd>{pets.filter(pet => (pet.id || pet._id) === petId).map(pet => pet.name).join(', ')}</dd></div>
         <div><dt>Người chăm sóc mong muốn</dt><dd>{selectedSitter ? selectedSitter.displayName : 'PawWorld sắp xếp'}</dd></div>
         <div><dt>Địa điểm</dt><dd>{locations[location]} · {needsAddress ? addresses.find(address => (address.id || address._id) === addressId)?.label : setup.data.options.facilityAddress}</dd></div>
       </dl>
@@ -480,7 +486,7 @@ export function ServiceBookingPage({ loadCatalog = loadPublicCatalog }) {
   return <main className="pwc-page service-booking"><Link className="pwc-service-page-back" data-page-back to={'/services/' + service.id}>← Chi tiết dịch vụ</Link>
     <header className="booking-service"><img src={visual.src} alt={visual.alt} /><div><p>Đặt dịch vụ</p><h1>{service.name}</h1><p>{formatCatalogPrice(service.price)}</p></div></header>
     {session.status === 'authenticated' && hasRole(session.user, 'CUSTOMER') ? params.get('booking') ? <BookingConfirmation api={api} />
-      : <BookingFlow key={session.user.id + service.id} service={service} api={api} onBooked={booking => { setParams({ booking: booking.id }); globalThis.scrollTo?.({ top: 0, behavior: 'smooth' }); }} />
+      : <BookingFlow key={session.user.id + service.id} service={service} api={api} onBooked={booking => { markBookingSavedToast(booking.id); setParams({ booking: booking.id }); globalThis.scrollTo?.({ top: 0, behavior: 'smooth' }); }} />
       : <section><h2>{session.status === 'loading' ? 'Đang kiểm tra phiên…' : 'Đăng nhập để đặt dịch vụ'}</h2><Link className="pwc-button pwc-button-primary" to="/sign-in">Đăng nhập</Link></section>}
   </main>;
 }

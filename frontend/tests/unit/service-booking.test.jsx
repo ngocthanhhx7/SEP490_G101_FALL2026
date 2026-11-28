@@ -397,30 +397,90 @@ test('MSG19 from the server stays on the rejected visit when switching visits', 
   expect(screen.queryByText(message)).not.toBeInTheDocument();
 });
 
-test('non-HOME service blocks past time under the date/time field without quoting and allows valid future time', async () => {
+test('A1 / GBR-09: non-HOME services show 2h hint, block under 2 hours with MSG19 under date/time, allow >= 2 hours, and map BOOKING_NOTICE_REQUIRED', async () => {
   jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
   jest.setSystemTime(new Date('2026-11-28T03:00:00Z'));
   try {
     const api = fixture();
+    api.confirm.mockRejectedValueOnce({ code: 'BOOKING_NOTICE_REQUIRED', status: 422,
+      lineFields: { 0: { startAt: 'BOOKING_NOTICE_REQUIRED' } } });
     const outdoorService = {
       id: 'dog-walking', name: 'Dắt chó đi dạo', code: 'dog-walking', species: ['DOG'],
       price: { unitLabel: 'lượt' }, details: { locations: ['OUTDOOR'], durationMinutes: 30 }
     };
-    render(<MemoryRouter><BookingFlow service={outdoorService} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+    const { unmount } = render(<MemoryRouter><BookingFlow service={outdoorService} api={api} onBooked={jest.fn()} /></MemoryRouter>);
     fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+    expect(screen.getByText('Giờ Việt Nam · Đặt trước ít nhất 2 giờ.')).toBeVisible();
     fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
     const startInput = screen.getByLabelText('Buổi 1 (giờ Việt Nam)');
-    fireEvent.change(startInput, { target: { value: '2026-11-28T09:00' } });
+    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
     fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
     const fieldContainer = startInput.closest('.pwc-booking-daytime');
-    expect(within(fieldContainer).getByText('Buổi 1. Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.')).toBeVisible();
+    expect(within(fieldContainer).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
     expect(api.quote).not.toHaveBeenCalled();
 
-    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
+    fireEvent.change(startInput, { target: { value: '2026-11-28T12:00' } });
     fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
     await screen.findByText('Sắp xếp người chăm sóc');
     expect(api.quote).toHaveBeenCalledTimes(1);
+    await reviewAndConfirm();
+    const resumedInput = await screen.findByLabelText('Buổi 1 (giờ Việt Nam)');
+    expect(within(resumedInput.closest('.pwc-booking-daytime')).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+    unmount();
+
+    const facilityApi = fixture();
+    facilityApi.checkoutOptions.mockResolvedValue({ data: { facilityAddress: '123 Cửa hàng', sitters: [] } });
+    const facilityService = {
+      id: 'health-check', name: 'Kiểm tra sức khỏe cơ bản', code: 'basic-health-check', species: ['DOG'],
+      price: { unitLabel: 'lượt' }, details: { locations: ['FACILITY'], durationMinutes: 30 }
+    };
+    render(<MemoryRouter><BookingFlow service={facilityService} api={facilityApi} onBooked={jest.fn()} /></MemoryRouter>);
+    fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+    expect(screen.getByText('Giờ Việt Nam · Đặt trước ít nhất 2 giờ.')).toBeVisible();
+    const facilityStart = screen.getByLabelText('Buổi 1 (giờ Việt Nam)');
+    fireEvent.change(facilityStart, { target: { value: '2026-11-28T11:59' } });
+    fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+    expect(within(facilityStart.closest('.pwc-booking-daytime')).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+    expect(facilityApi.quote).not.toHaveBeenCalled();
+
+    fireEvent.change(facilityStart, { target: { value: '2026-11-28T12:00' } });
+    fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+    await screen.findByText('Sắp xếp người chăm sóc');
+    expect(facilityApi.quote).toHaveBeenCalledTimes(1);
   } finally {
     jest.useRealTimers();
   }
+});
+
+test('A2 / GBR-20 / ST-BKG-41: selects only one pet with radio buttons and shows MSG01 under pet fieldset when missing', async () => {
+  const api = fixture();
+  api.pets.mockResolvedValue({
+    data: [
+      { id: 'milo', name: 'Milo', species: 'DOG', weightKg: 4 },
+      { id: 'mimi', name: 'Mimi', species: 'DOG', weightKg: 3 }
+    ]
+  });
+  render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+  const milo = await screen.findByRole('radio', { name: 'Milo · 4 kg' });
+  const mimi = screen.getByRole('radio', { name: 'Mimi · 3 kg' });
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+
+  const petFieldset = milo.closest('fieldset');
+  expect(within(petFieldset).getByRole('alert')).toHaveTextContent('Trường này là bắt buộc.');
+  expect(api.quote).not.toHaveBeenCalled();
+
+  fireEvent.click(milo);
+  expect(milo).toBeChecked();
+  expect(mimi).not.toBeChecked();
+  expect(within(petFieldset).queryByText('Trường này là bắt buộc.')).not.toBeInTheDocument();
+
+  fireEvent.click(mimi);
+  expect(mimi).toBeChecked();
+  expect(milo).not.toBeChecked();
+
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  await screen.findByText('Sắp xếp người chăm sóc');
+  expect(api.quote).toHaveBeenCalledWith([{ serviceId: 'service', petIds: ['mimi'], durationMinutes: 60, visitCount: 1 }]);
 });

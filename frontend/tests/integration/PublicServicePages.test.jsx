@@ -296,3 +296,36 @@ test('service area page announces pending and forbidden states', async () => {
     'Bạn chưa thể xem thông tin này'
   );
 });
+
+test('A4: ServiceListPage hides multi-service ServiceBasket for signed-in customers while keeping service booking links', async () => {
+  const customerSession = {
+    resolve: async () => ({
+      status: 'authenticated',
+      user: { id: 'customer-1', displayName: 'Khách thử nghiệm', roles: ['CUSTOMER'] },
+      getCsrfToken: () => 'csrf'
+    })
+  };
+  render(
+    <MemoryRouter initialEntries={['/services']}>
+      <Routes>
+        <Route
+          element={
+            <SessionProvider adapter={customerSession}>
+              <PublicSiteLayout />
+            </SessionProvider>
+          }
+        >
+          <Route
+            path="/services"
+            element={<ServiceListPage loadCatalog={() => Promise.resolve({ data: catalog })} />}
+          />
+        </Route>
+      </Routes>
+    </MemoryRouter>
+  );
+  expect(await screen.findByRole('heading', { name: 'Dắt chó đi dạo' })).toBeVisible();
+  expect(screen.getAllByRole('link', { name: 'Đặt dịch vụ' })[0]).toHaveAttribute('href', '/booking/dog-walk-1');
+  expect(screen.queryByRole('heading', { name: 'Dịch vụ bạn chọn' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Mở giỏ dịch vụ' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Thêm dịch vụ' })).not.toBeInTheDocument();
+});

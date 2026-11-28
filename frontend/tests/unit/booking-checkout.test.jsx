@@ -1,7 +1,7 @@
 import { beforeAll } from '@jest/globals';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { BookingCheckoutForm, BookingConfirmation } from '../../src/pages/public/BookingCheckout.jsx';
+import { BookingCheckoutForm, BookingConfirmation, markBookingSavedToast } from '../../src/pages/public/BookingCheckout.jsx';
 import { mobileRoutes } from '../../src/routes/mobile-route-metadata.js';
 beforeAll(() => {
   window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -247,11 +247,14 @@ test('ST-BKG-11 validates home visit under 2 hours in BookingCheckoutForm with M
   }
 });
 
-test('non-HOME visit in BookingCheckoutForm blocks past time under the date/time field without confirming and allows valid future time', async () => {
+test('A1 / GBR-09: non-HOME visit in BookingCheckoutForm enforces 2-hour notice with MSG19 under date/time and maps BOOKING_NOTICE_REQUIRED', async () => {
   jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
   jest.setSystemTime(new Date('2026-11-28T03:00:00Z'));
   try {
     const api = apiFixture(), confirmed = jest.fn();
+    api.confirm
+      .mockRejectedValueOnce({ code: 'BOOKING_NOTICE_REQUIRED', status: 422, lineFields: { 0: { startAt: 'BOOKING_NOTICE_REQUIRED' } } })
+      .mockResolvedValueOnce({ id: 'booking' });
     const outdoorService = { id: 'dog-walking', name: 'Dắt chó đi dạo', details: { locations: ['OUTDOOR'] } };
     const outdoorQuote = {
       quoteId: 'quote-outdoor', paymentMode: 'PREPAY',
@@ -260,19 +263,64 @@ test('non-HOME visit in BookingCheckoutForm blocks past time under the date/time
     render(<MemoryRouter><BookingCheckoutForm quote={outdoorQuote} services={[outdoorService]} api={api} onConfirmed={confirmed} /></MemoryRouter>);
     await screen.findByText('Nhà đã xác nhận');
     const startInput = screen.getByLabelText('Bắt đầu (giờ Việt Nam)');
-    fireEvent.change(startInput, { target: { value: '2026-11-28T09:00' } });
+    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
     fireEvent.change(screen.getByLabelText('Địa chỉ đã lưu'), { target: { value: 'address' } });
     fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
     fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
     const fieldContainer = startInput.closest('.pwc-booking-daytime');
-    expect(within(fieldContainer).getByText('Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.')).toBeVisible();
+    expect(within(fieldContainer).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
     expect(api.confirm).not.toHaveBeenCalled();
 
-    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
+    fireEvent.change(startInput, { target: { value: '2026-11-28T12:00' } });
     fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
-    await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+    expect(await within(fieldContainer).findByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+
+    fireEvent.change(startInput, { target: { value: '2026-11-28T12:30' } });
+    fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(2));
     expect(confirmed).toHaveBeenCalledWith({ id: 'booking' });
   } finally {
     jest.useRealTimers();
   }
+});
+
+test('A3 / ST-BKG-41: shows MSG22 toast once right after saving an AWAITING_PAYMENT booking and does not replay on reopen', async () => {
+  window.sessionStorage.clear();
+  const api = apiFixture();
+  api.booking.mockResolvedValue({
+    id: 'booking-saved', totalVnd: 120000, state: 'AWAITING_PAYMENT', paymentState: 'UNPAID',
+    paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: []
+  });
+  markBookingSavedToast('booking-saved');
+  const { unmount } = render(<MemoryRouter initialEntries={['/account/bookings/booking-saved']}>
+    <BookingConfirmation api={api} bookingId="booking-saved" />
+  </MemoryRouter>);
+  const toast = await screen.findByText('Lịch đặt đã được lưu. Vui lòng thanh toán trong 15 phút để xác nhận.');
+  expect(toast).toBeVisible();
+  expect(toast.closest('.pwc-booking-toast')).toHaveAttribute('role', 'status');
+  unmount();
+
+  render(<MemoryRouter initialEntries={['/account/bookings/booking-saved']}>
+    <BookingConfirmation api={api} bookingId="booking-saved" />
+  </MemoryRouter>);
+  await screen.findByText('Chờ thanh toán trước');
+  expect(screen.queryByText('Lịch đặt đã được lưu. Vui lòng thanh toán trong 15 phút để xác nhận.')).toBeNull();
+});
+
+test.each([
+  ['reopened without saved flag', false, '/account/bookings/b1', { id: 'b1', totalVnd: 120000, state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] }],
+  ['already PAID', true, '/account/bookings/b2', { id: 'b2', totalVnd: 120000, state: 'DISPATCH_PENDING', paymentState: 'PAID', paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] }],
+  ['PAYMENT_EXPIRED', true, '/account/bookings/b3', { id: 'b3', totalVnd: 120000, state: 'PAYMENT_EXPIRED', paymentState: 'UNPAID', paymentDeadlineAt: '2020-01-01T00:00:00Z', visits: [] }],
+  ['payment=returned', true, '/account/bookings/b4?payment=returned', { id: 'b4', totalVnd: 120000, state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] }],
+  ['payment=cancelled', true, '/account/bookings/b5?payment=cancelled', { id: 'b5', totalVnd: 120000, state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] }]
+])('A3 / ST-BKG-41: does not show MSG22 toast when %s', async (_label, setFlag, route, booking) => {
+  window.sessionStorage.clear();
+  const api = apiFixture();
+  api.booking.mockResolvedValue(booking);
+  if (setFlag) markBookingSavedToast(booking.id);
+  render(<MemoryRouter initialEntries={[route]}>
+    <BookingConfirmation api={api} bookingId={booking.id} />
+  </MemoryRouter>);
+  await screen.findByText(`Mã tra cứu: ${booking.id}`);
+  expect(screen.queryByText('Lịch đặt đã được lưu. Vui lòng thanh toán trong 15 phút để xác nhận.')).toBeNull();
 });
