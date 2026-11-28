@@ -137,7 +137,9 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     expect(pending.verifiedAt).toBeUndefined();
     expect(pending.canonicalCiphertext).not.toBe(contact);
     expect(contactCrypto.decrypt(pending.canonicalCiphertext)).toBe(contact);
-    await expect(service.lookup(actor, { phone: contact })).resolves.toEqual({ customer });
+    await expect(service.lookup(actor, { phone: contact })).resolves.toEqual({
+      customer: { ...customer, displayName: 'C****** Customer' }
+    });
     const { otpService, sessionService } = fixture();
     const challenge = await otpService.begin({ channel, contact, purpose: 'LOGIN' });
     await expect(otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '999999' }))
@@ -185,7 +187,9 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
       canonicalCiphertext: pending.canonicalCiphertext, state: 'VERIFIED', verifiedAt: new Date(clockNow) }))
       .rejects.toMatchObject({ code: 11000 });
     expect(await models.Contact.countDocuments({ channel: 'PHONE' })).toBe(1);
-    await expect(service.lookup(actor, { phone: '0912345678' })).resolves.toEqual({ customer });
+    await expect(service.lookup(actor, { phone: '0912345678' })).resolves.toEqual({
+      customer: { ...customer, displayName: 'C****** Customer' }
+    });
   });
   test('stores only digests, sends six digits, and expires at five minutes', async () => {
     await createActiveUser();

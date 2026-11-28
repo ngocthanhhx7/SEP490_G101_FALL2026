@@ -15,7 +15,7 @@ export function createCounterDirectoryService({ connection, customers, petCare, 
     }
     const [pets, addresses, tier] = await Promise.all([
       petCare.listPets(customer.id),
-      petCare.listAddresses(customer.id, true),
+      petCare.listAddresses(customer.id, true, true),
       tiers.read(customer.id)
     ]);
     return {
@@ -56,8 +56,8 @@ export function createCounterDirectoryService({ connection, customers, petCare, 
     },
     async addAddress(actor, customerId, body, key) {
       await customers.listPets(actor, customerId); // verifies owner is an active Customer
-      const created = await petCare.createAddress(customerId, body, key);
-      const addresses = await petCare.listAddresses(customerId, true);
+      const created = await petCare.createCounterAddress(customerId, body, key, actor.userId);
+      const addresses = await petCare.listAddresses(customerId, true, true);
       const row = addresses.find(address => String(address.id) === String(created.id));
       if (!row) throw new AppError(409, 'RELOAD_REQUIRED', 'Address created; reload the list');
       return { id: String(row.id), label: row.label, areaCode: row.areaCode,

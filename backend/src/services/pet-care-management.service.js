@@ -96,10 +96,11 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
         .limit(100)
         .lean().then(rows => rows.map(petView));
     },
-    async listAddresses(ownerId, management = false) {
+    async listAddresses(ownerId, management = false, includeCounter = false) {
       const activeCoverage = typeof coverageAreas === 'function' ? await coverageAreas() : coverageAreas;
       const served = new Set(activeCoverage.filter(row => row.enabled !== false).map(row => row.code));
-      return models.CustomerAddress.find({ ownerId, state: 'ACTIVE' })
+      return models.CustomerAddress.find({ ownerId, state: 'ACTIVE',
+        ...(includeCounter ? {} : { profileHidden: { $ne: true } }) })
         .select(management ? '+location +point +privateAccessNotes' : 'label areaCode version pointConfirmedAt')
         .sort({ _id: 1 })
         .limit(100)
@@ -201,6 +202,18 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
       });
       return { id: String(doc._id), version: 0 };
     },
+    async createCounterAddress(ownerId, body, key, staffId) {
+      id(staffId);
+      exact(body, addressKeys, ['label', 'location', 'coordinates', 'areaCode', 'pointConfirmed']);
+      return command(ownerId, 'CREATE_COUNTER_ADDRESS', key, { ...body, staffId }, async session => {
+        const values = await addressValues(body);
+        const [doc] = await models.CustomerAddress.create([{
+          ...values, ownerId, version: 0, createdChannel: 'COUNTER',
+          profileHidden: true, createdBy: staffId
+        }], { session });
+        return { id: String(doc._id), version: 0 };
+      });
+    },
     async update(ownerId, kind, resourceId, body, key) {
       id(resourceId);
       const isPet = kind === 'pet', Model = isPet ? models.Pet : models.CustomerAddress;
@@ -210,7 +223,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
         const values = isPet ? await petValues(body) : await addressValues(body);
         const update = { $set: values, $inc: { version: 1 } };
         if (isPet && body.ageMonths === undefined) update.$unset = { ageMonths: 1 };
-        const doc = await Model.findOneAndUpdate({ _id: resourceId, ownerId, state: 'ACTIVE', version: body.expectedVersion },
+        const doc = await Model.findOneAndUpdate({ _id: resourceId, ownerId, state: 'ACTIVE',
+          ...(isPet ? {} : { profileHidden: { $ne: true } }), version: body.expectedVersion },
           update, { returnDocument: 'after', session, runValidators: true });
         if (!doc) fail('VERSION_CONFLICT', 'Owned active record unavailable or changed', 409);
         return { id: String(doc._id), version: doc.version };
@@ -221,7 +235,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
       number(body.expectedVersion, 0, Number.MAX_SAFE_INTEGER, true);
       const Model = kind === 'pet' ? models.Pet : models.CustomerAddress;
       return command(ownerId, `ARCHIVE_${kind}:${resourceId}`, key, body, async session => {
-        const doc = await Model.findOneAndUpdate({ _id: resourceId, ownerId, state: 'ACTIVE', version: body.expectedVersion },
+        const doc = await Model.findOneAndUpdate({ _id: resourceId, ownerId, state: 'ACTIVE',
+          ...(kind === 'pet' ? {} : { profileHidden: { $ne: true } }), version: body.expectedVersion },
           { $set: { state: 'ARCHIVED' }, $inc: { version: 1 } }, { returnDocument: 'after', session });
         if (!doc) fail('VERSION_CONFLICT', 'Owned active record unavailable or changed', 409);
         // The archive write and checkout's bookingGuard share this document,

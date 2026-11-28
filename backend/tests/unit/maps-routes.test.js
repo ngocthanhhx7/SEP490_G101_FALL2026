@@ -28,6 +28,30 @@ test('maps is opt-in and does not mount without authentication', () => {
   expect(mapsRuntimeModule({ config: {}, env: { MAPS_ENABLED: 'true' } })).toBeNull();
   expect(mapsRuntimeModule({ config: { auth: { enabled: true } } })).toBeNull();
 });
+test('Sale Staff can search and resolve a map location while unauthorized roles cannot', async () => {
+  const service = {
+    search: jest.fn(async () => ({ provider: 'GOOGLE', items: [] })),
+    resolve: jest.fn(async () => ({ label: 'Synthetic place', coordinates: [105.85, 21.03] }))
+  };
+  const sessionService = {
+    authenticate: async req => req.get('x-test-role')
+      ? { userId: 'synthetic-staff', roles: [req.get('x-test-role')], state: 'ACTIVE', expiresAt: Date.now() + 60000 }
+      : null,
+    verifyCsrf: async (_actor, token) => token === 'synthetic-csrf'
+  };
+  const module = mapsRuntimeModule({ config: { auth: { enabled: true } },
+    env: { MAPS_ENABLED: 'true' }, sessionService, service });
+  const app = express(); app.use(express.json(), requestId); app.use(module.mount, module.router); app.use(errorHandler(() => {}));
+  const post = (role, path, body) => request(app).post('/api/v1/maps' + path)
+    .set('Host', 'localhost').set('Origin', 'http://localhost').set('x-test-role', role)
+    .set('x-csrf-token', 'synthetic-csrf').send(body);
+  await post('SALE_STAFF', '/search', { query: 'Synthetic place' }).expect(200);
+  await post('SALE_STAFF', '/places/resolve', { provider: 'GOOGLE', refId: 'synthetic' }).expect(200);
+  await post('PET_SITTER', '/search', { query: 'Synthetic place' }).expect(200);
+  await post('GUEST', '/search', { query: 'Synthetic place' }).expect(401);
+  expect(service.search).toHaveBeenCalledTimes(2);
+  expect(service.resolve).toHaveBeenCalledTimes(1);
+});
 
 test('map rendering requires a session but no CSRF for read-only resources; keeps the search budget separate', async () => {
   const renderService = { resource: jest.fn(async () => ({ body: Buffer.from('{}'), type: 'application/json' })) };

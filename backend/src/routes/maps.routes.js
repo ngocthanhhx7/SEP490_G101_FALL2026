@@ -12,7 +12,7 @@ export function mapsRuntimeModule({ config, connection, env = {}, clock = Date.n
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const c = createMapsController({ service: service ?? createLocationSearchService({ env }), renderService: renderService ?? createMapRenderService({ env }) }), router = Router();
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); res.vary('Cookie'); next(); },
-    requireSession(session, { clock }), requireRoles('CUSTOMER', 'STAFF', 'ADMIN', 'PET_SITTER'));
+    requireSession(session, { clock }), requireRoles('CUSTOMER', 'STAFF', 'ADMIN', 'PET_SITTER', 'SALE_STAFF'));
   router.get('/render/*resource', rateLimit({ windowMs: 60000, limit: 600, keyGenerator: req => String(req.auth.userId),
     standardHeaders: 'draft-8', legacyHeaders: false }), c.render);
   router.use(requireCsrf(session));

@@ -7,6 +7,7 @@ import { loadConfig } from '../../src/config/environment.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createMongoNotificationRepository } from '../../src/services/notifications/mongo-notification.repository.js';
+import { createPetCareManagement } from '../../src/services/pet-care-management.service.js';
 import { createNotificationService } from '../../src/services/notifications/notification.service.js';
 
 let replica, connection, app, owner, other, staff, config, petId, addressId;
@@ -91,6 +92,25 @@ test('confirmed map address is shared with care setup, owner notes remain scoped
   await connection.collection('visits').updateOne({ _id: reservation.insertedId }, { $set: { state: 'COMPLETED' } });
   for (let i = 0; i < 2; i++) await request(app).post(url).set(headers(owner, 'synthetic-address-archive')).send({ expectedVersion: 1 }).expect(200);
   expect((await request(app).get('/api/v1/pet-care/addresses').set(headers(owner)).expect(200)).body.data).toEqual([]);
+});
+test('counter-only address is retained for booking and excluded from both customer address lists', async () => {
+  const petCare = createPetCareManagement({
+    repository: { models: connection.models, connection }
+  });
+  const created = await petCare.createCounterAddress(owner.user.id, {
+    ...address, label: 'Counter visit location'
+  }, 'counter-only-address-001', staff.user.id);
+  const stored = await connection.models.CustomerAddress.findById(created.id).lean();
+  expect(stored).toMatchObject({ createdChannel: 'COUNTER', profileHidden: true,
+    pointConfirmedAt: expect.any(Date), areaCode: address.areaCode });
+  expect(String(stored.createdBy)).toBe(staff.user.id);
+  expect((await request(app).get('/api/v1/pet-care/addresses').set(headers(owner)).expect(200))
+    .body.data.some(row => String(row._id ?? row.id) === created.id)).toBe(false);
+  expect((await request(app).get('/api/v1/pet-care/addresses/manage').set(headers(owner)).expect(200))
+    .body.data.some(row => row.id === created.id)).toBe(false);
+  expect((await petCare.listAddresses(owner.user.id, true, true)).some(row => row.id === created.id)).toBe(true);
+  await request(app).patch('/api/v1/pet-care/addresses/' + created.id).set(headers(owner, 'counter-hidden-update'))
+    .send({ ...address, expectedVersion: 0 }).expect(409);
 });
 
 test('booking history lists every state with owner-bound pagination, dashboard reads current sources', async () => {

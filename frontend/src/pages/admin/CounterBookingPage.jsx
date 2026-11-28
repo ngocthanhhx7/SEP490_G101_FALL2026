@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, Check, ChevronDown, Plus, Search, X } from 'lucide-react';
+import { CounterAddressDialog } from './CounterAddressDialog.jsx';
 import {
   buildCounterBookingInput, counterBookingCurrency, counterBookingDateLabel,
   counterBookingFormatDdMmYyyy, counterBookingLocalDate, counterBookingParseDdMmYyyy,
@@ -86,7 +87,7 @@ function VietnameseDateInput({ value, min, max, disabled, required, ariaLabel, o
   </span>;
 }
 
-function CartLine({ line, addresses, onRemove, onUpdate, disabled }) {
+function CartLine({ line, addresses, onRemove, onUpdate, onNewAddress, disabled }) {
   const hasMoreSettings = !line.spa || line.location !== 'FACILITY';
   function updateVisitStart(index, nextDate, nextTime) {
     const combined = nextDate && nextTime ? `${nextDate}T${nextTime}` : nextDate ? `${nextDate}T09:00` : '';
@@ -120,8 +121,10 @@ function CartLine({ line, addresses, onRemove, onUpdate, disabled }) {
       {line.unitLabel === 'ngày' && <label>Số ngày<input type="number" min="1" max="60" value={line.dayCount ?? 1}
         disabled={disabled} onChange={event => onUpdate(line.key, { dayCount: Number(event.target.value) })} /></label>}
       {line.location !== 'FACILITY' && <label>Địa chỉ<select value={line.addressId || ''} disabled={disabled}
-        onChange={event => onUpdate(line.key, { addressId: event.target.value })}>
+        onChange={event => event.target.value === '__new__' ? onNewAddress({ type: 'line', key: line.key })
+          : onUpdate(line.key, { addressId: event.target.value })}>
         <option value="">Chọn địa chỉ</option>{addresses.map(address => <option value={address.id} key={address.id}>{address.label || address.address || address.fullAddress}</option>)}
+        <option value="__new__">+ Nhập địa chỉ mới</option>
       </select></label>}
     </div>}
     <button className="cb-cart-remove" type="button" disabled={disabled} aria-label={'Bỏ ' + line.name + ' khỏi giỏ'}
@@ -137,6 +140,7 @@ export function CounterBookingPage({ api, initialDate = counterBookingLocalDate(
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerError, setCustomerError] = useState('');
   const [petDialogOpen, setPetDialogOpen] = useState(false);
+  const [addressTarget, setAddressTarget] = useState(null);
   const [petSaving, setPetSaving] = useState(false);
   const [petError, setPetError] = useState('');
   const [chosenPets, setChosenPets] = useState([]);
@@ -274,6 +278,13 @@ export function CounterBookingPage({ api, initialDate = counterBookingLocalDate(
       setChosenPets(previous => [...previous, value.id]); setPetDialogOpen(false);
     } catch (error) { setPetError(errorMessage(error)); }
     finally { setPetSaving(false); }
+  }
+  function savedAddress(value) {
+    setCustomer(previous => ({ ...previous, addresses: [...previous.addresses, value] }));
+    if (addressTarget?.type === 'pickup') setPickupAddressId(value.id);
+    else if (addressTarget?.type === 'line') updateLine(addressTarget.key, { addressId: value.id });
+    requestKey.current = null;
+    setAddressTarget(null);
   }
   function addService(service) {
     if (!chosenPets.length || cart.length >= 20 || !service.locations.length) return;
@@ -449,7 +460,7 @@ export function CounterBookingPage({ api, initialDate = counterBookingLocalDate(
         <div className="cb-cart-lines">
           {basketLines.map(line => <CartLine key={line.key} line={line} addresses={addresses}
             onRemove={key => { setCart(old => old.filter(item => item.key !== key)); requestKey.current = null; }}
-            onUpdate={updateLine} disabled={busy} />)}
+            onUpdate={updateLine} onNewAddress={setAddressTarget} disabled={busy} />)}
           {!cart.length && <p className="cb-cart-empty">Chọn thú cưng và thêm dịch vụ để bắt đầu.</p>}
         </div>
         {hasFacility && <div className="cb-pickup">
@@ -458,10 +469,14 @@ export function CounterBookingPage({ api, initialDate = counterBookingLocalDate(
             <span className="cb-checkbox-icon"><Check size={15} /></span>
             <span><strong>Đón và trả tận nhà</strong><small>Cửa hàng đến nhà đón và đưa thú cưng về</small></span></label>
           {pickupEnabled && <><label className="cb-pickup-address"><span className="cb-visually-hidden">Địa chỉ đón</span>
-            <select value={pickupAddressId} onChange={event => { setPickupAddressId(event.target.value); requestKey.current = null; }}>
+            <select value={pickupAddressId} onChange={event => {
+              if (event.target.value === '__new__') setAddressTarget({ type: 'pickup' });
+              else { setPickupAddressId(event.target.value); requestKey.current = null; }
+            }}>
               <option value="">Chọn địa chỉ đón</option>
               {addresses.map(address => <option key={address.id} value={address.id}>
                 {address.label ?? address.fullAddress ?? address.address}</option>)}
+              <option value="__new__">+ Nhập địa chỉ mới</option>
             </select><ChevronDown size={15} aria-hidden="true" /></label>
             {pickupQuote?.allowed && <div className="cb-pickup-distance"><span>Khoảng cách</span><b>
               {Number(pickupQuote.distanceKm).toLocaleString('vi-VN', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km</b></div>}
@@ -498,5 +513,7 @@ export function CounterBookingPage({ api, initialDate = counterBookingLocalDate(
     </div>
     {petDialogOpen && <PetDialog api={api} onCancel={() => setPetDialogOpen(false)} onSave={savePet} busy={petSaving} />}
     {petError && <p className="cb-feedback cb-feedback-error" role="alert">{petError}</p>}
+    {addressTarget && customer && <CounterAddressDialog api={api} customerId={customer.id}
+      onSaved={savedAddress} onClose={() => setAddressTarget(null)} />}
   </section>;
 }
