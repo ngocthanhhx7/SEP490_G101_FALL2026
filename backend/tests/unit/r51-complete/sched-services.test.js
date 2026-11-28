@@ -301,6 +301,10 @@ describe('Employee Scheduling & Board Services', () => {
   // VISIT-CLOSE-01..04
   function buildClosureRepo(visitDoc) {
     const conn = makeFakeDbConnection();
+    const session = { inTransaction: () => true };
+    const deleteDogWalkLocation = jest.fn(async () => ({ deletedCount: 1 }));
+    const collection = conn.db.collection;
+    conn.db.collection = name => name === 'employeevisittravels' ? { deleteOne: deleteDogWalkLocation } : collection(name);
     const visitStore = { current: visitDoc };
     const cols = {
       visits: {
@@ -330,7 +334,7 @@ describe('Employee Scheduling & Board Services', () => {
       EmployeeScheduleEvent: { create: jest.fn(async d => d) }
     };
     return {
-      repository: { models, col: n => cols[n] ?? conn.db.collection(n), uow: { run: fn => fn({ inTransaction: () => true }) } }
+      session, deleteDogWalkLocation, repository: { models, col: n => cols[n] ?? conn.db.collection(n), uow: { run: fn => fn(session) } }
     };
   }
 
@@ -366,10 +370,11 @@ describe('Employee Scheduling & Board Services', () => {
   });
 
   test('VISIT-CLOSE-03-UTCID01 [N] close transitions overdue IN_PROGRESS visit to STAFF_CLOSED with PENDING reviewState', async () => {
-    const { repository } = buildClosureRepo(overdueVisit);
+    const { repository, session, deleteDogWalkLocation } = buildClosureRepo(overdueVisit);
     const svc = createVisitClosureService({ repository, clock: () => NOW_MS });
     const res = await svc.close(STAFF, VID, { expectedVersion: 1, reason: 'Sitter quên bấm hoàn thành' }, 'close-key-01');
     expect(res).toMatchObject({ visitId: VID, state: 'STAFF_CLOSED', version: 2, reviewState: 'PENDING' });
+    expect(deleteDogWalkLocation).toHaveBeenCalledWith({ _id: `dog-walk:${VID}` }, { session });
   });
 
   test('VISIT-CLOSE-04-UTCID01 [N] verify records ADMIN NO_SERVICE verification and rejects STAFF without ADMIN role', async () => {
