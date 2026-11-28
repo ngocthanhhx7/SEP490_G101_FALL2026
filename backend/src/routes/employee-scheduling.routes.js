@@ -108,6 +108,10 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
     router.post('/visits/:id/travel', sitter, csrf, writes, t.command);
     router.put('/visits/:id/travel/location', sitter, csrf, writes, t.locate);
     router.post('/visits/:id/travel/eta', csrf, eta, t.eta);
+    const walk = createVisitTravelController({ service: createVisitTravelService({ repository, clock, dogWalk: true }) });
+    router.get('/visits/:id/dog-walk', requireRoles('CUSTOMER', 'PET_SITTER'), reads, walk.get);
+    router.post('/visits/:id/dog-walk', sitter, csrf, writes, walk.command);
+    router.put('/visits/:id/dog-walk/location', sitter, csrf, writes, walk.locate);
   }
   return { name: 'employee-scheduling', mount: '/api/v1/employee-scheduling', router, repository, dispatch, carePlans, proposals,
     visitReminders: createVisitRemindersService({ connection, clock }),

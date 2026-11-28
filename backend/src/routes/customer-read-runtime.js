@@ -29,7 +29,8 @@ export function customerReadRuntime({ config, connection, sessionService, env, c
       (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); },
       requireSession(sessionService, { clock }), requireRoles('STAFF', 'ADMIN'), requireCsrf(sessionService), details.recordPickup);
     router.use(createVisitTrackerRouter({ connection, sessionService, clock,
-      travelEnabled: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' && env.VISIT_TRAVEL_ENABLED === 'true' }));
+      travelEnabled: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' && env.VISIT_TRAVEL_ENABLED === 'true',
+      incidentEnabled: env.FINANCE_SOURCES_ENABLED === 'true' }));
   }
   const notifications = createNotificationService({ repository: createMongoNotificationRepository({ connection,
     cursorSecret: config.auth.tokenSecret, clock }), clock });
