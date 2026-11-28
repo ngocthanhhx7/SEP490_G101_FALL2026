@@ -1,4 +1,4 @@
-import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
+import { BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { listPreviousPetSitters } from '../customer-care-history.service.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
@@ -24,8 +24,8 @@ export function createCheckoutAvailabilityService({ connection, repository, cloc
       if ((body.directory !== undefined && body.directory !== true) || (body.page !== undefined && body.directory !== true)) fail('VALIDATION_FAILED', 'Invalid directory request');
       const input = bookingCheckoutInput({ quoteId: body.quoteId, visits: [body.visit], acceptServicePolicies: true }), row = input.visits[0];
       const at = clock();
-      if (row.location === 'HOME' && row.startAt.getTime() < at + HOME_BOOKING_NOTICE_MS)
-        fail('HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance');
+      if (row.startAt.getTime() < at + BOOKING_NOTICE_MS)
+        fail('BOOKING_NOTICE_REQUIRED', 'Booking must start at least 2 hours in advance');
       const quote = await DecisionSnapshot.findOne({ _id: input.quoteId, ownerId: actor.userId, kind: 'QUOTE', expiresAt: { $gt: new Date(at) } }).select('+snapshot').lean();
       if (!quote) fail('RESOURCE_NOT_FOUND', 'Current owned quote required', 404);
       const raw = quote.snapshot.input?.items?.[row.itemIndex];

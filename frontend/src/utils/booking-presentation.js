@@ -21,8 +21,12 @@ export const bookingMoney = value => Number.isSafeInteger(value) && value >= 0
   ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value) : 'Xem trong chi tiết';
 
 
-export function homeNoticeVisitIndex(error, visits) {
-  if (error?.code !== 'HOME_BOOKING_NOTICE_REQUIRED') return -1;
-  const marked = visits.findIndex((row, index) => row.location === 'HOME' && error.lineFields?.[index]?.startAt);
-  return marked >= 0 ? marked : visits.findIndex(row => row.location === 'HOME');
+const NOTICE_ERROR_CODES = new Set(['BOOKING_NOTICE_REQUIRED', 'HOME_BOOKING_NOTICE_REQUIRED']);
+
+export function bookingNoticeVisitIndex(error, visits) {
+  if (!NOTICE_ERROR_CODES.has(error?.code) || !Array.isArray(visits) || !visits.length) return -1;
+  const marked = visits.findIndex((_, index) => error.lineFields?.[index]?.startAt);
+  return marked >= 0 ? marked : 0;
 }
+
+export const homeNoticeVisitIndex = bookingNoticeVisitIndex;

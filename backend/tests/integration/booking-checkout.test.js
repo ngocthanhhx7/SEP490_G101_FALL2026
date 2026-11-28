@@ -141,10 +141,10 @@ test('home-care availability and checkout share the inclusive 120-minute boundar
   const visitAt = minutes => ({ ...body.visits[0], startAt: new Date(at.getTime() + minutes * 60000).toISOString() });
   const short = { ...body, visits: [visitAt(119)] };
   await expect(availability.search(owner, { quoteId: q.quoteId, visit: short.visits[0] }))
-    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
+    .rejects.toMatchObject({ code: 'BOOKING_NOTICE_REQUIRED', status: 422 });
   await expect(checkout.confirm(owner, short, 'home-notice-boundary'))
-    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422,
-      details: { lineFields: { 0: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } } } });
+    .rejects.toMatchObject({ code: 'BOOKING_NOTICE_REQUIRED', status: 422,
+      details: { lineFields: { 0: { startAt: 'BOOKING_NOTICE_REQUIRED' } } } });
   expect(await connection.collection('visits').countDocuments()).toBe(0);
   const exact = { ...body, visits: [visitAt(120)] };
   await expect(availability.search(owner, { quoteId: q.quoteId, visit: exact.visits[0] })).resolves.toHaveProperty('sitters');
@@ -152,6 +152,74 @@ test('home-care availability and checkout share the inclusive 120-minute boundar
   expect(saved.visits[0].startAt).toEqual(new Date(exact.visits[0].startAt));
   expect(await checkout.confirm(owner, exact, 'home-notice-boundary')).toMatchObject({ id: saved.id });
   expect(await connection.collection('visits').countDocuments()).toBe(1);
+});
+
+test('A1 / GBR-09: OUTDOOR and FACILITY enforce the 120-minute boundary with BOOKING_NOTICE_REQUIRED while preserving payment window check', async () => {
+  const outdoorQuote = await pricing.basket(owner.userId, { items: [{ ...item('dog-walking', 1), durationMinutes: 30 }] });
+  const outdoorBody = input(outdoorQuote, 'OUTDOOR');
+  const outdoorAt = minutes => ({ ...outdoorBody.visits[0], startAt: new Date(at.getTime() + minutes * 60000).toISOString() });
+  await expect(checkout.confirm(owner, { ...outdoorBody, visits: [outdoorAt(10)] }, 'outdoor-payment-window'))
+    .rejects.toMatchObject({ code: 'VALIDATION_FAILED', status: 422 });
+  await expect(availability.search(owner, { quoteId: outdoorQuote.quoteId, visit: outdoorAt(119) }))
+    .rejects.toMatchObject({ code: 'BOOKING_NOTICE_REQUIRED', status: 422 });
+  await expect(checkout.confirm(owner, { ...outdoorBody, visits: [outdoorAt(119)] }, 'outdoor-notice-short'))
+    .rejects.toMatchObject({ code: 'BOOKING_NOTICE_REQUIRED', status: 422, details: { lineFields: { 0: { startAt: 'BOOKING_NOTICE_REQUIRED' } } } });
+  const outdoorExact = { ...outdoorBody, visits: [outdoorAt(120)] };
+  await expect(availability.search(owner, { quoteId: outdoorQuote.quoteId, visit: outdoorExact.visits[0] })).resolves.toHaveProperty('sitters');
+  const savedOutdoor = await checkout.confirm(owner, outdoorExact, 'outdoor-notice-exact');
+  expect(savedOutdoor.visits[0].location).toBe('OUTDOOR');
+
+  const facilityQuote = await pricing.basket(owner.userId, { items: [{ ...item('pet-bathing', 1), durationMinutes: 60 }] });
+  const facilityBody = input(facilityQuote, 'FACILITY');
+  const facilityAt = minutes => ({ ...facilityBody.visits[0], startAt: new Date(at.getTime() + minutes * 60000).toISOString() });
+  await expect(availability.search(owner, { quoteId: facilityQuote.quoteId, visit: facilityAt(119) }))
+    .rejects.toMatchObject({ code: 'BOOKING_NOTICE_REQUIRED', status: 422 });
+  await expect(checkout.confirm(owner, { ...facilityBody, visits: [facilityAt(119)] }, 'facility-notice-short'))
+    .rejects.toMatchObject({ code: 'BOOKING_NOTICE_REQUIRED', status: 422, details: { lineFields: { 0: { startAt: 'BOOKING_NOTICE_REQUIRED' } } } });
+  const facilityExact = { ...facilityBody, visits: [facilityAt(240)] };
+  await expect(availability.search(owner, { quoteId: facilityQuote.quoteId, visit: facilityExact.visits[0] })).resolves.toHaveProperty('sitters');
+  const savedFacility = await checkout.confirm(owner, facilityExact, 'facility-notice-exact');
+  expect(savedFacility.visits[0].location).toBe('FACILITY');
+});
+
+test('A2 / GBR-20 / ST-BKG-41: rejects bookings with more than one pet (422) without saving while keeping legacy multi-pet bookings readable', async () => {
+  const secondPet = await connection.models.Pet.create({ ownerId: owner.userId, name: 'Mimi', species: 'DOG',
+    breedCode: pet.breedCode, weightKg: 4, traits: [], careNeedsConfirmed: true });
+  const multiPetItem = { ...item('home-care', 1), petIds: [String(pet._id), String(secondPet._id)] };
+  await expect(pricing.quote(owner.userId, multiPetItem))
+    .rejects.toMatchObject({ code: 'VALIDATION_FAILED', status: 422 });
+  await expect(pricing.basket(owner.userId, { items: [multiPetItem] }))
+    .rejects.toMatchObject({ code: 'VALIDATION_FAILED', status: 422 });
+
+  const singleQuote = await quote('home-care', 1);
+  await connection.models.DecisionSnapshot.updateOne(
+    { _id: singleQuote.quoteId },
+    { $set: { 'snapshot.input.items.0.petIds': [String(pet._id), String(secondPet._id)] } }
+  );
+  const body = input(singleQuote);
+  await expect(availability.search(owner, { quoteId: singleQuote.quoteId, visit: body.visits[0] }))
+    .rejects.toMatchObject({ code: 'VALIDATION_FAILED', status: 422 });
+  await expect(checkout.confirm(owner, body, 'multi-pet-rejected'))
+    .rejects.toMatchObject({ code: 'VALIDATION_FAILED', status: 422 });
+  expect(await connection.collection('bookings').countDocuments()).toBe(0);
+  expect(await connection.collection('visits').countDocuments()).toBe(0);
+
+  const legacyBookingId = oid(), legacyVisitId = oid();
+  await connection.collection('bookings').insertOne({
+    _id: legacyBookingId, customerId: new mongoose.Types.ObjectId(owner.userId), quoteId: oid(), state: 'DISPATCH_PENDING',
+    version: 0, paymentState: 'PAID', paymentMode: 'PREPAY', paymentSnapshot: { amountVnd: 150000, currency: 'VND' },
+    visitIds: [legacyVisitId], createdAt: at,
+    checkoutSnapshot: {
+      quote: { totalVnd: 150000, baseVnd: 120000, discountVnd: 0, visitCount: 1, items: [{ visitCount: 1 }] },
+      customerVisits: [{
+        _id: legacyVisitId, state: 'SCHEDULED', startAt: new Date(at.getTime() + 86400000), endAt: new Date(at.getTime() + 90000000),
+        location: 'HOME', requestedSitterId: null,
+        snapshots: { serviceName: 'Chăm sóc tại nhà', serviceAddress: address.location, pets: [{ id: String(pet._id), name: 'Milo' }, { id: String(secondPet._id), name: 'Mimi' }] }
+      }]
+    }
+  });
+  const legacyRead = await checkout.read(owner, String(legacyBookingId));
+  expect(legacyRead.visits[0].petNames).toEqual(['Milo', 'Mimi']);
 });
 
 test('different quotes for the same pet cannot reserve overlapping times, including concurrent checkout', async () => {

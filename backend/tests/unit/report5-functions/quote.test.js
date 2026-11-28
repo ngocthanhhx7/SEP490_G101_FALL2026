@@ -10,7 +10,6 @@ const OWNER = '111111111111111111111111';
 const SERVICE = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const OTHER_SERVICE = 'bbbbbbbbbbbbbbbbbbbbbbbb';
 const PET_1 = 'cccccccccccccccccccccccc';
-const PET_2 = 'dddddddddddddddddddddddd';
 const QUOTE_ID = 'eeeeeeeeeeeeeeeeeeeeeeee';
 const NOW = Date.parse('2026-11-12T03:00:00Z');
 
@@ -18,8 +17,6 @@ function makeContext({ amountVnd = 100000, surcharges = false } = {}) {
   // Giá và tỷ lệ chỉ là fixture. Không giả định đây là giá mặc định của SRS.
   const pets = [{ _id: PET_1, version: 1, species: 'DOG', breedCode: 'mixed',
     weightKg: surcharges ? 8 : 4, traits: [] }];
-  if (surcharges) pets.push({ _id: PET_2, version: 1, species: 'DOG',
-    breedCode: 'mixed', weightKg: 4, traits: [] });
   return {
     price: { amountVnd, version: 1 },
     version: { version: 1 },
@@ -66,16 +63,15 @@ test("QUOTE-01-UTCID01 [N] Báo giá một lượt từ bảng giá hiện hành
   expect(actual).toMatchObject({ totalVnd: 100000, subtotalVnd: 100000, paymentMode: 'POSTPAY' });
 });
 
-// SRS: UC-25 bước 3–4; III.7.1 Booking — Summary and price; GBR-20.
-test("QUOTE-01-UTCID02 [N] Báo giá cộng đúng phụ phí kích thước pet thêm và di chuyển", async () => {
+// SRS: UC-25 bước 3–4; III.7.1 Booking — Summary and price; GBR-20 (một bé mỗi lịch đặt).
+test("QUOTE-01-UTCID02 [N] Báo giá cộng đúng phụ phí kích thước và di chuyển cho một bé", async () => {
   const { quote } = subject(makeContext({ surcharges: true }));
 
-  const actual = await quote(OWNER, selection({ petIds: [PET_1, PET_2] }));
+  const actual = await quote(OWNER, selection({ petIds: [PET_1] }));
 
-  expect(actual).toMatchObject({ totalVnd: 155000, subtotalVnd: 155000, paymentMode: 'POSTPAY' });
+  expect(actual).toMatchObject({ totalVnd: 135000, subtotalVnd: 135000, paymentMode: 'POSTPAY' });
   expect(actual.lines).toEqual(expect.arrayContaining([
     expect.objectContaining({ code: 'DOG_SIZE', amountVnd: 20000 }),
-    expect.objectContaining({ code: 'ADDITIONAL_PETS', amountVnd: 20000 }),
     expect.objectContaining({ code: 'TRAVEL', amountVnd: 15000 }),
   ]));
 });

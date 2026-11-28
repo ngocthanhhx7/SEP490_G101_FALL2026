@@ -8,7 +8,6 @@ import { createPricingService } from '../../../src/services/pricing/pricing.serv
 const OWNER = '111111111111111111111111';
 const SERVICE = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const PET_1 = 'cccccccccccccccccccccccc';
-const PET_2 = 'dddddddddddddddddddddddd';
 const QUOTE_ID = 'eeeeeeeeeeeeeeeeeeeeeeee';
 const NOW = Date.parse('2026-11-12T03:00:00Z');
 
@@ -16,8 +15,6 @@ function makeContext({ amountVnd = 100000, surcharges = false } = {}) {
   // Giá và tỷ lệ chỉ là fixture. Không giả định đây là giá mặc định của SRS.
   const pets = [{ _id: PET_1, version: 1, species: 'DOG', breedCode: 'mixed',
     weightKg: surcharges ? 8 : 4, traits: [] }];
-  if (surcharges) pets.push({ _id: PET_2, version: 1, species: 'DOG',
-    breedCode: 'mixed', weightKg: 4, traits: [] });
   return {
     price: { amountVnd, version: 1 },
     version: { version: 1 },
@@ -68,17 +65,17 @@ test("QUOTE-02-UTCID01 [N] Một dòng dịch vụ báo đúng giá của bookin
   expect(actual.items[0]).toMatchObject({ serviceId: SERVICE, totalVnd: 100000 });
 });
 
-// SRS: UC-25 bước 3–4; III.7.1 Booking — Summary and price; GBR-20.
+// SRS: UC-25 bước 3–4; III.7.1 Booking — Summary and price; GBR-20 (một bé mỗi lịch đặt).
 test("QUOTE-02-UTCID02 [N] Một dòng dịch vụ cộng đúng các phụ phí áp dụng", async () => {
   const { basket } = subject(makeContext({ surcharges: true }));
 
   const actual = await basket(OWNER, {
-    items: [selection({ petIds: [PET_1, PET_2] })],
+    items: [selection({ petIds: [PET_1] })],
   });
 
-  expect(actual).toMatchObject({ baseVnd: 100000, surchargeVnd: 55000,
-    totalVnd: 155000, paymentMode: 'PREPAY' });
-  expect(actual.items[0].totalVnd).toBe(155000);
+  expect(actual).toMatchObject({ baseVnd: 100000, surchargeVnd: 35000,
+    totalVnd: 135000, paymentMode: 'PREPAY' });
+  expect(actual.items[0].totalVnd).toBe(135000);
 });
 
 // SRS: UC-25; GBR-17; approved-decisions: giỏ dịch vụ nhiều lượt áp dụng trả trước PREPAY.

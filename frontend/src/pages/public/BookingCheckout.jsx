@@ -1,6 +1,6 @@
 import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { bookingStatus, bookingDate, homeNoticeVisitIndex } from '../../utils/booking-presentation.js';
+import { bookingStatus, bookingDate, bookingNoticeVisitIndex } from '../../utils/booking-presentation.js';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -17,7 +17,6 @@ import { PickupSelectionField, pickupReady, pickupInput, pickupPrice, PICKUP_UNA
 import './booking-checkout.css';
 
 const MSG19 = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
-const FUTURE_START_ERROR = 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cửa hàng', OUTDOOR: 'Ngoài trời' };
 const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ sơ đã thay đổi. Vui lòng lấy báo giá mới.',
@@ -36,6 +35,7 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   MSG20: 'Một lịch đặt kéo dài tối đa 30 ngày.',
   ADDRESS_OUT_OF_SERVICE_AREA: ADDRESS_NOT_SERVED,
   GROOMING_PAYMENT_OUTSTANDING: GROOMING_DEBT_BLOCKS_BOOKING,
+  BOOKING_NOTICE_REQUIRED: MSG19,
   HOME_BOOKING_NOTICE_REQUIRED: MSG19,
   PICKUP_DISTANCE_UNAVAILABLE: PICKUP_UNAVAILABLE,
   PICKUP_QUOTE_CHANGED: 'Phí đón vừa thay đổi. Vui lòng xem lại trước khi xác nhận.',
@@ -73,8 +73,9 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
   const allPickupsReady = pickups.every((value, index) => selectedLocations[index] !== 'FACILITY' || pickupReady(value));
   const [busySlots, setBusySlots] = useState([]);
   const today = vietnamDate();
-  const minimumFor = location => vietnamDateTime(new Date(Math.ceil((Date.now() + (location === 'HOME'
-    ? 2 * 3600000 : quote.paymentMode === 'PREPAY' ? 15 * 60000 : 1)) / 60000) * 60000));
+  const minimumFor = () => vietnamDateTime(new Date(Math.ceil((Date.now() + Math.max(
+    2 * 3600000, quote.paymentMode === 'PREPAY' ? 15 * 60000 : 1
+  )) / 60000) * 60000));
   const submit = async event => {
     event.preventDefault(); if (locked.current || (!uncertain && !allPickupsReady)) return;
     if (!uncertain) {
@@ -82,7 +83,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
         const nextVisitErrors = {};
         starts.forEach((value, index) => {
           if (value && value < minimumFor(selectedLocations[index])) {
-            nextVisitErrors[index] = selectedLocations[index] === 'HOME' ? MSG19 : FUTURE_START_ERROR;
+            nextVisitErrors[index] = MSG19;
           }
         });
         if (Object.keys(nextVisitErrors).length > 0) {
@@ -139,7 +140,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     locked.current = true; setBusy(true); setError(null);
     try { const response = await api.confirm(command.current.body, command.current.key); onConfirmed(response); }
     catch (failure) {
-      const visitIndex = homeNoticeVisitIndex(failure, command.current.body.visits);
+      const visitIndex = bookingNoticeVisitIndex(failure, command.current.body.visits);
       if (visitIndex >= 0) {
         setVisitErrors({ [visitIndex]: MSG19 });
         setUncertain(false);
@@ -157,6 +158,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     finally { locked.current = false; setBusy(false); }
   };
   return <form className="pwc-booking-checkout" onSubmit={submit}><h3>Lịch chăm sóc</h3>
+    <p className="booking-schedule-hint">Giờ Việt Nam · Đặt trước ít nhất 2 giờ.</p>
     {options.data?.groomingPaymentOutstanding && <p role="alert">{GROOMING_DEBT_BLOCKS_BOOKING}</p>}
     <fieldset disabled={busy || uncertain}>
       {visits.map((row, index) => <div className="pwc-checkout-visit" key={index}>
@@ -218,10 +220,24 @@ export function BookingConfirmation({ api, bookingId: suppliedBookingId, Details
   const load = useCallback(({ signal }) => api.booking(bookingId, { signal }).then(data => ({ data })), [api, bookingId]);
   return bookingId ? <BookingConfirmationDetail key={bookingId} bookingId={bookingId} api={api} load={load} Details={Details} visitActions={visitActions} /> : null;
 }
+const MSG22_BOOKING_SAVED_TOAST = 'Lịch đặt đã được lưu. Vui lòng thanh toán trong 15 phút để xác nhận.';
 const MSG31_PAID_TOAST = 'Đã nhận thanh toán. Cảm ơn bạn!';
 const MSG32_PAYMENT_CANCELLED = 'Thanh toán chưa thành công. Vui lòng thử lại.';
 const MSG67_PAYMENT_EXPIRED = 'Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.';
 
+export function markBookingSavedToast(bookingId) {
+  if (!bookingId) return;
+  try { window.sessionStorage.setItem(`pwc:booking-saved-toast:${bookingId}`, '1'); }
+  catch { /* ignore storage restrictions */ }
+}
+function consumeBookingSavedToast(bookingId) {
+  try {
+    const key = `pwc:booking-saved-toast:${bookingId}`;
+    const pending = window.sessionStorage.getItem(key) === '1';
+    if (pending) window.sessionStorage.removeItem(key);
+    return pending;
+  } catch { return false; }
+}
 function readPaidToastShown(bookingId) {
   try { return window.sessionStorage.getItem(`pwc:booking-paid-toast:${bookingId}`) === '1'; }
   catch { return false; }
@@ -237,6 +253,7 @@ function BookingConfirmationDetail({ bookingId, api, load, Details, visitActions
   const [paymentReturn, setPaymentReturn] = useState(() => (
     paymentQuery === 'returned' || paymentQuery === 'cancelled' ? paymentQuery : null
   ));
+  const [savedToast, setSavedToast] = useState('');
   const [paidToast, setPaidToast] = useState('');
   const resource = useApiResource(load), [link, setLink] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const key = useRef(`payment-link:${globalThis.crypto.randomUUID()}`), locked = useRef(false);
@@ -254,6 +271,16 @@ function BookingConfirmationDetail({ bookingId, api, load, Details, visitActions
     }
   }, [paymentQuery]);
   const bookingData = resource.status === 'success' ? resource.data : null;
+  useEffect(() => {
+    if (!bookingData) return;
+    if (!consumeBookingSavedToast(bookingId)) return;
+    const awaitingPayment = bookingData.state === 'AWAITING_PAYMENT'
+      && bookingData.paymentState !== 'PAID'
+      && new Date(bookingData.paymentDeadlineAt) > new Date();
+    if (!paymentReturn && awaitingPayment) {
+      setSavedToast(MSG22_BOOKING_SAVED_TOAST);
+    }
+  }, [bookingData, bookingId, paymentReturn]);
   useEffect(() => {
     if (!bookingData || !paymentReturn) return;
     if (paymentReturn === 'returned' && bookingData.paymentState === 'PAID') {
@@ -286,10 +313,11 @@ function BookingConfirmationDetail({ bookingId, api, load, Details, visitActions
   const showDetails = Details && booking.details;
   const paymentDeadline = booking.paymentDeadlineAt && ['AWAITING_PAYMENT', 'PAYMENT_EXPIRED'].includes(booking.state)
     ? new Date(booking.paymentDeadlineAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : null;
+  const activeToast = paidToast || savedToast;
   return <section className="pwc-booking-confirmation">
-    {paidToast && <div className="pwc-booking-toast" role="status" aria-live="polite">
-      <span>{paidToast}</span>
-      <button type="button" aria-label="Đóng thông báo" onClick={() => setPaidToast('')}>×</button>
+    {activeToast && <div className="pwc-booking-toast" role="status" aria-live="polite">
+      <span>{activeToast}</span>
+      <button type="button" aria-label="Đóng thông báo" onClick={() => { setPaidToast(''); setSavedToast(''); }}>×</button>
     </div>}
     {waitingWebhook && <p className="pwc-booking-pending-payment" role="status">Đang chờ xác nhận thanh toán từ payOS. Nếu bạn vừa thanh toán, hãy bấm cập nhật trạng thái đơn sau ít giây.</p>}
     {paymentExpired && <p className="pwc-booking-alert" role="alert">{MSG67_PAYMENT_EXPIRED}</p>}

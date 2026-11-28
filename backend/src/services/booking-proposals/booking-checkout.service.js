@@ -1,5 +1,5 @@
 import { canRecoverUnpublishedAttempt, runPaymentLinkAttempt } from './booking-payment-attempt.js';
-import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
+import { BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { createServiceAreaCatalog } from '../service-area-catalog.service.js';
 import { hasPreviousPetSitter, listPreviousPetSitters } from '../customer-care-history.service.js';
 import { randomInt } from 'node:crypto';
@@ -172,12 +172,12 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             }
             if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
             if (row.startAt <= deadline) fail('VALIDATION_FAILED', 'Visit must start after payment window');
-            if (counter && (row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS ||
+            if (counter && (row.startAt.getTime() < at.getTime() + BOOKING_NOTICE_MS ||
               row.startAt.getTime() > at.getTime() + 30 * 86400000))
               fail('VALIDATION_FAILED', 'Counter visits must start at least two hours and within thirty days');
-            if (row.location === 'HOME' && row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS)
-              throw new AppError(422, 'HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance', {
-                lineFields: { [input.visits.indexOf(row)]: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } }
+            if (row.startAt.getTime() < at.getTime() + BOOKING_NOTICE_MS)
+              throw new AppError(422, 'BOOKING_NOTICE_REQUIRED', 'Booking must start at least 2 hours in advance', {
+                lineFields: { [input.visits.indexOf(row)]: { startAt: 'BOOKING_NOTICE_REQUIRED' } }
               });
             let privateAccessNotes = '', selectedAddress;
             let serviceAddress = facilityAddress, areaCode = 'DISTRICT_HAI_BA_TRUNG', point = facilityCoordinates ? { type: 'Point', coordinates: [...facilityCoordinates] } : undefined;

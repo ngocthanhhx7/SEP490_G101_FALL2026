@@ -57,7 +57,7 @@
 .booking-schedule-hint { margin: 0 0 .85rem; color: var(--pwc-ink-muted); font-size: .875rem; }
 .booking-visit-select { display: grid; gap: .35rem; font-size: .9rem; font-weight: 700; min-width: 0; }
 .booking-visit-select { margin-bottom: .95rem; }
-.booking-flow .booking-compose :is(input:not([type=checkbox]),select) {
+.booking-flow .booking-compose :is(input:not([type=checkbox]):not([type=radio]),select) {
   min-height: 44px; border-color: var(--pwc-border); border-radius: var(--pwc-radius-control); color: var(--pwc-ink);
 }
 .booking-schedule-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; font-size: .85rem; }
