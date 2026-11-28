@@ -170,8 +170,9 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       role(actor, 'PET_SITTER'); const input = payrollPageInput(query, true);
       await assertPayrollStorage(connection);
       const contracts = await models.EmploymentContract.find({ employeeId: actor.userId }).sort({ version: -1 }).limit(20).lean();
-      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, supersededAt: null, effectiveAt: { $lte: now() } }).sort({ version: -1 }).lean();
-      const active = effective && (!effective.endsAt || effective.endsAt > now()) ? effective : null;
+      const asOf = now();
+      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, supersededAt: null, effectiveAt: { $lte: asOf } }).sort({ version: -1 }).lean();
+      const active = effective && (!effective.endsAt || effective.endsAt > asOf) ? effective : null;
       if (active && !contracts.some(c => String(c._id) === String(active._id))) contracts.push(active);
       const advances = await page(models.SalaryAdvance, { employeeId: actor.userId }, actor,
         { limit: input.limit, cursor: input.advanceCursor }, 'requestedAt', 'own-advances', publicAdvance);
@@ -180,7 +181,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       const adjustments = await page(models.PayrollAdjustment, { employeeId: actor.userId }, actor,
         { limit: input.limit, cursor: input.adjustmentCursor }, 'requestedAt', 'own-adjustments', publicPayrollAdjustment);
       return { contracts: contracts.map(c => ({ id: String(c._id), version: c.version, employmentType: c.employmentType, salaryBasis: c.salaryBasis,
-        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, workScheduleMode: c.workScheduleMode, minimumWeeklyMinutes: c.minimumWeeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
+        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, workScheduleMode: c.workScheduleMode, minimumWeeklyMinutes: c.minimumWeeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null, endsOn: c.endsOn ?? null })),
         activeContractId: active ? String(active._id) : null, advances: advances.items, statements: statements.items,
         advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor,
         adjustments: adjustments.items, adjustmentNextCursor: adjustments.nextCursor };

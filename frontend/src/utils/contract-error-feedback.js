@@ -1,13 +1,6 @@
-export const CONTRACT_END_AFTER_START_MESSAGE = 'Ngày kết thúc phải sau ngày bắt đầu.';
+import { formatVietnamDate } from './calendar-date.js';
 
-function formatVietnamDate(value) {
-  if (typeof value !== 'string') return null;
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return null;
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric'
-  }).format(new Date(timestamp));
-}
+export const CONTRACT_END_AFTER_START_MESSAGE = 'Ngày kết thúc phải sau ngày bắt đầu.';
 
 export function formatContractStartDateConflict(error, fallbackName) {
   if (error?.reasonCode !== 'CONTRACT_EFFECTIVE_DATE_NOT_AFTER_PRIOR') return null;

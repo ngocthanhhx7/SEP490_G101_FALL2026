@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
 import { PayrollStatement, PayrollAdjustment, PayrollField, PayrollLoadState, PayrollPager, money, date, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
 
+import { formatVietnamDate } from '../../utils/calendar-date.js';
+
 const MSG66_ADVANCE_SENT = 'Đề nghị của bạn đã được gửi cho Admin.';
 
 export function EmployeePayrollPage({ api }) {
@@ -12,9 +14,15 @@ export function EmployeePayrollPage({ api }) {
   const load = useCallback(options => api.own({ ...options, advanceCursor, statementCursor, adjustmentCursor }), [api, advanceCursor, statementCursor, adjustmentCursor]);
   const state = usePayrollWorkspace(load);
   const contracts = state.data?.contracts || [];
-  const today = new Date();
-  const contract = Object.hasOwn(state.data || {}, 'activeContractId') ? contracts.find(c => c.id === state.data.activeContractId)
-    : contracts.find(c => new Date(c.effectiveAt) <= today && (!c.endsAt || new Date(c.endsAt) > today));
+  let contract;
+  if (Object.hasOwn(state.data || {}, 'activeContractId')) {
+    contract = contracts.find(c => c.id === state.data.activeContractId);
+  } else {
+    const asOf = new Date();
+    const effective = contracts.find(c => new Date(c.effectiveAt) <= asOf);
+    if (effective && (!effective.endsAt || new Date(effective.endsAt) > asOf)) contract = effective;
+  }
+  const contractEndDate = formatVietnamDate(contract?.endsOn ?? contract?.endsAt);
   const submit = async event => {
     event.preventDefault(); const form = event.currentTarget, data = new window.FormData(form);
     const body = { amountVnd: Number(data.get('amountVnd')), reason: data.get('reason'), settlementPeriod: data.get('settlementPeriod'), settlementConsentReference: data.get('settlementConsentReference') };
@@ -37,6 +45,7 @@ export function EmployeePayrollPage({ api }) {
         <div><strong>{contract.employmentType === 'FULL_TIME' ? 'Toàn thời gian' : 'Bán thời gian'}</strong>{contract.workScheduleMode==='SELF_REGISTERED'?'Tối thiểu ':''}{contract.weeklyMinutes / 60} giờ/tuần</div>
         <div><strong>{money(contract.monthlyBaseVnd)}</strong>Gross/tháng</div>
         <div><strong>{contract.payCycle === 'WEEKLY' ? 'Hàng tuần' : 'Hàng tháng'}</strong>Kỳ trả theo hợp đồng</div>
+        {contractEndDate && <div><strong>{contractEndDate}</strong>Ngày kết thúc</div>}
       </div> : <p>Chưa có hợp đồng đang hiệu lực được Admin xác minh.</p>}</section>
       <section><h2 id="sitter-pay-advance" tabIndex={-1}>Đề nghị tạm ứng</h2>{contract && <><p>Hạn mức: {money(Math.floor(contract.monthlyBaseVnd / 2))}/tháng.</p>
         <form className="payroll-form" onSubmit={submit}>

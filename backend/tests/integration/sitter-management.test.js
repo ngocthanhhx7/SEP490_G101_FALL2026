@@ -97,6 +97,21 @@ test('detail exposes operational fields while keeping documents, money and priva
   await request(app).get(root + '/' + customer.user.id).set(headers(admin)).expect(404);
   await request(app).get(root + '/bad-id').set(headers(admin)).expect(404);
 });
+test('ST-ONB-23 exposes the display end date independently of the contract expiry instant', async () => {
+  const employeeId = new mongoose.Types.ObjectId(employee.user.id);
+  const endsAt = new Date(Date.now() + 86400000);
+  const endsOn = '2026-12-26';
+  await col('employmentcontracts').updateOne({ employeeId }, { $set: { endsAt, endsOn } });
+  try {
+    for (const actor of [admin, staff]) {
+      const response = await request(app).get(root + '/' + employee.user.id).set(headers(actor)).expect(200);
+      expect(response.body.data.contracts[0]).toMatchObject({ endsAt: endsAt.toISOString(), endsOn });
+    }
+  } finally {
+    await col('employmentcontracts').updateOne({ employeeId }, { $unset: { endsAt: '', endsOn: '' } });
+  }
+});
+
 test('activity paginates ties without customer information or duplicate visits', async () => {
   const path = root + '/' + employee.user.id + '/activity';
   const first = (await request(app).get(path).set(headers(staff)).expect(200)).body.data;

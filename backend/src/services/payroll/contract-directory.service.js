@@ -5,7 +5,6 @@ import { vietnamDate } from '../../utils/vietnam-date.js';
 import { normalizeVietnamPhone } from '../sms-template.service.js';
 
 const PAGE_SIZE = 20;
-const DAY_MS = 86400000;
 const escapeRegex = value => value.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g, '\\$&');
 const order = { effectiveAt: -1, version: -1, _id: -1 };
 
@@ -60,10 +59,7 @@ export function createContractDirectory({ connection, Contract, phoneLookup }) {
       if (count._id !== 'UPCOMING') counts[count._id.toLowerCase()] = count.total;
     }
     const items = result.items.map(row => {
-      const replacementEndsRow = row.nextEffectiveAt && (!row.endsAt || row.nextEffectiveAt <= row.endsAt);
-      const endsOn = row.endsOn ?? (replacementEndsRow
-        ? vietnamDate(new Date(row.nextEffectiveAt.getTime() - DAY_MS))
-        : row.endsAt ? vietnamDate(row.endsAt) : null);
+      const endsOn = row.endsOn ?? (row.endsAt ? vietnamDate(row.endsAt) : null);
       return {
         id: String(row._id), employeeId: String(row.employeeId), employeeName: row.employee.displayName ?? '—',
         employeeCode: row.employeeCode, employmentType: row.employmentType, monthlyBaseVnd: row.monthlyBaseVnd,

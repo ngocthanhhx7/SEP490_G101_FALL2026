@@ -274,6 +274,26 @@ test('ST-BKG-37 and ST-BKG-38 show MSG66 toast on advance submit and clear Vietn
   expect(screen.queryByText(/ADVANCE_MONTH_ALREADY_USED/)).toBeNull();
 });
 
+test('ST-ONB-23 sitter payroll legacy response does not revive an earlier contract after the latest expires', async () => {
+  const api = apiFixture();
+  api.own.mockResolvedValue({ contracts: [
+    { ...contract, effectiveAt: '2020-01-10T00:00:00+07:00', endsAt: '2020-02-10T00:00:00+07:00', version: 2 },
+    { ...contract, id: 'earlier-contract' }
+  ], advances: [], statements: [] });
+  render(<EmployeePayrollPage api={api} />);
+  expect(await screen.findByText('Chưa có hợp đồng đang hiệu lực được Admin xác minh.')).toBeInTheDocument();
+});
+
+test.each([['2026-12-26', '26/12/2026'], [undefined, '27/12/2026']])(
+  'ST-ONB-23 sitter payroll displays the current contract end day with endsOn %s', async (endsOn, expected) => {
+    const api = apiFixture();
+    api.own.mockResolvedValue({ contracts: [{ ...contract, endsOn, endsAt: '2026-12-26T17:00:00.000Z' }],
+      activeContractId: contract.id, advances: [], statements: [] });
+    render(<EmployeePayrollPage api={api} />);
+    expect(await screen.findByText(expected)).toBeInTheDocument();
+  }
+);
+
 test('ST-ONB-23 shows UC-21 contract tabs, filters and refreshes counts in Admin payroll after save', async () => {
   const api = apiFixture();
   const response = { asOf: '2026-11-28T09:00:00Z', page: 1, pageSize: 20, counts: { active: 21, ended: 1, all: 23 },

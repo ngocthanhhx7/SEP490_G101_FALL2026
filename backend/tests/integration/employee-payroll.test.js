@@ -270,7 +270,9 @@ test('ST-ONB-23 closes the prior contract at the replacement boundary and preser
   const worker = { ...sitter, userId: employeeId };
   try {
     at = new Date(boundary.getTime() - 1);
-    expect((await service.own(worker)).activeContractId).toBe(old.id);
+    const own = await service.own(worker);
+    expect(own.activeContractId).toBe(old.id);
+    expect(own.contracts.find(row => row.id === old.id)).toMatchObject({ endsOn: '2026-12-26', endsAt: boundary });
     at = boundary;
     expect((await service.own(worker)).activeContractId).toBe(saved.id);
     at = new Date('2027-01-02T00:00:00+07:00');
@@ -308,6 +310,7 @@ test('ST-ONB-23 lists all sitter contracts for Admin with status counts, filters
     version: index + 1, signedAt: new Date('2026-10-01'), effectiveAt: new Date(Date.UTC(2026, 10, index - 18)),
     employmentType: index === 21 ? 'FULL_TIME' : 'PART_TIME', monthlyBaseVnd: 3000000
   }));
+  history[19].endsAt = new Date('2026-11-10T00:00:00+07:00');
   history[20].endsOn = '2026-11-02';
   history[20].endsAt = history[21].effectiveAt;
   await connection.collection('employmentcontracts').insertMany(history);
@@ -319,6 +322,7 @@ test('ST-ONB-23 lists all sitter contracts for Admin with status counts, filters
     expect(all.items).toHaveLength(20);
     expect(all.items[0]).toMatchObject({ status: 'UPCOMING', employeeId, employmentType: 'FULL_TIME', monthlyBaseVnd: 3000000 });
     expect(all.items[1]).toMatchObject({ status: 'ACTIVE', endsOn: '2026-11-02' });
+    expect(all.items[2]).toMatchObject({ status: 'ENDED', endsOn: '2026-11-10' });
     expect((await get({ tab: 'ALL', search: 'ONB23', page: 2 })).body.data.items).toHaveLength(2);
     for (const search of ['Direct', 'T-ONB23-A', '0901 234 567', '+84901234567']) {
       const { data } = (await get({ search, tab: 'ALL', employmentType: 'FULL_TIME' })).body;

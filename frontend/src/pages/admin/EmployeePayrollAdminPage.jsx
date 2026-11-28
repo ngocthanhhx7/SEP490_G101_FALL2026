@@ -263,9 +263,9 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
         <AutomaticPayrollForm onSaved={state.refresh} />
       </details>
       <p>Hợp đồng tuyển mới được soạn, in và xác minh ngay trong hồ sơ ứng viên trước khi hoàn tất duyệt.</p>
-      <section className="ops-builder">
+      <section className="ops-builder payroll-contract-workspace">
         <PayrollContractDirectory api={api} revision={contractListRevision} />
-        <details>
+        <details open>
           <summary>Xác minh hợp đồng cũ / thay đổi hợp đồng</summary>
           {contractNotice && <Notice state="error" title="Chưa lưu hợp đồng">{contractNotice}</Notice>}
           <EmployeeContractForm
