@@ -6,6 +6,7 @@ import { createApp } from '../../src/app.js';
 import { connectDatabase } from '../../src/config/database.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { publicPolicyVersionModel } from '../../src/models/public-policy-version.model.js';
+import { identityModels } from '../../src/models/identity.model.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { employmentTerms } from '../fixtures/employment-terms.js';
@@ -57,7 +58,7 @@ async function intake() {
     identityNumber: '012345678901', experience: 'Kinh nghiệm chăm sóc chó mèo tại nhà.', requestedServices: ['Dắt chó đi dạo'],
     workAreas: ['Hà Nội'], employmentType: 'FULL_TIME', documents, policyVersions: { terms: 'synthetic-v1', privacy: 'synthetic-v1' } };
   const submit = (payload = body, key = 'synthetic-application-guest') => agent.post('/api/v1/applications').set(headers).set('Idempotency-Key', key).send(payload);
-  return { agent, body, headers, submit };
+  return { agent, body, headers, submit, intakeCookie: opened.headers['set-cookie'][0].split(';')[0] };
 }
 
 test('UC-16 / GBR-25 / GBR-28: Guest applies, Admin approves, then the new Sitter verifies email and signs in', async () => {
@@ -131,6 +132,38 @@ test('Guest intake prevents cross-origin upload, missing capability, foreign doc
   await stranger.submit({ ...guest.body, documents: guest.body.documents }).expect(403);
   expect(await col('sitterapplications').countDocuments()).toBe(0);
   expect(await col('users').countDocuments()).toBe(0);
+});
+
+test('contact-specific MSG40 requires a valid session for the verified contact owner', async () => {
+  const guest = await intake();
+  const User = userModel(connection);
+  const owner = await User.create({ displayName: 'Synthetic Customer', roles: ['CUSTOMER'], state: 'ACTIVE' });
+  const other = await User.create({ displayName: 'Synthetic Other', roles: ['CUSTOMER'], state: 'ACTIVE' });
+  const crypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
+  const contact = crypto.lookup('EMAIL', guest.body.email);
+  await identityModels(connection).Contact.create({
+    channel: 'EMAIL', userId: owner._id, state: 'VERIFIED', lookupKey: contact.lookupKey,
+    canonicalCiphertext: crypto.encrypt(contact.canonicalValue), verifiedAt: new Date(now)
+  });
+  const sessions = createSessionService({ connection, clock: () => now, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
+  const issue = user => connection.transaction(session => sessions.issueInTransaction(user, session));
+  const send = async (user, key) => {
+    const session = await issue(user);
+    return request(app).post('/api/v1/applications').set(guest.headers)
+      .set('Cookie', `${guest.intakeCookie}; pwc_session=${session.token}`)
+      .set('X-CSRF-Token', session.csrfToken).set('Idempotency-Key', key).send(guest.body);
+  };
+
+  const anonymous = await guest.submit(guest.body, 'anonymous-conflict').expect(409);
+  expect(anonymous.body.error.code).toBe('APPLICATION_SUBMISSION_UNAVAILABLE');
+  expect(anonymous.body.error).not.toHaveProperty('conflictField');
+  const foreign = await send(other, 'foreign-verified-contact');
+  expect(foreign.status).toBe(409);
+  expect(foreign.body.error).toEqual(anonymous.body.error);
+  const verified = await send(owner, 'owner-verified-contact');
+  expect(verified.status).toBe(409);
+  expect(verified.body.error).toMatchObject({ code: 'CONTACT_UNAVAILABLE', conflictField: 'email' });
+  expect(await col('sitterapplications').countDocuments()).toBe(0);
 });
 
 test('an intake can recover its original receipt without exposing later status or authorizing a different intake', async () => {

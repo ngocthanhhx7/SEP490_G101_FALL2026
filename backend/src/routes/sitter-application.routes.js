@@ -94,6 +94,11 @@ export function sitterApplicationModule({
     requireRoles('ADMIN')
   ];
   const csrf = requireCsrf(sessionService);
+  const authenticate = requireSession(sessionService, { clock });
+  const verifiedGuestContact = (req, res, next) => {
+    if (!req.get('X-CSRF-Token')) return next();
+    return authenticate(req, res, () => csrf(req, res, next));
+  };
   const guest = applicationIntakeMiddleware({ secret: config.auth.tokenSecret, clock, secure: config.nodeEnv === 'production' });
   const router = Router(), contracts = createEmploymentDocumentController(employmentDocuments);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
@@ -111,7 +116,7 @@ export function sitterApplicationModule({
   router.post(
     '/',
     requireSameOrigin,
-    ...(guestSubmission ? [guest.require] : []),
+    ...(guestSubmission ? [guest.require, verifiedGuestContact] : []),
     ...(authenticatedSubmission ? [requireSession(sessionService, { clock }), csrf] : []),
     createSitterApplicationController({ service }).createRoot
   );
