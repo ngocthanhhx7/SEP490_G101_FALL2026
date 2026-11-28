@@ -65,6 +65,7 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/visits/:id/access-notes', sitter, care.accessNotes);
   const handover = createVisitHandoverController(createVisitHandoverService({ repository, clock }));
   router.get('/visits/:id/handover', sitter, handover.get);
+  router.get('/visits/:id/handover/reports/:reportVisitId', sitter, handover.earlierReport);
   router.post('/visits/:id/handover-confirmations', sitter, csrf, handover.confirm);
   router.post('/offers/:id/acceptances', sitter, csrf, c.accept);
   router.post('/offers/:id/declines', sitter, csrf, c.decline);
