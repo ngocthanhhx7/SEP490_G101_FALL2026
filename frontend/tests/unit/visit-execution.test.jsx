@@ -38,18 +38,89 @@ test('checklist requires a reason for skipped work and sends only the current vi
     items: [{ itemId: 'pet-condition', status: 'SKIPPED', reason: 'Cần bác sĩ kiểm tra theo yêu cầu chủ nuôi' }] }, expect.any(String)));
 });
 
-test('ST-BKG-08 sends the optional customer note with the checklist save', async () => {
-  const api = { execution: jest.fn().mockResolvedValue({ data: { visitId: 'visit', version: 5, state: 'IN_PROGRESS',
-    checklistItemIds: ['pet-condition'], checklist: [], customerNote: 'Ghi chú đã lưu' } }),
-  executeVisit: jest.fn().mockResolvedValue({ data: {} }) };
+test('ST-BKG-43 shows MSG85 and keeps the saved checklist read-only while editing the checkout note', async () => {
+  let row = { visitId: 'visit', version: 5, state: 'IN_PROGRESS', checklistSaved: false,
+    checklistItemIds: ['service-scope', 'pet-condition'], checklist: [] };
+  const api = {
+    execution: jest.fn(async () => ({ data: row })),
+    executeVisit: jest.fn(async (_visitId, action, payload) => {
+      row = { ...row, version: row.version + 1,
+        ...(payload.items ? { checklist: payload.items, checklistSaved: true } : { customerNote: payload.customerNote }),
+        ...(action === 'check-outs' ? { state: 'COMPLETED', checkOutAt: '2026-11-28T03:00:00Z' } : {}) };
+      return { data: row };
+    }),
+    uploadEvidence: jest.fn().mockResolvedValue({ id: 'b'.repeat(64), state: 'READY' })
+  };
+  const renderVisit = key => <VisitExecution key={key} api={api} visitId="visit" />;
+  const view = render(renderVisit('before-mutation'));
+  const service = await screen.findByLabelText('Thực hiện nội dung dịch vụ');
+  const save = () => screen.queryByRole('button', { name: 'Lưu nội dung chăm sóc' });
+  const checkOut = () => screen.getByRole('button', { name: 'Check-out hoàn tất ca' });
+  expect(save()).toBeDisabled();
+  fireEvent.change(service, { target: { value: 'DONE' } });
+  expect(save()).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Kiểm tra tình trạng thú cưng'), { target: { value: 'SKIPPED' } });
+  expect(save()).toBeDisabled();
+  const reason = 'Đã kiểm tra trước đó';
+  const skipReason = () => screen.getByLabelText('Lý do không thực hiện: Kiểm tra tình trạng thú cưng');
+  fireEvent.change(skipReason(), { target: { value: reason } });
+  fireEvent.click(save());
+  expect(await screen.findByText('Checklist đã được lưu.')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Đang chăm sóc' })).toBeVisible();
+  expect(screen.getByLabelText('Thực hiện nội dung dịch vụ')).toBeDisabled();
+  expect(skipReason()).toBeDisabled();
+  expect(skipReason()).toHaveValue(reason);
+  expect(save()).not.toBeInTheDocument();
+  expect(checkOut()).toBeDisabled();
+
+  view.rerender(renderVisit('reopened'));
+  expect(await screen.findByText('Đã lưu checklist')).toBeVisible();
+  expect(screen.getByLabelText('Thực hiện nội dung dịch vụ')).toBeDisabled();
+  const note = await screen.findByLabelText('Ghi chú cho khách');
+  expect(note).toBeEnabled();
+  const addPhoto = () => fireEvent.change(screen.getByLabelText('Ảnh tại ca chăm sóc'), { target: {
+    files: [new globalThis.File(['synthetic'], 'out.png', { type: 'image/png' })]
+  } });
+  addPhoto();
+  fireEvent.click(checkOut());
+  expect(screen.getByText('Trường này là bắt buộc.')).toBeVisible();
+  expect(api.uploadEvidence).not.toHaveBeenCalled();
+  fireEvent.change(note, { target: { value: 'Milo đã uống nước.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu ghi chú' }));
+  await waitFor(() => expect(screen.getByDisplayValue('Milo đã uống nước.')).toBeEnabled());
+  expect(api.executeVisit).toHaveBeenNthCalledWith(2, 'visit', 'checklists', {
+    expectedVersion: 6, customerNote: 'Milo đã uống nước.'
+  }, expect.any(String));
+  addPhoto();
+  fireEvent.change(screen.getByLabelText('Ghi chú cho khách'), { target: { value: 'Milo uống nước và ăn đủ.' } });
+  fireEvent.click(checkOut());
+  await waitFor(() => expect(api.executeVisit).toHaveBeenNthCalledWith(3, 'visit', 'check-outs', {
+    expectedVersion: 7, mediaId: 'b'.repeat(64), customerNote: 'Milo uống nước và ăn đủ.'
+  }, expect.any(String)));
+});
+
+test('ST-BKG-08 preserves an unsaved customer note across checklist save and saves it separately', async () => {
+  let row = { visitId: 'visit', version: 5, state: 'IN_PROGRESS', checklistItemIds: ['pet-condition'],
+    checklist: [], customerNote: 'Ghi chú đã lưu' };
+  const api = { execution: jest.fn(async () => ({ data: row })), executeVisit: jest.fn(async (_id, _action, payload) => {
+    row = { ...row, version: row.version + 1,
+      ...(payload.items ? { checklist: payload.items, checklistSaved: true } : { customerNote: payload.customerNote }) };
+    return { data: row };
+  }) };
   render(<VisitExecution api={api} visitId="visit" />);
   const note = await screen.findByLabelText('Ghi chú cho khách');
   expect(note).toHaveValue('Ghi chú đã lưu');
   fireEvent.change(note, { target: { value: 'Milo uống đủ nước.' } });
   fireEvent.change(screen.getByLabelText('Kiểm tra tình trạng thú cưng'), { target: { value: 'DONE' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu nội dung chăm sóc' }));
-  await waitFor(() => expect(api.executeVisit).toHaveBeenCalledWith('visit', 'checklists', { expectedVersion: 5,
-    items: [{ itemId: 'pet-condition', status: 'DONE' }], customerNote: 'Milo uống đủ nước.' }, expect.any(String)));
+  expect(await screen.findByText('Checklist đã được lưu.')).toBeVisible();
+  expect(api.executeVisit).toHaveBeenNthCalledWith(1, 'visit', 'checklists', { expectedVersion: 5,
+    items: [{ itemId: 'pet-condition', status: 'DONE' }] }, expect.any(String));
+  expect(screen.getByLabelText('Ghi chú cho khách')).toHaveValue('Milo uống đủ nước.');
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu ghi chú' }));
+  await waitFor(() => expect(api.executeVisit).toHaveBeenNthCalledWith(2, 'visit', 'checklists', {
+    expectedVersion: 6, customerNote: 'Milo uống đủ nước.'
+  }, expect.any(String)));
 });
 
 test('sitter saves a customer note independently of versioned workflow tasks', async () => {

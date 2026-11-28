@@ -387,15 +387,15 @@ test.each(['legacy', 'versioned'])('ST-BKG-26 full flow: customer edits, sitter 
   }
 
   // An optional completed item cannot satisfy the missing required task.
-  const partial = await request(app)
+  await request(app)
     .patch(`/api/v1/visits/${visitId}/checklists`)
     .set(authHeaders(sitterSession, 'checklist-partial-01'))
     .send({
       expectedVersion: checkedIn.body.data.version,
       items: [...defaults, { itemId: optionalCustom.itemId, status: 'DONE' }]
     })
-    .expect(200);
-  let versionAfterNote = partial.body.data.version;
+    .expect(422);
+  let versionAfterNote = checkedIn.body.data.version;
   if (versioned) {
     const note = await request(app).patch(`/api/v1/visits/${visitId}/checklists`)
       .set(authHeaders(sitterSession, 'synthetic-versioned-care-note'))
@@ -404,7 +404,7 @@ test.each(['legacy', 'versioned'])('ST-BKG-26 full flow: customer edits, sitter 
     const progress = await request(app).get(`/api/v1/visits/${visitId}/execution`)
       .set(authHeaders(sitterSession)).expect(200);
     expect(progress.body.data).toMatchObject({ customerNote: 'Milo đã uống nước.',
-      checklist: [{ itemId: optionalCustom.itemId, status: 'DONE' }] });
+      checklist: [], checklistSaved: false });
   }
   const blocked = await request(app)
     .post(`/api/v1/visits/${visitId}/check-outs`)

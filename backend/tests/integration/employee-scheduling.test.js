@@ -36,6 +36,7 @@ import { createBookingCheckoutService } from '../../src/services/booking-proposa
 import { reasonsOfVisit } from '../../src/services/employee-scheduling/needs-action.service.js';
 import { finalizeExceptionalBooking } from '../../src/services/employee-scheduling/booking-terminal.service.js';
 import { readDirectedSitterPage } from '../../src/services/booking-proposals/directed-sitter-directory.service.js';
+import { workflowHash } from '../../src/services/care/workflow-snapshot.service.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
@@ -226,6 +227,74 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect(await connection.collection('caremediabindings').countDocuments({ visitId: String(row._id) })).toBe(2);
 });
 
+test.each(['legacy', 'versioned'])('ST-BKG-43 saves a complete %s checklist once and replays the first command', async mode => {
+  const sitter = await employee({ configure: false, contract: false }), row = await visit({ start: '2026-10-30T02:50:00Z' });
+  const sitterId = new mongoose.Types.ObjectId(sitter.userId);
+  const tasks = ['feed', 'water'].map(itemId => ({ itemId, label: itemId, required: true }));
+  const definition = { title: 'Synthetic workflow', steps: [] };
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    sitterId, state: 'IN_PROGRESS', checkInAt: new Date(clock()),
+    'snapshots.checklistItemIds': tasks.map(task => task.itemId),
+    ...(mode === 'versioned' ? {
+      'snapshots.workflow': { definition, revision: 1, hash: workflowHash(definition) },
+      'careInstructions.tasks': tasks
+    } : {})
+  } });
+  const mediaId = String(oid()).padStart(64, '0');
+  await connection.collection('privateimages').insertOne({ _id: mediaId, ownerId: sitterId,
+    state: 'READY', contentDigest: 'a'.repeat(64), byteLength: 100 });
+  const finance = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } },
+    env: { FINANCE_SOURCES_ENABLED: 'true' }, sessionService, clock });
+  const server = express(); server.use(express.json(), requestId);
+  server.use('/api/v1', finance.router); server.use(errorHandler(() => {}));
+  const url = `/api/v1/visits/${row._id}`;
+  const headers = key => ({ 'x-test-actor': sitter.userId, 'x-csrf-token': 'synthetic-csrf',
+    'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' });
+  const save = (key, input) => request(server).patch(url + '/checklists').set(headers(key)).send(input);
+  const checkout = (key, input) => request(server).post(url + '/check-outs').set(headers(key)).send(input);
+  const read = async () => (await request(server).get(url + '/execution').set('x-test-actor', sitter.userId).expect(200)).body.data;
+  const partial = [{ itemId: 'feed', status: 'DONE' }];
+  const body = { expectedVersion: 0, items: [...partial, { itemId: 'water', status: 'SKIPPED', reason: 'Already has fresh water' }] };
+  await save('st3-bkg43-incomplete', { ...body, items: partial }).expect(422);
+  expect(await read()).toMatchObject({ version: 0, checklist: [], checklistSaved: false });
+  await checkout('st3-bkg43-before-save', { expectedVersion: 0, mediaId, customerNote: 'Synthetic note' }).expect(409)
+    .expect(response => expect(response.body.error.code).toBe('CHECKLIST_REQUIRED'));
+
+  // A checklist partially saved by the old version can still be finalized once.
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { checklist: partial } });
+  expect(await read()).toMatchObject({ version: 0, checklist: partial, checklistSaved: false });
+
+  const keys = ['st3-bkg43-first-client', 'st3-bkg43-second-client'];
+  const results = await Promise.all(keys.map(key => save(key, body)));
+  expect(results.map(result => result.status).sort()).toEqual([200, 409]);
+  const winner = results.findIndex(result => result.status === 200);
+  const first = results[winner].body.data;
+  expect(first).toMatchObject({ version: 1, state: 'IN_PROGRESS' });
+  await save('st3-bkg43-rewrite', { expectedVersion: 1,
+    items: [{ itemId: 'feed', status: 'SKIPPED', reason: 'Changed' }, body.items[1]], customerNote: 'Unexpected overwrite' })
+    .expect(409).expect(response => expect(response.body.error.code).toBe('CHECKLIST_ALREADY_SAVED'));
+  expect(await read()).toMatchObject({ version: 1, checklist: body.items, checklistSaved: true });
+
+  await checkout('st3-bkg43-no-note', { expectedVersion: 1, mediaId }).expect(422)
+    .expect(response => expect(response.body.error).toMatchObject({ code: 'VALIDATION_FAILED',
+      fieldErrors: { customerNote: 'Trường này là bắt buộc.' } }));
+  await save('st3-bkg43-note-first', { expectedVersion: 1, customerNote: ' First note ' }).expect(200);
+  await save('st3-bkg43-note-edit', { expectedVersion: 2, customerNote: ' Edited note ' }).expect(200);
+  expect((await save(keys[winner], body).expect(200)).body.data).toEqual(first);
+  expect(await read()).toMatchObject({ version: 3, checklist: body.items, checklistSaved: true, customerNote: 'Edited note' });
+  const checklistEvents = await connection.collection('financesourceevents').countDocuments({
+    type: 'VisitCHECKLIST', bookingId: String(row.bookingId)
+  });
+  expect(checklistEvents).toBe(1);
+  await checkout('st3-bkg43-no-photo', { expectedVersion: 3, customerNote: 'Synthetic note' }).expect(422);
+  await checkout('st3-bkg43-blank-note', { expectedVersion: 3, mediaId, customerNote: '  ' }).expect(422)
+    .expect(response => expect(response.body.error.fieldErrors.customerNote).toBe('Trường này là bắt buộc.'));
+  await checkout('st3-bkg43-finish', { expectedVersion: 3, mediaId, customerNote: ' Final note at checkout. ' }).expect(200);
+  expect(await read()).toMatchObject({ version: 4, state: 'COMPLETED', checklist: body.items,
+    customerNote: 'Final note at checkout.', evidence: [{ kind: 'CHECK_OUT', mediaId }] });
+  expect((await save(keys[winner], body).expect(200)).body.data).toEqual(first);
+});
+
 test('versioned visit notes are saved by the assigned sitter and visible only in the owning customer report', async () => {
   const sitter = await employee(), otherSitter = await employee();
   const row = await visit({ start: '2026-10-30T02:50:00Z' });
@@ -277,7 +346,7 @@ test('execution read exposes timing and bound evidence while excluding private n
   const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()) });
   const result = await service.readVisit(sitter, String(row._id));
   expect(result).toMatchObject({ visitId: String(row._id), state: 'ASSIGNED', version: 0, checklistItemIds: ['service-scope', 'pet-condition'] });
-  expect(Object.keys(result).sort()).toEqual(['visitId', 'state', 'version', 'startAt', 'endAt', 'checkInAt', 'checkOutAt', 'checklistItemIds', 'checklist', 'serverNow', 'checkInOpensAt', 'checkInClosesAt', 'checkOutClosesAt', 'checklistItems', 'evidence', 'serviceName', 'completionAttention', 'closureOutcome', 'workflow'].sort());
+  expect(Object.keys(result).sort()).toEqual(['visitId', 'state', 'version', 'startAt', 'endAt', 'checkInAt', 'checkOutAt', 'checklistItemIds', 'checklist', 'checklistSaved', 'serverNow', 'checkInOpensAt', 'checkInClosesAt', 'checkOutClosesAt', 'checklistItems', 'evidence', 'serviceName', 'completionAttention', 'closureOutcome', 'workflow'].sort());
   await expect(service.readVisit(other, String(row._id))).rejects.toMatchObject({ status: 404 });
   await expect(service.readVisit(customer, String(row._id))).rejects.toMatchObject({ status: 403 });
   const runtime = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } }, env: { FINANCE_SOURCES_ENABLED: 'true' }, clock,

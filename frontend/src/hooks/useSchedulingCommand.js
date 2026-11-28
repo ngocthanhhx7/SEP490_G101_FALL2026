@@ -22,6 +22,7 @@ const errors = {
   CHECK_IN_TOO_EARLY: 'Chưa đến giờ check-in. Có thể bắt đầu từ 30 phút trước ca.',
   CHECK_OUT_DEADLINE_PASSED: 'Đã quá hạn check-out. Cần liên hệ điều phối để đối chiếu ca.',
   CHECKLIST_REQUIRED: 'Cần lưu đủ nội dung chăm sóc trước khi check-out.',
+  CHECKLIST_ALREADY_SAVED: 'Checklist đã được lưu. Tải lại tiến độ để xem nội dung đã lưu.',
   CHECKLIST_INVALID: 'Nội dung chăm sóc chưa đầy đủ; mục không thực hiện cần ghi rõ lý do.',
   EVIDENCE_NOT_READY: 'Ảnh bằng chứng chưa sẵn sàng. Kiểm tra ảnh đã tải lên.',
   EVIDENCE_ALREADY_USED: 'Ảnh đã được dùng làm bằng chứng. Chọn ảnh khác cho thao tác này.',

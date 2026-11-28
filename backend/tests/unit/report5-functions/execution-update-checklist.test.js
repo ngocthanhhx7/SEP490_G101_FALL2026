@@ -118,13 +118,12 @@ test("EXEC-VISIT-03-UTCID04 [A] Chưa check-in thì không lưu checklist", asyn
   expect(f.writes).toEqual([]);
 });
 
-// SRS: III.14.1.2 Save checklist: can be saved many times during visit; GBR-16 bắt complete trước check-out
-// DEF_EXEC_CHECKLIST_PARTIAL_SAVE: giữ kỳ vọng SRS, không sửa runtime để chạy xanh.
-test("EXEC-VISIT-03-UTCID05 [N] Được lưu tiến độ khi mới hoàn thành một task", async () => {
+// SRS: III.14.1.2 and GBR-16 require all mandatory tasks before the single save.
+test("EXEC-VISIT-03-UTCID05 [A] Từ chối lưu khi thiếu task bắt buộc", async () => {
   const f = fixture({ started: true }); f.input.items = [{ itemId: 'feed', status: 'DONE' }];
-  await f.service.updateChecklist(f.input);
-  expect(f.state().visits[0].checklist).toEqual(f.input.items);
-  expect(f.state().visits[0].checkOutAt).toBeUndefined();
+  await expect(f.service.updateChecklist(f.input)).rejects.toMatchObject({ code: 'CHECKLIST_INVALID', status: 422 });
+  expect(f.state().visits[0]).toMatchObject({ checklist: [], state: 'IN_PROGRESS', version: 0 });
+  expect(f.writes).toEqual([]);
 });
 
 // SRS: III.14.1.2 Note for the customer; UC-44

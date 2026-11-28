@@ -10,6 +10,7 @@ import { VisitEvidencePreview } from '../../components/common/VisitEvidencePrevi
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 
 const MSG01 = 'Trường này là bắt buộc.';
+const MSG85 = 'Checklist đã được lưu.';
 const pendingToastByVisit = new Map();
 const date = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 const timeVietnam = value => {
@@ -61,16 +62,27 @@ export function VisitExecution({ api, visitId, onChanged }) {
       const hhmm = timeVietnam(resource.data.checkOutAt);
       if (hhmm) setToastMessage(`Bạn đã check-out lúc ${hhmm}. Báo cáo chăm sóc đã được gửi cho khách.`);
       pendingToastByVisit.delete(visitId);
+    } else if (pending === 'CHECKLIST') {
+      if (resource.data.checklistSaved) setToastMessage(MSG85);
+      pendingToastByVisit.delete(visitId);
     }
   }, [visitId, resource.status, resource.data]);
   function clearFile() { setFile(null); setFileError(''); upload.current = null; if (input.current) input.current.value = ''; }
   const command = useSchedulingCommand(result => {
     if (result?.action === 'check-ins') pendingToastByVisit.set(visitId, 'CHECK_IN');
     if (result?.action === 'check-outs') pendingToastByVisit.set(visitId, 'CHECK_OUT');
-    if (!result?.noteOnly) { clearFile(); setItems({}); }
-    if (result?.noteOnly || result?.action === 'check-outs' || resource.data?.workflow?.mode !== 'VERSIONED') setCustomerNote(null);
+    if (result?.action === 'checklists') {
+      if (result.noteOnly) setCustomerNote(null);
+      else {
+        pendingToastByVisit.set(visitId, 'CHECKLIST');
+        setItems({});
+      }
+    } else {
+      clearFile();
+      setCustomerNote(null);
+      onChanged?.();
+    }
     resource.retry();
-    onChanged?.();
   });
   const row = resource.data, locked = command.busy || command.pending;
   const serverTime = Date.parse(row?.serverNow);
@@ -123,7 +135,11 @@ export function VisitExecution({ api, visitId, onChanged }) {
     ? row.checklistItems
     : (Array.isArray(required) ? required.map(id => ({ itemId: id, label: labels[id] || id, required: true })) : []);
   const label = id => allChecklistItems.find(item => item.itemId === id)?.label || labels[id] || id;
-  const current = id => items[id] ?? row.checklist?.find(item => item.itemId === id) ?? { itemId: id, status: '', reason: '' };
+  const checklistSaved = row.checklistSaved ?? (Boolean(row.checklist?.length) && Array.isArray(required)
+    && required.every(id => row.checklist.some(item => item.itemId === id
+      && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim()))));
+  const current = id => (checklistSaved ? undefined : items[id])
+    ?? row.checklist?.find(item => item.itemId === id) ?? { itemId: id, status: '', reason: '' };
   const complete = Array.isArray(required) && required.every(id => {
     const item = current(id); return item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim();
   });
@@ -133,10 +149,9 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const versioned = row.workflow?.mode === 'VERSIONED';
   const phaseComplete = phase => row.workflow?.tasks.filter(task => task.step.phase === phase).every(task => !['BLOCKED','NEEDS_REVIEW'].includes(task.status) && (!task.step.required || task.status === 'COMPLETED' || task.status === 'SKIPPED' && task.step.canSkip) && task.step.photoSlots.every(slot => task.evidence.filter(photo => photo.photoSlotId === slot.photoSlotId).length >= slot.minPhotos));
   const workflowReady = !versioned || (row.state === 'ASSIGNED' ? phaseComplete('CHECK_IN') : ['CHECK_IN','EXECUTION','CHECK_OUT'].every(phaseComplete));
-  const savedChecklist = versioned && !allChecklistItems.length || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
-    item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
+  const checkoutChecklistReady = checklistSaved || versioned && Array.isArray(required) && !required.length;
   const noteField = <label>Ghi chú cho khách
-    <textarea ref={noteInput} rows={3} maxLength={2000} disabled={expired} value={customerNote ?? row.customerNote ?? ''}
+    <textarea ref={noteInput} rows={3} maxLength={2000} value={customerNote ?? row.customerNote ?? ''}
       aria-invalid={Boolean(noteError)} aria-describedby={noteError ? 'visit-customer-note-error' : undefined}
       onChange={event => { setCustomerNote(event.target.value); if (noteError) setNoteError(''); }} />
     {noteError && <small id="visit-customer-note-error" className="visit-execution__field-error" role="alert">{noteError}</small>}
@@ -162,17 +177,8 @@ export function VisitExecution({ api, visitId, onChanged }) {
     {!toastMessage && command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại thao tác ca</Button>}
     {versioned && <VisitWorkflowExecution row={row} api={api} visitId={visitId} onSaved={() => { resource.retry(); onChanged?.(); }} locked={locked || early || expired} />}
-    {versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked || expired}>
-      <legend>Báo cáo chăm sóc</legend>
-      {noteField}
-      <Button disabled={customerNote === null || customerNote === (row.customerNote ?? '')} onClick={() => {
-        command.execute(async key => ({
-          ...await api.executeVisit(visitId, 'checklists', { expectedVersion: row.version, customerNote }, key),
-          noteOnly: true
-        }));
-      }}>Lưu ghi chú</Button>
-    </fieldset>}
-    {row.state === 'IN_PROGRESS' && (!versioned || allChecklistItems.length > 0) && <fieldset disabled={locked}><legend>{versioned ? 'Việc bổ sung' : 'Nội dung chăm sóc'}</legend>
+    {row.state === 'IN_PROGRESS' && (!versioned || allChecklistItems.length > 0) && <fieldset disabled={locked || checklistSaved}><legend>{versioned ? 'Việc bổ sung' : 'Nội dung chăm sóc'}</legend>
+      {checklistSaved && <p role="status">Đã lưu checklist</p>}
       {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : allChecklistItems.map(entry => {
         const id = entry.itemId;
         const item = current(id);
@@ -183,13 +189,24 @@ export function VisitExecution({ api, visitId, onChanged }) {
           <textarea maxLength={1000} value={item.reason ?? ''} onChange={event => setItems(value => ({ ...value, [id]: { ...item, reason: event.target.value } }))} />
         </label>}</div>;
       })}
-      {!versioned && noteField}
-      <Button disabled={!complete || !chosenChecklist.length || locked || (!versioned && expired && customerNote !== null)} onClick={() => {
+      {!checklistSaved && <Button disabled={!complete || !chosenChecklist.length || locked} onClick={() => {
+        setToastMessage('');
         const payload = { expectedVersion: row.version, items: chosenChecklist.map(item => ({
           itemId: item.itemId, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {})
-        })), ...(!versioned && customerNote !== null ? { customerNote } : {}) };
-        command.execute(key => api.executeVisit(visitId, 'checklists', payload, key));
-      }}><Check size={18} />Lưu nội dung chăm sóc</Button>
+        })) };
+        command.execute(async key => ({ ...await api.executeVisit(visitId, 'checklists', payload, key), action: 'checklists' }));
+      }}><Check size={18} />Lưu nội dung chăm sóc</Button>}
+    </fieldset>}
+    {row.state === 'IN_PROGRESS' && <fieldset disabled={locked || expired}>
+      <legend>Ghi chú check-out</legend>
+      {noteField}
+      <Button disabled={customerNote === null || customerNote === (row.customerNote ?? '')} onClick={() => {
+        setToastMessage('');
+        command.execute(async key => ({
+          ...await api.executeVisit(visitId, 'checklists', { expectedVersion: row.version, customerNote }, key),
+          action: 'checklists', noteOnly: true
+        }));
+      }}>Lưu ghi chú</Button>
     </fieldset>}
     {['ASSIGNED', 'IN_PROGRESS'].includes(row.state) && <fieldset disabled={locked}><legend>Ảnh bằng chứng {row.state === 'ASSIGNED' ? 'check-in' : 'check-out'}</legend>
       {checkInBlockedByInstructions && (
@@ -205,7 +222,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
       {fileError && <p role="alert">{fileError}</p>}
       {file && <VisitEvidencePreview file={file} label="Ảnh bằng chứng đã chọn" onRemove={clearFile} disabled={locked} onInvalid={setFileError} />}
       {!api.uploadEvidence && <p role="alert">Chưa có kết nối tải ảnh bằng chứng.</p>}
-      <Button disabled={locked || checkInBlockedByInstructions || !workflowReady || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !savedChecklist}
+      <Button disabled={locked || checkInBlockedByInstructions || !workflowReady || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !checkoutChecklistReady}
         onClick={() => evidence(row.state === 'ASSIGNED' ? 'check-ins' : 'check-outs')}>
         {row.state === 'ASSIGNED' ? <LogIn size={18} /> : <LogOut size={18} />}{row.state === 'ASSIGNED' ? 'Check-in bắt đầu ca' : 'Check-out hoàn tất ca'}
       </Button>
