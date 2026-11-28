@@ -13,8 +13,7 @@ export function createSitterApplicationController({ service, intake } = {}) {
         body: req.body,
         idempotencyKey: req.get('idempotency-key'),
         correlationId: req.requestId,
-        actor: req.applicationApplicant ? undefined : req.auth,
-        verifiedContactActor: req.applicationApplicant ? req.auth : null,
+        actor: req.auth,
         applicant: req.applicationApplicant
       });
       return respond(res, req, result.replayed ? 200 : 201, result);

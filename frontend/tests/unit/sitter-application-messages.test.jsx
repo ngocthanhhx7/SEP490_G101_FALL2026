@@ -2,6 +2,7 @@ import { beforeAll } from '@jest/globals';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ApiError } from '../../src/services/api-client.js';
+import { createSitterApplicationApi } from '../../src/services/sitter-application-api.js';
 import { SitterApplicationPage } from '../../src/pages/public/SitterApplicationPage.jsx';
 
 jest.mock('../../src/contexts/PublicPolicyContext.jsx', () => ({
@@ -201,4 +202,49 @@ test.each([
     expect(document.getElementById(errorId)).toHaveTextContent(expectedText);
   });
   expect(document.getElementById(errorId)).toBeVisible();
+});
+
+test.each([
+  ['email', 'sitter-error-contactValue', 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.'],
+  ['phone', 'sitter-error-phone', 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.']
+])('ST-ONB-08 (R3) shows MSG40 under %s field for an unauthenticated guest without a session CSRF token', async (conflictField, errorId, expectedText) => {
+  const fetchImpl = jest.fn(async path => {
+    if (path.endsWith('/intake')) {
+      return { ok: true, status: 200, json: async () => ({ meta: { schemaVersion: 1 }, data: { csrfToken: 'a'.repeat(64) } }) };
+    }
+    return {
+      ok: false,
+      status: 409,
+      json: async () => ({
+        meta: { schemaVersion: 1 },
+        error: {
+          code: 'CONTACT_UNAVAILABLE',
+          message: 'Contact already belongs to an account',
+          conflictField,
+          fieldErrors: { [conflictField]: expectedText }
+        }
+      })
+    };
+  });
+  const api = createSitterApplicationApi({
+    fetchImpl,
+    getCsrfToken: () => null,
+    uploadDocumentImpl: jest.fn(async (_file, { documentType }) => ({
+      documentId: `doc-${documentType}`,
+      storageRef: `ref_${documentType}_1234567890`
+    })),
+    keyFactory: () => 'synthetic-guest-key-0001'
+  });
+  await api.loadIntake();
+
+  render(<MemoryRouter><SitterApplicationPage api={api} /></MemoryRouter>);
+  await fillRequiredFields();
+  fireEvent.click(screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ }));
+
+  await waitFor(() => {
+    expect(document.getElementById(errorId)).toHaveTextContent(expectedText);
+  });
+  expect(document.getElementById(errorId)).toBeVisible();
+  const submitCall = fetchImpl.mock.calls.find(([path]) => path === '/api/v1/applications');
+  expect(submitCall[1].headers).not.toHaveProperty('X-CSRF-Token');
 });

@@ -58,7 +58,7 @@ async function intake() {
     identityNumber: '012345678901', experience: 'Kinh nghiệm chăm sóc chó mèo tại nhà.', requestedServices: ['Dắt chó đi dạo'],
     workAreas: ['Hà Nội'], employmentType: 'FULL_TIME', documents, policyVersions: { terms: 'synthetic-v1', privacy: 'synthetic-v1' } };
   const submit = (payload = body, key = 'synthetic-application-guest') => agent.post('/api/v1/applications').set(headers).set('Idempotency-Key', key).send(payload);
-  return { agent, body, headers, submit, intakeCookie: opened.headers['set-cookie'][0].split(';')[0] };
+  return { agent, body, headers, submit };
 }
 
 test('UC-16 / GBR-25 / GBR-28: Guest applies, Admin approves, then the new Sitter verifies email and signs in', async () => {
@@ -134,39 +134,159 @@ test('Guest intake prevents cross-origin upload, missing capability, foreign doc
   expect(await col('users').countDocuments()).toBe(0);
 });
 
-test('contact-specific MSG40 requires a valid session for the verified contact owner', async () => {
+test('ST-ONB-08 (R3): unauthenticated guest receives MSG40 for email or phone belonging to a verified account', async () => {
   const guest = await intake();
   const User = userModel(connection);
   const owner = await User.create({ displayName: 'Synthetic Customer', roles: ['CUSTOMER'], state: 'ACTIVE' });
-  const other = await User.create({ displayName: 'Synthetic Other', roles: ['CUSTOMER'], state: 'ACTIVE' });
   const crypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
-  const contact = crypto.lookup('EMAIL', guest.body.email);
+  const emailContact = crypto.lookup('EMAIL', guest.body.email);
+  const phoneContact = crypto.lookup('PHONE', '+84912345678');
+  await identityModels(connection).Contact.create([
+    {
+      channel: 'EMAIL', userId: owner._id, state: 'VERIFIED', lookupKey: emailContact.lookupKey,
+      canonicalCiphertext: crypto.encrypt(emailContact.canonicalValue), verifiedAt: new Date(now)
+    },
+    {
+      channel: 'PHONE', userId: owner._id, state: 'VERIFIED', lookupKey: phoneContact.lookupKey,
+      canonicalCiphertext: crypto.encrypt(phoneContact.canonicalValue), verifiedAt: new Date(now)
+    }
+  ]);
+
+  const emailConflict = await guest.submit({ ...guest.body, phone: '0987654321' }, 'guest-taken-email').expect(409);
+  expect(emailConflict.body.error).toMatchObject({
+    code: 'CONTACT_UNAVAILABLE',
+    conflictField: 'email',
+    fieldErrors: { email: 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.' }
+  });
+
+  const phoneConflict = await guest.submit({ ...guest.body, email: 'fresh-guest@example.test' }, 'guest-taken-phone').expect(409);
+  expect(phoneConflict.body.error).toMatchObject({
+    code: 'CONTACT_UNAVAILABLE',
+    conflictField: 'phone',
+    fieldErrors: { phone: 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.' }
+  });
+  expect(await col('sitterapplications').countDocuments()).toBe(0);
+});
+
+test('ST-ONB-08 (R3): approved application with provisioned account returns MSG40 for email or phone and generic conflict for identityNumber', async () => {
+  const first = await intake();
+  const created = (await first.submit(first.body, 'approved-source-app').expect(201)).body.data;
+  const provisionedUser = await userModel(connection).create({
+    displayName: 'Provisioned Sitter', roles: ['PET_SITTER'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+  });
+  await col('sitterapplications').updateOne(
+    { _id: (await col('sitterapplications').findOne({ _id: { $exists: true } }))._id },
+    {
+      $set: { state: 'APPROVED', provisionedUserId: provisionedUser._id },
+      $unset: { activePendingContactKey: '', activePendingContactKeys: '', activePendingIdentityKey: '' }
+    }
+  );
+  expect(created.id).toBeTruthy();
+  expect(await col('contacts').countDocuments()).toBe(0);
+
+  const second = await intake();
+  const emailConflict = await second.submit({
+    ...second.body, email: first.body.email, phone: '0987654321', identityNumber: '987654321098'
+  }, 'approved-conflict-email').expect(409);
+  expect(emailConflict.body.error).toMatchObject({
+    code: 'CONTACT_UNAVAILABLE',
+    conflictField: 'email',
+    fieldErrors: { email: 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.' }
+  });
+
+  const phoneConflict = await second.submit({
+    ...second.body, email: 'other-email@example.test', phone: first.body.phone, identityNumber: '987654321098'
+  }, 'approved-conflict-phone').expect(409);
+  expect(phoneConflict.body.error).toMatchObject({
+    code: 'CONTACT_UNAVAILABLE',
+    conflictField: 'phone',
+    fieldErrors: { phone: 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.' }
+  });
+
+  const identityConflict = await second.submit({
+    ...second.body, email: 'other-email-2@example.test', phone: '0987654322', identityNumber: first.body.identityNumber
+  }, 'approved-conflict-identity').expect(409);
+  expect(identityConflict.body.error).toEqual({
+    code: 'APPLICATION_SUBMISSION_UNAVAILABLE',
+    message: 'An application cannot be submitted at this time'
+  });
+  expect(await col('sitterapplications').countDocuments()).toBe(1);
+});
+
+test('ST-ONB-08 (R3): counter-created customer with UNVERIFIED phone blocks sitter application with MSG40', async () => {
+  const guest = await intake();
+  const User = userModel(connection);
+  const staff = await User.create({
+    displayName: 'Synthetic Staff', roles: ['SALE_STAFF'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+  });
+  const counterCustomer = await User.create({
+    displayName: 'Synthetic Counter Customer', roles: ['CUSTOMER'], state: 'ACTIVE',
+    authEpoch: 0, version: 0, synthetic: false, createdChannel: 'COUNTER', createdBy: staff._id
+  });
+  const crypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
+  const phoneContact = crypto.lookup('PHONE', '+84912345678');
   await identityModels(connection).Contact.create({
-    channel: 'EMAIL', userId: owner._id, state: 'VERIFIED', lookupKey: contact.lookupKey,
-    canonicalCiphertext: crypto.encrypt(contact.canonicalValue), verifiedAt: new Date(now)
+    channel: 'PHONE', userId: counterCustomer._id, state: 'UNVERIFIED', lookupKey: phoneContact.lookupKey,
+    canonicalCiphertext: crypto.encrypt(phoneContact.canonicalValue)
+  });
+
+  const phoneConflict = await guest.submit({
+    ...guest.body, email: 'fresh-counter-check@example.test', phone: '0912345678'
+  }, 'counter-unverified-phone-conflict').expect(409);
+  expect(phoneConflict.body.error).toMatchObject({
+    code: 'CONTACT_UNAVAILABLE',
+    conflictField: 'phone',
+    fieldErrors: { phone: 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.' }
+  });
+  expect(await col('sitterapplications').countDocuments()).toBe(0);
+});
+
+test('decide() blocks approving a guest application when its phone belongs to an UNVERIFIED counter customer contact', async () => {
+  const guest = await intake();
+  const created = (await guest.submit(guest.body, 'pending-before-counter').expect(201)).body.data;
+  const User = userModel(connection);
+  const adminUser = await User.create({
+    displayName: 'Synthetic Admin', roles: ['ADMIN'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
   });
   const sessions = createSessionService({ connection, clock: () => now, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
-  const issue = user => connection.transaction(session => sessions.issueInTransaction(user, session));
-  const send = async (user, key, csrfOverride) => {
-    const session = await issue(user);
-    return request(app).post('/api/v1/applications').set(guest.headers)
-      .set('Cookie', `${guest.intakeCookie}; pwc_session=${session.token}`)
-      .set('X-CSRF-Token', csrfOverride ?? session.csrfToken).set('Idempotency-Key', key).send(guest.body);
-  };
+  let session;
+  await connection.transaction(async mongoSession => { session = await sessions.issueInTransaction(adminUser, mongoSession); });
+  const admin = { ...base, Cookie: `pwc_session=${session.token}`, 'X-CSRF-Token': session.csrfToken };
+  const root = `/api/v1/applications/${created.id}`;
+  await request(app).post(`${root}/review`).set(admin).set('Idempotency-Key', 'uv-review-01').send({ expectedVersion: 0 }).expect(200);
+  await request(app).patch(`${root}/assessment`).set(admin).set('Idempotency-Key', 'uv-assess-01').send(assessmentInput(1, 0)).expect(200);
+  await request(app).post(`${root}/interview`).set(admin).set('Idempotency-Key', 'uv-interview-01').send({ expectedVersion: 1 }).expect(200);
+  const signedOn = new Date(now + 7 * 3600000).toISOString().slice(0, 10);
+  const effectiveOn = new Date(now + 86400000 + 7 * 3600000).toISOString().slice(0, 10);
+  const contract = (await request(app).post(`${root}/employment-contract`).set(admin).set('Idempotency-Key', 'uv-contract-01')
+    .send({ applicationVersion: 2, expectedRevision: 0, terms: employmentTerms({ identityNumber: guest.body.identityNumber, plannedSigningOn: signedOn, effectiveOn }) }).expect(201)).body.data;
+  const decisionPath = `${root}/employment-contract/${contract.id}/decisions`;
+  await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'uv-issue-01').send({ action: 'ISSUE', termsHash: contract.termsHash }).expect(200);
+  await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'uv-sign-01').send({
+    action: 'SIGN', termsHash: contract.termsHash, signedOn, archiveReference: 'Synthetic archive', bothPartiesSigned: true
+  }).expect(200);
+  await request(app).patch(`${root}/assessment`).set(admin).set('Idempotency-Key', 'uv-assess-02').send(assessmentInput(2, 1, {
+    callAt: new Date(now).toISOString(), outcome: 'PASSED'
+  })).expect(200);
 
-  const anonymous = await guest.submit(guest.body, 'anonymous-conflict').expect(409);
-  expect(anonymous.body.error.code).toBe('APPLICATION_SUBMISSION_UNAVAILABLE');
-  expect(anonymous.body.error).not.toHaveProperty('conflictField');
-  const foreign = await send(other, 'foreign-verified-contact');
-  expect(foreign.status).toBe(409);
-  expect(foreign.body.error).toEqual(anonymous.body.error);
-  const rejected = await send(owner, 'owner-invalid-csrf', 'invalid-csrf-fixture');
-  expect(rejected.status).toBe(403);
-  expect(rejected.body.error.code).toBe('CSRF_REJECTED');
-  const verified = await send(owner, 'owner-verified-contact');
-  expect(verified.status).toBe(409);
-  expect(verified.body.error).toMatchObject({ code: 'CONTACT_UNAVAILABLE', conflictField: 'email' });
-  expect(await col('sitterapplications').countDocuments()).toBe(0);
+  const staff = await User.create({
+    displayName: 'Synthetic Staff', roles: ['SALE_STAFF'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+  });
+  const counterCustomer = await User.create({
+    displayName: 'Synthetic Counter Customer', roles: ['CUSTOMER'], state: 'ACTIVE',
+    authEpoch: 0, version: 0, synthetic: false, createdChannel: 'COUNTER', createdBy: staff._id
+  });
+  const crypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
+  const phoneContact = crypto.lookup('PHONE', '+84912345678');
+  await identityModels(connection).Contact.create({
+    channel: 'PHONE', userId: counterCustomer._id, state: 'UNVERIFIED', lookupKey: phoneContact.lookupKey,
+    canonicalCiphertext: crypto.encrypt(phoneContact.canonicalValue)
+  });
+
+  const blocked = await request(app).post(`${root}/decisions`).set(admin).set('Idempotency-Key', 'uv-approve-01')
+    .send({ action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic review passed' }).expect(409);
+  expect(blocked.body.error.code).toBe('APPLICATION_SUBMISSION_UNAVAILABLE');
+  expect(await col('users').countDocuments({ roles: 'PET_SITTER' })).toBe(0);
 });
 
 test('an intake can recover its original receipt without exposing later status or authorizing a different intake', async () => {
