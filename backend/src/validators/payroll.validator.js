@@ -34,12 +34,14 @@ export function payrollAdjustmentDecisionInput(value) {
   if (Object.keys(value).some(key => !allowed.includes(key))) fail('VALIDATION_FAILED', 'Unexpected adjustment decision field');
   return result;
 }
-export function contractInput(value) {
+export function contractInput(value, { policy, checkPolicyBase = true } = {}) {
   const required = ['employeeId', 'expectedVersion', 'employmentType', 'salaryBasis', 'monthlyBaseVnd', 'payCycle', 'weeklyMinutes', 'signedAt', 'effectiveAt', 'contractReference', 'workplaceRegion', 'workplaceReference'];
-  exact(value, [...required, 'endsAt'], required); id(value.employeeId); number(value.expectedVersion, 0, 1000000, true);
+  exact(value, [...required, 'endsAt', 'monthlyAllowanceVnd'], required); id(value.employeeId); number(value.expectedVersion, 0, 1000000, true);
   if (!['FULL_TIME', 'PART_TIME'].includes(value.employmentType) || !['GROSS', 'NET'].includes(value.salaryBasis)) fail('VALIDATION_FAILED', 'Invalid contract');
   if (value.payCycle !== 'MONTHLY') fail('VALIDATION_FAILED', 'Pet sitter contracts require monthly pay');
   number(value.monthlyBaseVnd, 1, Number.MAX_SAFE_INTEGER, true); number(value.weeklyMinutes, 1, 2880, true); number(value.workplaceRegion, 1, 4, true);
+  const monthlyAllowanceVnd = value.monthlyAllowanceVnd === undefined ? 0 : value.monthlyAllowanceVnd;
+  number(monthlyAllowanceVnd, 0, Number.MAX_SAFE_INTEGER, true);
   const signedAt = new Date(instant(value.signedAt)), effectiveAt = new Date(instant(value.effectiveAt));
   const endsAt = value.endsAt ? new Date(instant(value.endsAt)) : undefined;
   if (endsAt && endsAt <= effectiveAt) {
@@ -48,9 +50,15 @@ export function contractInput(value) {
     });
   }
   if (signedAt > effectiveAt) fail('VALIDATION_FAILED', 'Invalid contract dates');
-  if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.weeklyMinutes < 2400)) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
-  if (value.employmentType === 'PART_TIME' && value.monthlyBaseVnd !== 3000000) fail('VALIDATION_FAILED', 'Part-time agreement mismatch');
-  return { ...value, signedAt, effectiveAt, ...(endsAt ? { endsAt } : {}), contractReference: text(value.contractReference, 160), workplaceReference: text(value.workplaceReference, 160) };
+  if (value.employmentType === 'FULL_TIME' && value.weeklyMinutes < 2400) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
+  if (checkPolicyBase) {
+    const expectedBaseVnd = value.employmentType === 'FULL_TIME'
+      ? (policy ? policy.fullTimeMonthlyBaseVnd : 10000000)
+      : (policy ? policy.partTimeMonthlyBaseVnd : 3000000);
+    if (value.employmentType === 'FULL_TIME' && value.monthlyBaseVnd !== expectedBaseVnd) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
+    if (value.employmentType === 'PART_TIME' && value.monthlyBaseVnd !== expectedBaseVnd) fail('VALIDATION_FAILED', 'Part-time agreement mismatch');
+  }
+  return { ...value, monthlyAllowanceVnd, signedAt, effectiveAt, ...(endsAt ? { endsAt } : {}), contractReference: text(value.contractReference, 160), workplaceReference: text(value.workplaceReference, 160) };
 }
 export function advanceInput(value) {
   exact(value, ['amountVnd', 'reason', 'settlementPeriod', 'settlementConsentReference'], ['amountVnd', 'reason', 'settlementPeriod', 'settlementConsentReference']);

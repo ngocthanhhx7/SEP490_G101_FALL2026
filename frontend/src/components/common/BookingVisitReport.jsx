@@ -1,11 +1,25 @@
 import { CareWorkflowReport } from './CareWorkflowReport.jsx';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Dialog } from '../ui/index.js';
+import { complaintDeadline } from '../../utils/complaint-presentation.js';
 import { VisitEvidencePreview } from './VisitEvidencePreview.jsx';
 
 const date = value => value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'Chưa ghi nhận';
-export function BookingVisitReport({ visit, readEvidence }) {
+
+function complaintCutoffText(action) {
+  if (action?.deadlineSource === 'INCIDENT_RESULT') return 'nhận kết quả sự cố';
+  if (action?.deadlineSource === 'VISIT_CLOSED' || action?.visitState === 'STAFF_CLOSED') return 'buổi được đóng';
+  return 'buổi kết thúc';
+}
+
+export function BookingVisitReport({ visit, readEvidence, complaintAction = null }) {
   const [open, setOpen] = useState(false);
+  const canShowComplaint = Boolean(
+    complaintAction?.to
+    && (complaintAction.eligible === true || complaintAction.reason === 'COMPLAINT_ALREADY_OPEN')
+  );
+  const deadlineText = canShowComplaint ? complaintDeadline(complaintAction.deadlineAt) : null;
   return <><Button variant="secondary" onClick={() => setOpen(true)}>Xem báo cáo và ảnh</Button>
     <Dialog open={open} title="Báo cáo buổi chăm sóc" onClose={() => setOpen(false)} className="visit-evidence-dialog">
       {open && <div className="booking-visit-report">
@@ -27,6 +41,12 @@ export function BookingVisitReport({ visit, readEvidence }) {
           key={item.kind + item.mediaId} mediaId={item.mediaId} read={readEvidence}
           label={item.kind === 'CHECK_IN' ? 'Ảnh check-in' : 'Ảnh check-out'} />)}</div>
           : <p>Ảnh sẽ xuất hiện khi người chăm sóc gửi bằng chứng cho buổi này.</p>}
+        {canShowComplaint && <div className="booking-visit-report__complaint">
+          <Link className="pwc-button pwc-button--secondary" to={complaintAction.to} onClick={() => setOpen(false)}>Gửi khiếu nại</Link>
+          {deadlineText && <p className="booking-visit-report__complaint-deadline">
+            Bạn gửi được khiếu nại đến {deadlineText} (7 ngày sau khi {complaintCutoffText(complaintAction)}).
+          </p>}
+        </div>}
       </div>}
     </Dialog></>;
 }

@@ -5,7 +5,7 @@ import { CONTRACT_END_AFTER_START_MESSAGE } from '../../utils/contract-error-fee
 import { Button } from '../ui/index.js';
 import { FileCheck2 } from 'lucide-react';
 
-export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferredEmploymentType, busy, locked = false,
+export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferredEmploymentType, payPolicy, busy, locked = false,
   onSave, loadEmployee, fieldErrors = null, onClearFieldError }) {
   const [chosenEmploymentType, setChosenEmploymentType] = useState(null);
   const [draftEmployeeId, setDraftEmployeeId] = useState(employeeId ?? '');
@@ -20,6 +20,9 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferre
   const version = loadEmployee ? selected?.contractVersion ?? '' : expectedVersion;
   const preference = loadEmployee ? selected?.application?.employmentType : preferredEmploymentType;
   const employmentType = chosenEmploymentType ?? (preference === 'PART_TIME' ? 'PART_TIME' : 'FULL_TIME');
+  const policyBaseVnd = payPolicy
+    ? (payPolicy.ready ? (employmentType === 'FULL_TIME' ? payPolicy.fullTimeMonthlyBaseVnd : payPolicy.partTimeMonthlyBaseVnd) : null)
+    : (employmentType === 'FULL_TIME' ? 10000000 : 3000000);
   const endsAtError = localErrors.endsAt || fieldErrors?.endsAt || '';
   const clearEndsAtError = () => {
     if (localErrors.endsAt) setLocalErrors(current => ({ ...current, endsAt: undefined }));
@@ -27,7 +30,7 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferre
   };
   async function submit(event) {
     event.preventDefault();
-    if (busy || (!locked && loadEmployee && !selected)) return;
+    if (busy || (!locked && (policyBaseVnd === null || (loadEmployee && !selected)))) return;
     const form = event.currentTarget, data = new window.FormData(form);
     const effectiveAtValue = String(data.get('effectiveAt') ?? '');
     const endsAtValue = String(data.get('endsAt') ?? '');
@@ -40,7 +43,8 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferre
     const body = locked ? null : {
       employeeId: employeeId ?? data.get('employeeId'),
       expectedVersion: employeeId || loadEmployee ? version : Number(data.get('expectedVersion')),
-      employmentType, salaryBasis: 'GROSS', monthlyBaseVnd: employmentType === 'FULL_TIME' ? 10000000 : 3000000,
+      employmentType, salaryBasis: 'GROSS', monthlyBaseVnd: policyBaseVnd,
+      monthlyAllowanceVnd: Number(data.get('monthlyAllowanceVnd') || 0),
       payCycle: 'MONTHLY', weeklyMinutes: Number(data.get('weeklyMinutes')),
       signedAt: `${data.get('signedAt')}T00:00:00+07:00`, effectiveAt: `${effectiveAtValue}T00:00:00+07:00`,
       contractReference: data.get('contractReference'), workplaceRegion: Number(data.get('workplaceRegion')),
@@ -62,7 +66,9 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferre
         disabled={Boolean(loadEmployee && !selected)} onChange={event => setChosenEmploymentType(event.target.value)}>
         <option value="FULL_TIME">Toàn thời gian</option><option value="PART_TIME">Bán thời gian</option>
       </select></label>
-      <PayrollField label="Lương gross/tháng (VND)" name="monthlyBaseVnd" value={employmentType === 'FULL_TIME' ? 10000000 : 3000000} readOnly />
+      <PayrollField label="Lương gross/tháng (VND)" name="monthlyBaseVnd" value={policyBaseVnd ?? ''} readOnly />
+      {policyBaseVnd === null && <p role="alert">Chưa có chính sách lương đã duyệt cho loại hợp đồng này.</p>}
+      <PayrollField label="Phụ cấp hằng tháng (VND)" name="monthlyAllowanceVnd" type="number" min="0" step="1" defaultValue={0} />
       <PayrollField key={employmentType} label="Phút làm việc mỗi tuần" name="weeklyMinutes" type="number" min="1" max="2880" step="1" defaultValue={employmentType === 'PART_TIME' ? 1200 : ''} readOnly={employmentType === 'PART_TIME'} />
       <PayrollField label="Kỳ trả theo hợp đồng" value="Hàng tháng" readOnly />
       <PayrollField label="Ngày ký" name="signedAt" type="date" />
@@ -76,6 +82,6 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferre
       <label className="payroll-field"><span>Vùng lương nơi làm việc</span><select name="workplaceRegion" required defaultValue=""><option value="" disabled>Chọn vùng</option>{[1, 2, 3, 4].map(region => <option key={region} value={region}>Vùng {region}</option>)}</select></label>
       <PayrollField label="Phường/xã và căn cứ xác định vùng" name="workplaceReference" maxLength={160} />
     </fieldset>
-    <Button disabled={busy || (!locked && loadEmployee && !selected)} type="submit"><FileCheck2 size={17} />{locked ? 'Kiểm tra lại cùng yêu cầu' : 'Lưu hợp đồng đã xác minh'}</Button>
+    <Button disabled={busy || (!locked && (policyBaseVnd === null || (loadEmployee && !selected)))} type="submit"><FileCheck2 size={17} />{locked ? 'Kiểm tra lại cùng yêu cầu' : 'Lưu hợp đồng đã xác minh'}</Button>
   </form>;
 }

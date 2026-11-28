@@ -1,0 +1,150 @@
+.sitter-self-profile {
+  max-width: 56rem;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--pwc-space-4, 1rem);
+}
+
+.sitter-self-profile__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pwc-space-4, 1rem);
+}
+
+.sitter-self-profile__header h1 {
+  margin: 0 0 0.25rem;
+}
+
+.sitter-self-profile__header p {
+  margin: 0;
+  color: var(--pwc-ink-muted, #625b6a);
+}
+
+.sitter-self-profile__card {
+  display: grid;
+  gap: var(--pwc-space-4, 1rem);
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
+  background: var(--pwc-surface, #fff);
+  border: 1px solid var(--pwc-border, #e5dce9);
+  border-radius: var(--pwc-radius-panel, 1rem);
+}
+
+.sitter-self-profile__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sitter-self-profile__avatar {
+  width: 72px;
+  height: 72px;
+  font-size: 1.4rem;
+}
+
+.sitter-self-profile__identity h2 {
+  margin: 0 0 0.25rem;
+}
+
+.sitter-self-profile__meta,
+.sitter-self-profile__areas,
+.sitter-self-profile__note {
+  margin: 0.25rem 0 0;
+  color: var(--pwc-ink-muted, #625b6a);
+  font-size: 0.92rem;
+}
+
+.sitter-self-profile__section h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.sitter-self-profile__section p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sitter-profile-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.sitter-profile-form__avatar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sitter-profile-form__avatar-preview {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sitter-profile-form__avatar-preview > img,
+.sitter-profile-form__avatar-preview > .pwc-profile-avatar {
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+}
+
+.sitter-profile-form__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.sitter-profile-form__filename {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--pwc-ink-muted, #625b6a);
+}
+
+.sitter-profile-form__field {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.sitter-profile-form__field textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--pwc-border, #d8cde5);
+  border-radius: var(--pwc-radius-control, 0.5rem);
+  font: inherit;
+  font-weight: 400;
+}
+
+.sitter-profile-form__field textarea[aria-invalid='true'] {
+  border-color: var(--pwc-error, #b42318);
+}
+
+.sitter-profile-form__error {
+  margin: 0;
+  color: var(--pwc-error, #b42318);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.sitter-profile-form__note {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--pwc-subtle, #f7f4fc);
+  color: var(--pwc-ink-muted, #5c5368);
+  font-size: 0.875rem;
+}
+
+.sitter-profile-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
