@@ -211,7 +211,7 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
           ...values, ownerId, version: 0, createdChannel: 'COUNTER',
           profileHidden: true, createdBy: staffId
         }], { session });
-        return { id: String(doc._id), version: 0 };
+        return { id: String(doc._id), label: doc.label, areaCode: doc.areaCode, pointConfirmedAt: doc.pointConfirmedAt };
       });
     },
     async update(ownerId, kind, resourceId, body, key) {

@@ -7,6 +7,8 @@ import { loadConfig } from '../../src/config/environment.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createMongoNotificationRepository } from '../../src/services/notifications/mongo-notification.repository.js';
+import { createCounterPickupService } from '../../src/services/counter-booking/counter-pickup.service.js';
+import { createCounterDirectoryService } from '../../src/services/counter-booking/counter-directory.service.js';
 import { createPetCareManagement } from '../../src/services/pet-care-management.service.js';
 import { createNotificationService } from '../../src/services/notifications/notification.service.js';
 
@@ -109,8 +111,40 @@ test('counter-only address is retained for booking and excluded from both custom
   expect((await request(app).get('/api/v1/pet-care/addresses/manage').set(headers(owner)).expect(200))
     .body.data.some(row => row.id === created.id)).toBe(false);
   expect((await petCare.listAddresses(owner.user.id, true, true)).some(row => row.id === created.id)).toBe(true);
+  const pickup = createCounterPickupService({
+    connection, facilityCoordinates: [105.85, 21.02], routeDistance: async () => 1000,
+    settings: { current: async () => ({ version: 1, maxKm: 3, tiers: [{ fromKm: 0, toKm: 3, feeVnd: 20000 }] }) }
+  });
+  await expect(pickup.quoteForCustomer(owner.user.id, created.id))
+    .rejects.toMatchObject({ code: 'ADDRESS_CONFIRMATION_REQUIRED' });
+  await expect(pickup.quote({ state: 'ACTIVE', roles: ['SALE_STAFF'] }, { customerId: owner.user.id, addressId: created.id }))
+    .resolves.toMatchObject({ feeVnd: 20000, snapshot: { addressId: created.id } });
   await request(app).patch('/api/v1/pet-care/addresses/' + created.id).set(headers(owner, 'counter-hidden-update'))
     .send({ ...address, expectedVersion: 0 }).expect(409);
+});
+
+test('replays a counter address creation even when the address is outside the first page', async () => {
+  const { CustomerAddress } = connection.models;
+  await CustomerAddress.insertMany(Array.from({ length: 100 }, (_, index) => ({
+    ownerId: other.user.id,
+    label: `Synthetic saved address ${index}`,
+    location: address.location,
+    areaCode: address.areaCode,
+    point: { type: 'Point', coordinates: address.coordinates },
+    pointConfirmedAt: new Date(),
+    version: 0
+  })));
+  const petCare = createPetCareManagement({ repository: { models: connection.models, connection } });
+  const directory = createCounterDirectoryService({
+    connection, petCare, customers: { listPets: async () => [] }
+  });
+  const actor = { userId: staff.user.id };
+  const body = { ...address, label: 'Synthetic counter address outside page' };
+  const created = await directory.addAddress(actor, other.user.id, body, 'counter-outside-page');
+  expect(created).toMatchObject({ label: body.label, areaCode: body.areaCode, pointConfirmedAt: expect.any(Date) });
+  expect(await directory.addAddress(actor, other.user.id, body, 'counter-outside-page')).toEqual(created);
+  expect(await CustomerAddress.countDocuments({ ownerId: other.user.id, profileHidden: true })).toBe(1);
+  expect(await petCare.listAddresses(other.user.id, true, true)).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: created.id })]));
 });
 
 test('booking history lists every state with owner-bound pagination, dashboard reads current sources', async () => {

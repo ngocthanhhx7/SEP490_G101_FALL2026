@@ -384,6 +384,21 @@ test('availability endpoint requires session and CSRF and never caches private r
   expect(disabled.headers['cache-control']).toContain('no-store');
 });
 
+test('online checkout refuses an owned address reserved for counter bookings', async () => {
+  const q = await quote('home-care', 1);
+  const hidden = await connection.models.CustomerAddress.create({
+    ownerId: owner.userId, label: 'Synthetic counter address', location: 'Synthetic counter location',
+    areaCode: address.areaCode, point: { type: 'Point', coordinates: [105.85, 21.02] },
+    pointConfirmedAt: at, version: 0, profileHidden: true, createdChannel: 'COUNTER'
+  });
+  const body = input(q);
+  body.visits[0].addressId = String(hidden._id);
+  const before = await connection.collection('bookings').countDocuments();
+  await expect(checkout.confirm(owner, body, 'online-counter-address-001'))
+    .rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
+  expect(await connection.collection('bookings').countDocuments()).toBe(before);
+});
+
 test('rejects changed price/policy/pets, expired quote, missing consent, overlap and foreign address without writing orders', async () => {
   const q = await quote(), body = input(q), before = await connection.collection('bookings').countDocuments();
   const notificationsBefore = await connection.models.Notification.countDocuments();

@@ -234,10 +234,11 @@ test('counter VietQR expiry releases booking and spa reservations together, pres
   expect(await counter.expireBatch()).toMatchObject({ expired: 1 });
   expect(await db.collection('bookings').findOne({ counterCheckoutId: pending.receiptId }))
     .toMatchObject({ state: 'PAYMENT_EXPIRED' });
-  expect(await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId }))
-    .toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED',
-      cancellation: { byRole: 'STAFF', reason: 'Payment expired' } });
-  expect((await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId })).noShow).toBeUndefined();
+  const expiredSpa = await db.collection('groomingappointments').findOne({ counterCheckoutId: pending.receiptId });
+  expect(expiredSpa).toMatchObject({ status: 'CANCELLED', counterPaymentState: 'CANCELLED',
+    cancellation: { byRole: 'SYSTEM', reason: 'Payment expired' } });
+  expect(expiredSpa.cancellation).not.toHaveProperty('byUserId');
+  expect(expiredSpa.noShow).toBeUndefined();
   expect(await db.collection('visits').countDocuments({ bookingId: new mongoose.Types.ObjectId(pending.bookingId),
     state: { $ne: 'CANCELLED' } })).toBe(0);
   expect(await counter.status(actors.ADMIN, pending.receiptId)).toMatchObject({ status: 'EXPIRED' });

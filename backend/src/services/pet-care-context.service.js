@@ -29,7 +29,8 @@ export function createPetCareContext(connection, clock = Date.now) {
           ? models.CustomerAddress.findOne({
               _id: input.addressId,
               ownerId,
-              state: 'ACTIVE'
+              state: 'ACTIVE',
+              profileHidden: { $ne: true }
             })
               .select('+point')
               .session(session).lean()
@@ -38,7 +39,8 @@ export function createPetCareContext(connection, clock = Date.now) {
           ? models.CustomerAddress.findOne({
               _id: input.clinicAddressId,
               ownerId,
-              state: 'ACTIVE'
+              state: 'ACTIVE',
+              profileHidden: { $ne: true }
             })
               .select('+point')
               .session(session).lean()

@@ -177,10 +177,14 @@ The storage provisioner creates the tier collections and an unapproved DRAFT sam
 counter-only addresses and the shared pet-care catalog. New counter addresses
 are stored in the existing `CustomerAddress` collection with
 `createdChannel: 'COUNTER'`, `profileHidden: true` and `createdBy`.
-Customer address reads exclude these records, while counter lookup includes them.
+Customer address listings and online booking, pickup and delivery exclude these
+records. Counter checkout and pickup use them through their internal context.
+Creation returns the stored command result so retries are independent of the
+address list page.
 The Customer's booking and grooming snapshots retain the selected address details.
 `counter-booking/counter-customer.service.js` masks existing Customer names in
 phone lookup responses; new counter registrations may show the entered name.
 `counter-booking/counter-checkout.service.js` releases linked booking and
 grooming reservations in one transaction after verified unpaid VietQR expiry.
+Automatic expiry is recorded as a system cancellation without a user actor.
 Staff-initiated cancellation retains its separate cancellation behavior.
