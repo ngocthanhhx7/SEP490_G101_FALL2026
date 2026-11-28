@@ -33,6 +33,11 @@ function ContractDialog({ data, api, onClose, onSaved }) {
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(null), [fieldErrors, setFieldErrors] = useState({});
   const [locked, setLocked] = useState(false);
   const operation = useRef(null), inFlight = useRef(false);
+  const loadOverview = useCallback(async ({ signal }) => {
+    if (!api?.overview) return { data: null };
+    try { return { data: await api.overview({ signal }) }; } catch { return { data: null }; }
+  }, [api]);
+  const overview = useApiResource(loadOverview);
   async function save(body) {
     if (inFlight.current) return false;
     inFlight.current = true; setBusy(true); setMessage(null); setFieldErrors({});
@@ -66,6 +71,7 @@ function ContractDialog({ data, api, onClose, onSaved }) {
     <p>Ghi nhận thông tin từ hợp đồng đã ký. Hợp đồng chỉ có hiệu lực trong khoảng thời gian đã xác minh.</p>
     {message && <Notice state="error" title="Chưa lưu hợp đồng">{message}</Notice>}
     <EmployeeContractForm employeeId={data.id} expectedVersion={data.contractVersion} preferredEmploymentType={data.application?.employmentType}
+      payPolicy={overview.data?.payPolicy}
       busy={busy} locked={locked} fieldErrors={fieldErrors}
       onClearFieldError={field => setFieldErrors(current => ({ ...current, [field]: undefined }))} onSave={save} />
   </Dialog>;

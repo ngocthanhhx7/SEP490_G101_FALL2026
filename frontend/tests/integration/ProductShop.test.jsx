@@ -345,6 +345,35 @@ describe('Product Checkout', () => {
     expect(await screen.findByText('Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.')).toBeVisible();
   });
 
+  test('ST-ORD-09 shows MSG101 and MSG18 under the delivery address field, not inside order summary', async () => {
+    const error = Object.assign(new Error('x'), { code: 'ADDRESS_OUT_OF_SERVICE_AREA', status: 422 });
+    const api = withCart({
+      addresses: jest.fn().mockResolvedValue({ data: [{ id: 'a1', label: 'Nhà ngoài vùng' }, { id: 'a2', label: 'Văn phòng' }] }),
+      placeOrder: jest.fn().mockRejectedValue(error)
+    });
+    show(api, '/customer/product-checkout');
+    const select = await screen.findByLabelText('Địa chỉ nhận hàng');
+    const summary = screen.getByLabelText('Đơn hàng của bạn');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt hàng' }));
+    const missingErr = document.getElementById('delivery-address-error');
+    expect(missingErr).toBeVisible();
+    expect(missingErr).toHaveTextContent('Vui lòng chọn địa chỉ nhận hàng.');
+    expect(select).toHaveAttribute('aria-invalid', 'true');
+    expect(select).toHaveAttribute('aria-describedby', 'delivery-address-error');
+    expect(summary).not.toContainElement(missingErr);
+    expect(api.placeOrder).not.toHaveBeenCalled();
+
+    fireEvent.change(select, { target: { value: 'a1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt hàng' }));
+    await waitFor(() => {
+      const areaErr = document.getElementById('delivery-address-error');
+      expect(areaErr).toBeVisible();
+      expect(areaErr).toHaveTextContent('Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.');
+      expect(summary).not.toContainElement(areaErr);
+    });
+  });
+
   test('reuses the same operation key when the outcome was uncertain', async () => {
     const timeout = Object.assign(new Error('x'), { code: 'TIMEOUT' });
     const api = withCart({ placeOrder: jest.fn().mockRejectedValueOnce(timeout).mockResolvedValueOnce(order()) });

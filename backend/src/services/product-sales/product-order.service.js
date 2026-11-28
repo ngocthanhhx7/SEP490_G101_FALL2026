@@ -93,7 +93,7 @@ export function createProductOrderService({
   }
 
   async function loadDeliveryAddress(customerId, addressId) {
-    const address = await CustomerAddress.findOne({ _id: addressId, ownerId: customerId, state: 'ACTIVE' })
+    const address = await CustomerAddress.findOne({ _id: addressId, ownerId: customerId, state: 'ACTIVE', profileHidden: { $ne: true } })
       .select('label areaCode +location').lean();
     if (!address) throw productSalesErrors.addressNotFound();
     if (!serviceAreas.some((area) => area.code === address.areaCode)) throw productSalesErrors.outsideServiceArea();

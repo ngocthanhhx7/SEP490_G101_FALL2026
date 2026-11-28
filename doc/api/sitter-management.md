@@ -96,3 +96,13 @@ payment or assignment is fabricated by this module.
 ### Staff directory query bounds
 
 Global metric ordering scans the snapshot through a Mongo cursor in batches of 100 and retains only the best `limit + 1` candidates after each batch. Contact and metric reads remain scoped to each batch. Exact filtered totals/tab counts and signed metric cursor semantics are preserved; the implementation does not enrich only the first page and misrepresent the global order. Queries have a 5-second server deadline; a scan exceeding the 8-second processing budget fails explicitly (`503 SITTER_LIST_TIMEOUT`) instead of returning a partial leaderboard. No new store, index, plaintext phone tokens or materialized metrics cache is introduced.
+
+
+## Hồ sơ Sitter tự quản lý (UC-73)
+
+Sitter đang hoạt động có thể cập nhật phần giới thiệu và kinh nghiệm từ trang
+hồ sơ của mình. Khi lưu thành công, nội dung mới được công bố cho khách ngay
+theo quyết định ngày 28/11/2026. Cập nhật lưu lịch sử và không gắn người duyệt
+Staff/Admin. Luồng nộp và duyệt hồ sơ công khai cũ vẫn phục vụ các hồ sơ đã
+được đưa vào luồng đó. Gửi lại cùng khóa và nội dung trả biên nhận ban đầu
+khi Sitter vẫn đủ quyền.

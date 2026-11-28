@@ -201,8 +201,9 @@ export function createComplaintService({ repository, billing, readImage, clock =
       if (expected !== null && (visit ?? booking).version !== expected) conflict('VERSION_CONFLICT');
       const records = await tx.bookingComplaints(booking.id);
       const incidents = visit ? (await tx.bookingIncidents?.(booking.id) ?? []) : [];
+      const bookingVisits = visit ? [visit] : await tx.getVisits(booking);
       const eligibility = visit ? visitEligibility(visit, records, asOf, incidents)
-        : await bookingEligibility(tx, booking, await tx.getVisits(booking), records, asOf);
+        : await bookingEligibility(tx, booking, bookingVisits, records, asOf);
       enforceEligibility(eligibility);
       await tx.assertEvidence(payload.evidenceRefs, actor.userId);
       const id = randomUUID();
@@ -213,7 +214,12 @@ export function createComplaintService({ repository, billing, readImage, clock =
         state: 'OPEN', billState: 'ON_HOLD', version: 0, objectionCount: 0,
         createdAt: asOf, updatedAt: asOf, openedAt: asOf
       });
-      return commitEvent(tx, { identity, fingerprint, record, actor, asOf, event: 'ComplaintOpened', messageCode: 'MSG128' });
+      const enriched = {
+        ...record,
+        bookingSummary: bookingSummary(booking, bookingVisits),
+        visitSummary: visitSummary(visit)
+      };
+      return commitEvent(tx, { identity, fingerprint, record: enriched, actor, asOf, event: 'ComplaintOpened', messageCode: 'MSG128' });
     });
   }
 

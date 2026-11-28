@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { clearDogWalkLocation } from './dog-walk-location.service.js';
 import { fail, id, digest } from '../../validators/pet-care.validator.js';
 import { schedulingKey } from '../../validators/employee-scheduling.validator.js';
 import { visitClosureInput, visitClosureVerificationInput } from '../../validators/visit-closure.validator.js';
@@ -129,6 +130,7 @@ export function createVisitClosureService({ repository, clock = Date.now }) {
             const saved = await visits().findOneAndUpdate({ _id: row._id, version: row.version, state: 'IN_PROGRESS', checkOutAt: { $in: [null, undefined] } },
               { $set: update, $inc: { version: 1 } }, { session, returnDocument: 'after' });
             if (!saved) fail('VERSION_CONFLICT', 'Visit changed', 409);
+            await clearDogWalkLocation(connection, visitId, session);
             await finalizeExceptionalBooking({ connection, col, bookingId: row.bookingId, session, at });
             await models.EmployeeScheduleEvent.create([{ type: 'VisitStaffClosed', actorId: actor.userId, sitterId: String(row.sitterId),
               visitId, at, detail: { outcome: update.state, hasCheckInPhoto, version: saved.version } }], { session });

@@ -283,6 +283,49 @@ describe('P16 public sitter application submission', () => {
     const newApplication = await submit(application, applicationBody(), 'submit-key-after-wait').expect(201);
     expect(newApplication.body.data.id).not.toBe(submitted.body.data.id);
   });
+
+  test('ST-ONB-08 returns generic conflicts to guests and MSG40 only for the verified contact of the signed-in account', async () => {
+    const application = app();
+    const existingUser = await User.create({
+      _id: CUSTOMER_ID, displayName: 'Existing Account', roles: ['CUSTOMER'],
+      state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+    });
+    const emailLookup = contactCrypto.lookup('EMAIL', 'taken@example.test');
+    const phoneLookup = contactCrypto.lookup('PHONE', '+84912345678');
+    await Contact.create([
+      {
+        userId: existingUser._id, channel: 'EMAIL', state: 'VERIFIED', verifiedAt: new Date(clockNow),
+        lookupKey: emailLookup.lookupKey, canonicalCiphertext: contactCrypto.encrypt(emailLookup.canonicalValue)
+      },
+      {
+        userId: existingUser._id, channel: 'PHONE', state: 'VERIFIED', verifiedAt: new Date(clockNow),
+        lookupKey: phoneLookup.lookupKey, canonicalCiphertext: contactCrypto.encrypt(phoneLookup.canonicalValue)
+      }
+    ]);
+
+    const emailBody = applicationBody({ email: 'taken@example.test', phone: '0987654321' });
+    const phoneBody = applicationBody({ email: 'fresh@example.test', phone: '0912345678' });
+    for (const [body, key] of [[emailBody, 'submit-key-taken-email'], [phoneBody, 'submit-key-taken-phone']]) {
+      const { body: { error } } = await submit(application, body, key).expect(409);
+      expect(error.code).toBe('APPLICATION_SUBMISSION_UNAVAILABLE');
+      expect(error).not.toHaveProperty('conflictField');
+      expect(error).not.toHaveProperty('fieldErrors');
+    }
+
+    const { SitterApplication: Applicant, SitterApplicationAudit: Audit,
+      SitterApplicationDownloadQuota: DownloadQuota, SitterStatus } = sitterApplicationModels(connection);
+    const service = createSitterApplicationService({ connection, User, Applicant, Audit, DownloadQuota, SitterStatus,
+      contactCrypto, privateMedia: mediaPort, lookupSecret: SECRETS.CONTACT_LOOKUP_SECRET,
+      cursorSecret: SECRETS.SESSION_TOKEN_SECRET, employmentDocuments: { activate: async () => {} }, clock: () => clockNow });
+    const actor = { userId: CUSTOMER_ID, state: 'ACTIVE', roles: ['CUSTOMER'] };
+    for (const [body, field] of [[emailBody, 'email'], [phoneBody, 'phone']]) {
+      await expect(service.submit({ actor, body, idempotencyKey: `verified-conflict-${field}` }))
+        .rejects.toMatchObject({ code: 'CONTACT_UNAVAILABLE', details: {
+          conflictField: field, fieldErrors: { [field]: expect.any(String) }
+        } });
+    }
+    expect(await sitterApplicationModels(connection).SitterApplication.countDocuments({})).toBe(0);
+  });
 });
 
 describe('P16 Admin application review and private documents', () => {

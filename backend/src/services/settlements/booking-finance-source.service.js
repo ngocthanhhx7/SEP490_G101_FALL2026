@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { visitServiceDisplayName } from '../employee-scheduling/dispatch-visit-presentation.js';
+import { clearDogWalkLocation, isDogWalkService, isDogWalkWindowOpen } from '../employee-scheduling/dog-walk-location.service.js';
 import { additionalCareChecklist } from '../care/visit-care-instructions.service.js';
 import { handoverPending } from '../care/visit-handover-policy.service.js';
 import { assertWorkflowGate, workflowProjection } from '../care/workflow-snapshot.service.js';
@@ -25,7 +26,7 @@ const oid = value => typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value)
 
 // Only canonical primary rows are read here. No command accepts an earning,
 // fee, completion instant, eligibility flag or payment amount from a browser.
-export function createBookingFinanceSourceService({ connection, clock = () => new Date(), compensationModel = 'EMPLOYEE' }) {
+export function createBookingFinanceSourceService({ connection, clock = () => new Date(), compensationModel = 'EMPLOYEE', walkTrackingEnabled = false }) {
   if (!['EMPLOYEE', 'LEGACY_PARTNER'].includes(compensationModel)) throw new TypeError('Invalid compensation model');
   const storage = financeSourceModels(connection, { legacyTasks: compensationModel === 'LEGACY_PARTNER' });
   const unitOfWork = createUnitOfWork(connection);
@@ -242,8 +243,25 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
               && !(visit.checklist ?? []).some(row => row.photoSkipReason?.trim() || row.reason?.trim())) {
               fail(409, 'CHECKLIST_PHOTO_REQUIRED');
             }
+            if (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000
+              || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote))) {
+              throw new AppError(422, 'VALIDATION_FAILED', 'Customer note is invalid', {
+                fieldErrors: { customerNote: 'Ghi chú cho khách không hợp lệ.' }
+              });
+            }
+            const effectiveNote = (customerNote !== undefined ? customerNote : (visit.customerNote ?? '')).trim();
+            if (!effectiveNote) {
+              throw new AppError(422, 'VALIDATION_FAILED', 'Customer note is required', {
+                fieldErrors: { customerNote: 'Trường này là bắt buộc.' }
+              });
+            }
             await bindMedia(mediaId, visit, current, operation, session);
-            fields = { state: 'COMPLETED', checkOutAt: at, completedAt: at };
+            fields = {
+              state: 'COMPLETED',
+              checkOutAt: at,
+              completedAt: at,
+              ...(customerNote !== undefined ? { customerNote: effectiveNote } : {})
+            };
           }
         }
         const update = { $set: fields, $inc: { version: 1 } };
@@ -252,7 +270,10 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
           update, { session, returnDocument: 'after' });
         if (!saved) fail(409, 'VERSION_CONFLICT');
         const updatedBooking = await touch(booking, session, { state: 'IN_PROGRESS' });
-        if (operation === 'CHECK_OUT') await completeWholeBooking(updatedBooking, session);
+        if (operation === 'CHECK_OUT') {
+          await clearDogWalkLocation(connection, visitId, session);
+          await completeWholeBooking(updatedBooking, session);
+        }
         await event(`Visit${operation}`, updatedBooking, current.userId, `${visitId}:${saved.version}`, session);
         await createDomainNotifications({ connection, clock: () => now().getTime() }).visit({ visitId, version: saved.version,
           customerId: booking.customerId, bookingId: String(booking._id), operation }, session);
@@ -337,11 +358,14 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             label: itemId,
             required: true
           }));
+        const walkLocationAvailable = Boolean(walkTrackingEnabled && isDogWalkWindowOpen(visit, +now())
+          && await isDogWalkService(col, visit, session));
         const hasInstructionVersion = Number.isInteger(visit.currentInstructionVersion);
         const careInstructionsPendingAck = hasInstructionVersion
           && (visit.acknowledgedInstructionVersion ?? 0) < visit.currentInstructionVersion;
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
           workflow: workflowProjection(visit),
+          ...(walkLocationAvailable && { walkLocationAvailable }),
           serviceName: visit.snapshots?.serviceName ?? null, completionAttention: visit.completionAttention?.code ?? null,
           closureOutcome: visit.closureVerification?.outcome ?? null,
           ...(hasInstructionVersion ? {

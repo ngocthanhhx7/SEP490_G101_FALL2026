@@ -22,6 +22,14 @@ function phoneValue(phone) {
   return canonical;
 }
 const customerView = user => ({ id: String(user._id), displayName: user.displayName });
+export function maskCounterCustomerName(name) {
+  const words = name.trim().split(/\s+/u);
+  return words.map((word, index) => {
+    if (index === words.length - 1) return word;
+    const letters = Array.from(word);
+    return letters[0] + '*'.repeat(Math.max(0, letters.length - 1));
+  }).join(' ');
+}
 
 export function createCounterCustomerService({ connection, contacts, contactCrypto, petCare,
   User = userModel(connection), Contact = identityModels(connection).Contact }) {
@@ -43,7 +51,7 @@ export function createCounterCustomerService({ connection, contacts, contactCryp
       if (ownerIds.length !== 1) throw conflict();
       const user = await User.findOne({ _id: ownerIds[0], roles: 'CUSTOMER', state: 'ACTIVE' }).select('displayName').lean();
       if (!user) throw conflict();
-      return { customer: customerView(user) };
+      return { customer: { ...customerView(user), displayName: maskCounterCustomerName(user.displayName) } };
     },
     async createCustomer(actor, { displayName, phone } = {}) {
       const createdBy = actorId(actor);

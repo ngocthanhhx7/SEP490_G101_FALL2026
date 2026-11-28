@@ -4,7 +4,8 @@ export function sitterPublicProfileModels(connection) {
   const profile = new Schema({
     userId: { type: Schema.Types.ObjectId, required: true, immutable: true },
     bio: { type: String, required: true, maxlength: 1000 },
-    areas: { type: [String], required: true, validate: value => value.length > 0 && value.length <= 30 },
+    experience: { type: String, maxlength: 2000, default: '' },
+    areas: { type: [String], default: [], validate: value => value.length <= 30 },
     state: { type: String, required: true, enum: ['SUBMITTED', 'APPROVED', 'REJECTED'] },
     version: { type: Number, required: true, min: 1, validate: Number.isSafeInteger },
     reviewedBy: { type: Schema.Types.ObjectId, default: null },

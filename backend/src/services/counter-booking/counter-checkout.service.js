@@ -104,7 +104,7 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
     const { items, visits, spaPets, pickupCount } = await split(input, session);
     let selectedPickup, pickupFeeVnd = 0;
     if (pickupCount) {
-      const fare = await pickup.quoteForCustomer(customerId, input.pickup.addressId, session);
+      const fare = await pickup.quoteForCustomer(customerId, input.pickup.addressId, session, { counter: true });
       if (!fare.allowed) fail('PICKUP_DISTANCE_EXCEEDED', 'Pickup address exceeds maximum distance', 422);
       selectedPickup = { addressId: input.pickup.addressId, policyVersion: fare.policyVersion, expectedFeeVnd: fare.feeVnd };
       pickupFeeVnd = fare.feeVnd * pickupCount;
@@ -208,11 +208,13 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
       const receipt = await Command.findById(intent.counterReceiptId).session(session).lean();
       if (receipt?.result.status !== 'PENDING') return receipt?.result;
       const cancelledAt = now();
+      const expired = state === 'EXPIRED';
       if (current.bookingId) {
         const booking = await col('bookings').updateOne({
           _id: current.bookingId, counterCheckoutId: current.counterReceiptId,
           state: 'AWAITING_PAYMENT', paymentState: 'UNPAID'
-        }, { $set: { state: 'CANCELLED', paymentState: 'UNPAID', cancelledAt },
+        }, { $set: { state: expired ? 'PAYMENT_EXPIRED' : 'CANCELLED',
+          paymentState: 'UNPAID', ...(expired ? {} : { cancelledAt }) },
           $inc: { version: 1, financeGuardVersion: 1 } }, { session });
         if (booking.matchedCount !== 1) fail('COUNTER_PAIR_CHANGED', 'Pending booking changed', 409);
         await col('visits').updateMany({
@@ -224,7 +226,8 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
           _id: current.groomingAppointmentId, counterCheckoutId: current.counterReceiptId,
           status: 'BOOKED', counterPaymentState: 'AWAITING_PAYMENT'
         }, { $set: { status: 'CANCELLED', counterPaymentState: 'CANCELLED',
-          'pets.$[].status': 'CANCELLED_NO_CHARGE', closedAt: cancelledAt },
+          'pets.$[].status': 'CANCELLED_NO_CHARGE', closedAt: cancelledAt,
+          ...(expired ? { cancellation: { at: cancelledAt, byRole: 'SYSTEM', reason: 'Payment expired' } } : {}) },
           $inc: { version: 1 } }, { session });
         if (changed.matchedCount !== 1) fail('COUNTER_PAIR_CHANGED', 'Pending grooming appointment changed', 409);
       }

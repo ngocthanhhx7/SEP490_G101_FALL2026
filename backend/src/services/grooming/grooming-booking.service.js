@@ -120,7 +120,7 @@ export function createGroomingBooking({ connection, clock = Date.now, pricing, s
         if (!guarded.matchedCount) fail('VERSION_CONFLICT', 'Pet changed during booking', 409);
       }
       if (input.pickup && !pickup) fail('PICKUP_DISTANCE_UNAVAILABLE', 'Pickup distance unavailable', 503);
-      const pickupSnapshot = input.pickup ? await pickup.confirm(String(customerId), input.pickup, session) : null;
+      const pickupSnapshot = input.pickup ? await pickup.confirm(String(customerId), input.pickup, session, { counter: Boolean(counter) }) : null;
       const payableVnd = priced.totalVnd + (pickupSnapshot?.feeVnd ?? 0);
       if (!Number.isSafeInteger(payableVnd)) fail('PRICE_OVERFLOW', 'Price exceeds supported range');
       if (payableVnd !== input.expectedTotalVnd) {

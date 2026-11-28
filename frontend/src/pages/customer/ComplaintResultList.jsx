@@ -97,6 +97,13 @@ export function ComplaintResultList({ api, bookingId, selectedId, submitted }) {
   const [pagingError, setPagingError] = useState(false);
   const [paging, setPaging] = useState(false);
   const busy = useRef(false);
+  const lastSubmittedId = useRef(null);
+  const { retry: retryList } = list;
+  useEffect(() => {
+    if (!submitted?.id || submitted.id === lastSubmittedId.current) return;
+    lastSubmittedId.current = submitted.id;
+    retryList();
+  }, [submitted?.id, retryList]);
   const selected = focused.data?.bookingId === bookingId ? focused.data : null;
   const entries = [list.data?.items ?? [], ...pages.map(page => page.items),
     selected ? [selected] : [], submitted ? [submitted] : [], updates].flat();

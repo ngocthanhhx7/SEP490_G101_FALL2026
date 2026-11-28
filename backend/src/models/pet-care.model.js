@@ -45,6 +45,9 @@ export function petCareModels(connection, { referenceCatalog } = {}) {
         point: { type: geo, required: true, select: false },
         areaCode: { type: String, required: true, index: true },
         pointConfirmedAt: { type: Date, required: true },
+        createdChannel: { type: String, enum: ['COUNTER'] },
+        profileHidden: { type: Boolean, default: false },
+        createdBy: { type: oid },
         privateAccessNotes: { type: String, maxlength: 1000, select: false, default: '' },
         state: {
           type: String,

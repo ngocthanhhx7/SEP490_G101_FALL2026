@@ -19,6 +19,7 @@ import { createApplicationMailService } from '../services/applications/applicati
 import { loadApplicantDocumentConfig } from '../config/r2.js';
 import { createRegistrationPolicyService } from '../services/registration-policy.service.js';
 import { applicationIntakeMiddleware } from '../middlewares/application-intake.js';
+import { employeePayrollPolicyResolver } from '../constants/employee-payroll-policy.js';
 
 function requireSameOrigin(req, _res, next) {
   const origin = req.get('origin');
@@ -63,7 +64,7 @@ export function sitterApplicationModule({
     lookupSecret: config.auth.contactLookupSecret,
     encryptionKey: config.auth.contactEncryptionKey
   });
-  const employmentDocuments = createEmploymentDocumentService({ connection, crypto: contactCrypto, lookupSecret: config.auth.contactLookupSecret, clock });
+  const employmentDocuments = createEmploymentDocumentService({ connection, crypto: contactCrypto, lookupSecret: config.auth.contactLookupSecret, clock, policy: employeePayrollPolicyResolver });
   const intake = authenticatedSubmission || guestSubmission ? createApplicationIntakeService({ connection, contactCrypto,
     media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable, clock }) : null;
   const applicationMail = createApplicationMailService({ connection, contactCrypto, delivery: ports.notificationDelivery, clock });
@@ -94,6 +95,9 @@ export function sitterApplicationModule({
     requireRoles('ADMIN')
   ];
   const csrf = requireCsrf(sessionService);
+  const authenticate = requireSession(sessionService, { clock });
+  const withGuestSession = middleware => (req, res, next) =>
+    req.get('X-CSRF-Token') ? middleware(req, res, next) : next();
   const guest = applicationIntakeMiddleware({ secret: config.auth.tokenSecret, clock, secure: config.nodeEnv === 'production' });
   const router = Router(), contracts = createEmploymentDocumentController(employmentDocuments);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
@@ -111,7 +115,7 @@ export function sitterApplicationModule({
   router.post(
     '/',
     requireSameOrigin,
-    ...(guestSubmission ? [guest.require] : []),
+    ...(guestSubmission ? [guest.require, withGuestSession(authenticate), withGuestSession(csrf)] : []),
     ...(authenticatedSubmission ? [requireSession(sessionService, { clock }), csrf] : []),
     createSitterApplicationController({ service }).createRoot
   );

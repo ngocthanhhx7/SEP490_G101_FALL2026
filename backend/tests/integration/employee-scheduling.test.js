@@ -102,7 +102,10 @@ test('reads only the exact invitation owned by the signed-in sitter', async () =
 
 test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
   const otherCustomer = actor('CUSTOMER');
+  await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(otherCustomer.userId), ...otherCustomer });
   const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });
+  const walkService = oid();
+  await connection.collection('services').insertOne({ _id: walkService, code: 'dog-walking' });
   await connection.collection('visits').updateOne({ _id: row._id }, { $set: { 'snapshots.checklistItemIds': ['pet-condition'] } });
   const session = { authenticate: async req => {
     const record = [sitter, customer, staff, otherCustomer].find(value => value.userId === req.get('x-test-actor'));
@@ -115,10 +118,11 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
     requireAuthenticated: requireSession(session, { clock }), csrf: requireCsrf(session),
     media: { upload: async value => stored.set(value.storageRef, value), read: async value => stored.get(value.storageRef) } });
   const finance = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } },
-    env: { FINANCE_SOURCES_ENABLED: 'true' }, sessionService: session, clock });
+    env: { FINANCE_SOURCES_ENABLED: 'true', EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: 'true' },
+    sessionService: session, clock });
   const server = express(); server.use(express.json(), requestId); server.use(images.mount, images.router);
   server.use('/api/v1', finance.router); server.use(module.mount, module.router); server.use(errorHandler(() => {}));
-  const headers = (who, key) => ({ 'x-test-actor': who.userId, 'x-csrf-token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' });
+  const headers = (who, key = 'synthetic-dog-walk') => ({ 'x-test-actor': who.userId, 'x-csrf-token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' });
   const root = '/api/v1/employee-scheduling';
   const proposed = await request(server).post(`${root}/visits/${row._id}/schedule-proposals`).set(headers(staff, 'synthetic-propose-care'))
     .send({ expectedVersion: 0, startAt: '2026-10-30T03:15:00Z' }).expect(200);
@@ -144,6 +148,11 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   const upload = async key => (await request(server).post(images.mount).set(headers(sitter, key)).set('Content-Type', 'image/png').send(bytes).expect(201)).body.data.id;
   const mediaIn = await upload('synthetic-private-care-in');
   await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(customer,'synthetic-unbound-denied')).expect(404);
+  const walkEndpoint = `${root}/visits/${row._id}/dog-walk`;
+  const showWalk = who => request(server).get(walkEndpoint).set(headers(who));
+  const startWalk = () => request(server).post(walkEndpoint).set(headers(sitter)).send({ action: 'START', expectedVersion: 0 });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { serviceId: walkService } });
+  await startWalk().expect(409);
   const input = { expectedVersion: current.version, mediaId: mediaIn };
   const checkedIn = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
   const repeated = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
@@ -152,6 +161,23 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
     state: 'IN_PROGRESS', version: checkedIn.body.data.version, checkInAt: new Date(clock()),
     evidenceRefs: [{ mediaId: mediaIn }]
   });
+  expect((await request(server).get(endpoint + '/execution').set(headers(sitter)).expect(200)).body.data.walkLocationAvailable).toBe(true);
+  await showWalk(otherCustomer).expect(404);
+  await showWalk(staff).expect(403);
+  const started = (await startWalk().expect(200)).body.data;
+  expect(started).toMatchObject({ available: true, sharing: true, location: null });
+  const sample = { sessionId: started.sessionId, coordinates: [105.85, 21.01], accuracyMeters: 10,
+    observedAt: new Date(clock()).toISOString() };
+  const updateWalk = body => request(server).put(walkEndpoint + '/location').set(headers(sitter)).send(body);
+  await updateWalk({ ...sample, observedAt: new Date(clock() - 1).toISOString() }).expect(409);
+  await updateWalk(sample).expect(200);
+  await updateWalk(sample).expect(409);
+  const latest = { ...sample, coordinates: [105.86, 21.02], observedAt: new Date(clock() + 1).toISOString() };
+  await updateWalk(latest).expect(200);
+  const live = (await showWalk(customer).expect(200).expect('Cache-Control', 'private, no-store')).body.data;
+  expect(live).toMatchObject({ fresh: true, location: { coordinates: latest.coordinates } });
+  expect(live.sessionId).toBeUndefined();
+
   const checkout = createBookingCheckoutService({ connection, clock });
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'IN_PROGRESS', checkInAt: new Date(clock()), checkOutAt: null });
   const mediaOut = await upload('synthetic-private-care-out');
@@ -169,11 +195,22 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
   expect(current.customerNote).toBe(customerNote);
+  await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-blank-note'))
+    .send({ expectedVersion: saved.body.data.version, mediaId: mediaOut, customerNote: '   ' })
+    .expect(422)
+    .expect(res => expect(res.body.error).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      fieldErrors: { customerNote: 'Trường này là bắt buộc.' }
+    }));
+  expect((await connection.collection('visits').findOne({ _id: row._id })).state).toBe('IN_PROGRESS');
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
   expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({
     state: 'COMPLETED', version: saved.body.data.version + 1, checkInAt: new Date(clock()), checkOutAt: new Date(clock()),
     evidenceRefs: [{ mediaId: mediaIn }, { mediaId: mediaOut }]
   });
+  expect((await showWalk(customer).expect(200)).body.data).toMatchObject({ available: false, location: null });
+  expect(await connection.collection('employeevisittravels').findOne({ _id: 'dog-walk:' + row._id })).toBeNull();
+  await updateWalk(latest).expect(409);
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'COMPLETED', checkOutAt: new Date(clock()) });
   const report = await checkout.read(customer, String(row.bookingId));
   expect(report.state).toBe('COMPLETED');
@@ -633,7 +670,7 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
     let current = await connection.collection('visits').findOne({ _id: new mongoose.Types.ObjectId(shift.id) });
     const input = { actor: sitter, visitId: shift.id, expectedVersion: current.version, idempotencyKey: `care-payroll-check-in-${index}`, mediaId: media[0] };
     const started = await finance.checkIn(input);
-    await finance.updateChecklist({ ...input, expectedVersion: started.version, idempotencyKey: `care-payroll-checklist-${index}`, items: [{ itemId: 'care', status: 'DONE' }] });
+    await finance.updateChecklist({ ...input, expectedVersion: started.version, idempotencyKey: `care-payroll-checklist-${index}`, items: [{ itemId: 'care', status: 'DONE' }], customerNote: 'Synthetic care note' });
     at = new Date(shift.endAt); current = await connection.collection('visits').findOne({ _id: new mongoose.Types.ObjectId(shift.id) });
     await finance.checkOut({ ...input, expectedVersion: current.version, idempotencyKey: `care-payroll-check-out-${index}`, mediaId: media[1] });
     if (!index) expect(await payroll.PayrollServiceCredit.countDocuments({ bookingId: row.bookingId })).toBe(0);
@@ -852,6 +889,7 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   });
   const checklist = await finance.updateChecklist({
     ...input, expectedVersion: started.version, items: [{ itemId: 'pet-condition', status: 'DONE' }],
+    customerNote: 'Synthetic care note',
     idempotencyKey: 'demo-replay-checklist'
   });
   at = row.endAt.getTime();

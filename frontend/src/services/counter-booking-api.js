@@ -27,6 +27,13 @@ export function createCounterBookingApi({ getCsrfToken } = {}) {
         method: 'POST', body, idempotencyKey: globalThis.crypto.randomUUID()
       })).data;
     },
+    async createAddress(customerId, body, idempotencyKey) {
+      return (await request(root + '/customers/' + encodeURIComponent(customerId) + '/addresses', {
+        method: 'POST', body, idempotencyKey
+      })).data;
+    },
+    searchAddress: query => request('/maps/search', { method: 'POST', body: { query } }),
+    resolveAddress: body => request('/maps/places/resolve', { method: 'POST', body }),
     async slots(date, { customerId, pets } = {}) {
       return (await request(root + '/slots', { method: 'POST', body: { customerId, date, pets } })).data;
     },

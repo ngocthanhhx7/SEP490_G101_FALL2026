@@ -57,6 +57,14 @@ function database(seed) {
       const row = (options.session?.data ?? state)[name]?.find(r => matches(r, filter));
       if (!row) return null; apply(row, update); writes.push(name); return copy(row);
     },
+    deleteOne: async (filter, { session }) => {
+      const rows = session.data[name] ?? [];
+      const index = rows.findIndex(row => matches(row, filter));
+      if (index === -1) return { deletedCount: 0 };
+      rows.splice(index, 1);
+      writes.push(name);
+      return { deletedCount: 1 };
+    },
     insertMany: async (rows, options = {}) => { ((options.session?.data ?? state)[name] ??= []).push(...copy(rows)); writes.push(name); }
   });
   const connection = { db: { collection }, transaction: async callback => {
@@ -79,7 +87,7 @@ function fixture({ started = false, clock = '10:00', foreign = false, suspended 
   const booking = { _id: BOOKING, customerId: '555555555555555555555555', visitIds: [VISIT], originalVisitCount: 1,
     paymentMode: 'POSTPAY', state: started ? 'IN_PROGRESS' : 'ASSIGNED', version: 0 };
   const db = database({ visits: [visit], bookings: [booking], privateimages: [{ _id: MEDIA, ownerId: SITTER.userId,
-    state: 'READY', contentDigest: 'c'.repeat(64), byteLength: 1024 }], commands: [], events: [], bindings: [] });
+    state: 'READY', contentDigest: 'c'.repeat(64), byteLength: 1024 }], commands: [], events: [], bindings: [], employeevisittravels: [{ _id: `dog-walk:${VISIT}` }] });
   db.connection.storage = { FinanceSourceCommand: db.model('commands'), FinanceSourceEvent: db.model('events'), CareMediaBinding: db.model('bindings') };
   db.connection.sitterStatus = { findOne: filter => ({ session() { return this; }, lean: async () =>
     !suspended && String(filter.userId) === SITTER.userId && filter.status === 'ACTIVE' ? { status: 'ACTIVE' } : null }) };
@@ -92,15 +100,18 @@ function done() { return [{ itemId: 'feed', status: 'DONE' }, { itemId: 'water',
 // SRS: UC-43 Normal Flow; GBR-16
 test("EXEC-VISIT-04-UTCID01 [N] Checklist DONE và ảnh hợp lệ cho phép checkout", async () => {
   const f = fixture({ started: true, clock: '11:00' }); f.state().visits[0].checklist = done();
+  f.state().visits[0].customerNote = 'Bé ăn uống bình thường.';
   expect(await f.service.checkOut(f.input)).toMatchObject({ visitId: VISIT, state: 'COMPLETED', version: 1 });
   expect(f.state().visits[0].checkOutAt).toEqual(at('11:00'));
   expect(f.state().visits[0].evidenceRefs).toContainEqual({ kind: 'CHECK_OUT', mediaId: MEDIA });
+  expect(f.state().employeevisittravels).toEqual([]);
 });
 
 // SRS: UC-43 bước2; GBR-16
 test("EXEC-VISIT-04-UTCID02 [N] Task skipped có lý do vẫn checkout được", async () => {
   const f = fixture({ started: true, clock: '11:00' });
   f.state().visits[0].checklist = [{ itemId: 'feed', status: 'SKIPPED', reason: 'Pet không ăn' }, { itemId: 'water', status: 'DONE' }];
+  f.state().visits[0].customerNote = 'Bé đã uống nước đầy đủ.';
   expect(await f.service.checkOut(f.input)).toMatchObject({ state: 'COMPLETED' });
 });
 
@@ -140,4 +151,32 @@ test("EXEC-VISIT-04-UTCID07 [A] Checklist không có ảnh và không có lý do
   f.state().visits[0].checklistPhotoIds = []; f.state().visits[0].evidenceRefs = [];
   await expect(f.service.checkOut(f.input)).rejects.toMatchObject({ status: 409 });
   expect(f.state().visits[0].checkOutAt).toBeUndefined();
+});
+
+test('ST3-31 blocks check-out when customerNote is empty or whitespace and keeps visit IN_PROGRESS', async () => {
+  const f = fixture({ started: true, clock: '11:00' });
+  f.state().visits[0].checklist = done();
+  await expect(f.service.checkOut(f.input)).rejects.toMatchObject({
+    status: 422,
+    code: 'VALIDATION_FAILED',
+    details: { fieldErrors: { customerNote: 'Trường này là bắt buộc.' } }
+  });
+  await expect(f.service.checkOut({ ...f.input, idempotencyKey: 'synthetic-execution-ws', customerNote: '   ' })).rejects.toMatchObject({
+    status: 422,
+    code: 'VALIDATION_FAILED',
+    details: { fieldErrors: { customerNote: 'Trường này là bắt buộc.' } }
+  });
+  expect(f.writes).toEqual([]);
+  expect(f.state().visits[0].state).toBe('IN_PROGRESS');
+});
+
+test('ST3-31 trims and persists customerNote atomically when provided on check-out', async () => {
+  const f = fixture({ started: true, clock: '11:00' });
+  f.state().visits[0].checklist = done();
+  expect(await f.service.checkOut({ ...f.input, customerNote: '  Bé đã ăn hết khẩu phần.  ' })).toMatchObject({
+    visitId: VISIT,
+    state: 'COMPLETED',
+    version: 1
+  });
+  expect(f.state().visits[0].customerNote).toBe('Bé đã ăn hết khẩu phần.');
 });

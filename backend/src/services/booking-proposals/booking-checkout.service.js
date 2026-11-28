@@ -176,11 +176,14 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               row.startAt.getTime() > at.getTime() + 30 * 86400000))
               fail('VALIDATION_FAILED', 'Counter visits must start at least two hours and within thirty days');
             if (row.location === 'HOME' && row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS)
-              fail('HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance');
+              throw new AppError(422, 'HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance', {
+                lineFields: { [input.visits.indexOf(row)]: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } }
+              });
             let privateAccessNotes = '', selectedAddress;
             let serviceAddress = facilityAddress, areaCode = 'DISTRICT_HAI_BA_TRUNG', point = facilityCoordinates ? { type: 'Point', coordinates: [...facilityCoordinates] } : undefined;
             if (row.location !== 'FACILITY') {
-              const address = await CustomerAddress.findOne({ _id: row.addressId, ownerId: actor.userId, state: 'ACTIVE', pointConfirmedAt: { $ne: null } }).select('+location +point +privateAccessNotes').session(session).lean();
+              const address = await CustomerAddress.findOne({ _id: row.addressId, ownerId: actor.userId, state: 'ACTIVE', pointConfirmedAt: { $ne: null },
+                ...(counter ? {} : { profileHidden: { $ne: true } }) }).select('+location +point +privateAccessNotes').session(session).lean();
               if (!address) fail('RESOURCE_NOT_FOUND', 'Owned confirmed address unavailable', 404);
               serviceAddress = address.location;
               areaCode = address.areaCode;
@@ -203,7 +206,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
             const matchReference = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
             if (row.pickup && !pickup) fail('PICKUP_DISTANCE_UNAVAILABLE', 'Pickup distance unavailable', 503);
-            const pickupSnapshot = row.pickup ? await pickup.confirm(actor.userId, row.pickup, session) : null;
+            const pickupSnapshot = row.pickup ? await pickup.confirm(actor.userId, row.pickup, session, { counter: Boolean(counter) }) : null;
             visitInputs.push(row);
             visits.push({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), serviceId: oid(selection.serviceId),
               petIds: pets.map(p => p._id), sitterId: null, state: 'SCHEDULED', version: 0, sequence: visits.length,

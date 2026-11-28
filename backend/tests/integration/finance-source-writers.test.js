@@ -72,7 +72,7 @@ async function payAndAssign() {
 }
 async function finish(index) {
   await service.checkIn(command(index, 0, 'check-in-one', { mediaId: images[index][0] }));
-  await service.updateChecklist(command(index, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'DONE' }] }));
+  await service.updateChecklist(command(index, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'DONE' }], customerNote: 'Synthetic care note' }));
   return service.checkOut(command(index, 2, 'check-out-one', { mediaId: images[index][1] }));
 }
 
@@ -111,7 +111,7 @@ test('prepayment, ownership, time window, incomplete checklist and reused eviden
   at = savedAt;
   await service.checkIn(command(0, 0, 'check-in-one', { mediaId: images[0][0] }));
   await expect(service.checkOut(command(0, 1, 'check-out-one', { mediaId: images[0][1] }))).rejects.toMatchObject({ code: 'CHECKLIST_REQUIRED' });
-  await service.updateChecklist(command(0, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'SKIPPED', reason: 'Synthetic exception' }] }));
+  await service.updateChecklist(command(0, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'SKIPPED', reason: 'Synthetic exception' }], customerNote: 'Synthetic care note' }));
   await expect(service.checkOut(command(0, 2, 'check-out-one', { mediaId: images[0][0] }))).rejects.toMatchObject({ code: 'EVIDENCE_ALREADY_USED' });
   expect((await col('visits').findOne({ _id: visits[0]._id })).state).toBe('IN_PROGRESS');
   expect(await models.CompletedBookingOrdinal.countDocuments()).toBe(0);
@@ -120,7 +120,7 @@ test('prepayment, ownership, time window, incomplete checklist and reused eviden
 test('transaction rollback preserves checkout when completion ordinal storage is unavailable', async () => {
   await payAndAssign(); await finish(0);
   await service.checkIn(command(1, 0, 'check-in-one', { mediaId: images[1][0] }));
-  await service.updateChecklist(command(1, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'DONE' }] }));
+  await service.updateChecklist(command(1, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'DONE' }], customerNote: 'Synthetic care note' }));
   await models.WeeklyBookingCounter.collection.dropIndex('sitterId_1_weekKey_1');
   try {
     await expect(service.checkOut(command(1, 2, 'check-out-one', { mediaId: images[1][1] })))
@@ -135,7 +135,7 @@ test('simultaneous final checkouts produce one booking completion and distinct d
   await payAndAssign();
   for (let index = 0; index < 2; index++) {
     await service.checkIn(command(index, 0, 'check-in-one', { mediaId: images[index][0] }));
-    await service.updateChecklist(command(index, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'DONE' }] }));
+    await service.updateChecklist(command(index, 1, 'checklist-one', { items: [{ itemId: 'feed', status: 'DONE' }], customerNote: 'Synthetic care note' }));
   }
   await Promise.all([0, 1].map(index => service.checkOut(command(index, 2, 'check-out-one', { mediaId: images[index][1] }))));
   expect(await models.CompletedBookingOrdinal.countDocuments()).toBe(2);
@@ -213,7 +213,7 @@ test('employee completion writes one immutable credit per visit and never create
   await payAndAssign();
   for (let index = 0; index < 2; index++) {
     await service.checkIn(command(index, 0, 'employee-check-in', { mediaId: images[index][0] }));
-    await service.updateChecklist(command(index, 1, 'employee-checklist', { items: [{ itemId: 'feed', status: 'DONE' }] }));
+    await service.updateChecklist(command(index, 1, 'employee-checklist', { items: [{ itemId: 'feed', status: 'DONE' }], customerNote: 'Synthetic care note' }));
   }
   at = new Date(at.getTime() + 3600000);
   await Promise.all([0, 1].map(index => service.checkOut(command(index, 2, 'employee-check-out', { mediaId: images[index][1] }))));

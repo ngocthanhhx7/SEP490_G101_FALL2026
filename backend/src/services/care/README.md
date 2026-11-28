@@ -9,8 +9,12 @@ declarations remain unverified medical information. This read/acknowledgement
 runtime does not replace the legacy instruction-revision adapter below.
 
 `visit-handover.service.js` owns UC-41 for the assigned replacement. It reads the
-checkout care snapshot and prior visit summaries, and records handover and care
-acknowledgements in one versioned, idempotent scheduling transaction.
+checkout care snapshot, prior visit summaries, and full earlier completed Care
+Reports (UC-45 via `visit-care-report.service.js`, shared with booking details)
+only while handover confirmation is still pending and before check-in; access
+ends immediately once handover is confirmed, the sitter is removed, or check-in
+occurs. It records handover and care acknowledgements in one versioned,
+idempotent scheduling transaction.
 `visit-handover-policy.service.js` owns the shared flag/reset and urgent-replacement
 rules. Entry-note authorization stays in the existing private route.
 
@@ -33,7 +37,7 @@ Private home access notes are never part of a broad booking projection. The
 adapter must return them only to the assigned sitter in the server-authorized
 window and after a required handover.
 
-`visit-evidence-access.service.js` permits the owning Customer to read a private photo only when the media binding, visit evidence reference, image owner/digest/kind and booking ownership agree. Existing image-owner access remains; unbound uploads, applicant documents and other Customers/Admin/Staff receive no new access. All lookups use existing primary IDs and bounded timeouts.
+`visit-evidence-access.service.js` permits the owning Customer to read a private photo only when the media binding, visit evidence reference, image owner/digest/kind and booking ownership agree. It also permits the assigned replacement Pet Sitter of a later pending handover visit in the same active booking (before handover confirmation and check-in) to read customer-visible evidence of earlier completed visits. Existing image-owner access remains; unbound uploads, applicant documents and other Customers/Admin/Staff receive no new access. All lookups use existing primary IDs and bounded timeouts.
 
 Service Workflow owns bounded Service draft/publication and immutable per-Visit tasks. `service-workflow.service.js` handles Admin publication/history; `workflow-snapshot.service.js` captures and projects immutable definitions; `visit-workflow.service.js` owns CAS task writes, named-slot binding, phase gates and reasoned Staff retry. It reuses employee commands/events and care media; only immutable version history has its own store. See [API](../../../../doc/api/service-workflows.md) and [storage plan](../../../../doc/database/service-workflow-plan.md).
 

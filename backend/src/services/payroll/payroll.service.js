@@ -108,7 +108,16 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       return this.prepareStatement(actor, preview.assessment, key, { input: body.input, sourceHash: body.sourceHash });
     },
     async recordContract(actor, body, key) {
-      role(actor, 'ADMIN'); const input = contractInput(body), approved = await policyFor('CONTRACT');
+      role(actor, 'ADMIN'); const input = contractInput(body, { checkPolicyBase: false });
+      const approved = await policyFor('CONTRACT');
+      const policyBaseKey = input.employmentType === 'FULL_TIME' ? 'fullTimeMonthlyBaseVnd' : 'partTimeMonthlyBaseVnd';
+      const expectedBaseVnd = approved[policyBaseKey];
+      if (!Number.isSafeInteger(expectedBaseVnd) || expectedBaseVnd < 1) {
+        fail('PAYROLL_POLICY_REQUIRED', 'Employee payroll policy awaits confirmation', 409);
+      }
+      if (input.monthlyBaseVnd !== expectedBaseVnd) {
+        fail('VALIDATION_FAILED', input.employmentType === 'FULL_TIME' ? 'Full-time agreement mismatch' : 'Part-time agreement mismatch');
+      }
       if (input.salaryBasis !== approved.salaryBasis) fail('PAYROLL_POLICY_REQUIRED', 'Salary basis mismatch', 409);
       if (input.employmentType === 'PART_TIME' && input.weeklyMinutes !== 1200) fail('VALIDATION_FAILED', 'Part-time contract is twenty hours per week');
       if (input.signedAt > now()) fail('VALIDATION_FAILED', 'Contract signature cannot be future dated');
@@ -227,7 +236,14 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (row._id === 'APPROVED') summary.awaitingPaymentVnd = row.amountVnd;
       }
       if (Object.values(summary).some(value => !Number.isSafeInteger(value))) fail('PAYROLL_OVERFLOW', 'Report exceeds supported integer amounts', 409);
-      return { summary, asOf: now() };
+      const rawPolicy = await policy?.resolve?.({ action: 'CONTRACT_READ' });
+      const payPolicy = {
+        ready: Boolean(rawPolicy?.ready && rawPolicy.version),
+        version: rawPolicy?.version ?? null,
+        fullTimeMonthlyBaseVnd: Number.isSafeInteger(rawPolicy?.fullTimeMonthlyBaseVnd) && rawPolicy.fullTimeMonthlyBaseVnd >= 1 ? rawPolicy.fullTimeMonthlyBaseVnd : null,
+        partTimeMonthlyBaseVnd: Number.isSafeInteger(rawPolicy?.partTimeMonthlyBaseVnd) && rawPolicy.partTimeMonthlyBaseVnd >= 1 ? rawPolicy.partTimeMonthlyBaseVnd : null
+      };
+      return { summary, payPolicy, asOf: now() };
     },
     async prepareStatement(actor, body, key, sourceDraft) {
       role(actor, 'ADMIN'); const input = payrollAssessmentInput(body); await policyFor('STATEMENT');

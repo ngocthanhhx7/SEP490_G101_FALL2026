@@ -20,7 +20,10 @@ import { QuotePriceSummary } from '../../components/common/QuotePriceSummary.jsx
 import { ADDRESS_NOT_SERVED, GROOMING_DEBT_BLOCKS_BOOKING } from '../../constants/booking-messages.js';
 import './service-booking.css';
 
+import { homeNoticeVisitIndex } from '../../utils/booking-presentation.js';
+
 const homeNoticeMs = 2 * 60 * 60 * 1000;
+const MSG19 = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
 const scheduleLabel = value => new Date(value + '+07:00').toLocaleString('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short', timeStyle: 'short'
 });
@@ -41,7 +44,7 @@ function errorText(error) {
   return ({ QUOTE_CHANGED: 'Hồ sơ, giá hoặc điều kiện đã thay đổi. Vui lòng lấy báo giá mới.',
     PRICING_REVIEW_REQUIRED: 'Một đặc điểm chăm sóc của thú cưng chưa có quy tắc giá được duyệt. Vui lòng liên hệ PawWorld để rà soát giá trước khi đặt dịch vụ.',
     PRICING_POLICY_UNAVAILABLE: 'Dịch vụ chưa có chính sách giá có hiệu lực. Vui lòng liên hệ PawWorld hoặc thử lại sau.',
-    HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
+    HOME_BOOKING_NOTICE_REQUIRED: MSG19,
     SLOT_INVALID: 'Lịch chăm sóc cần đặt trước ít nhất 2 giờ. Vui lòng kiểm tra lại thời gian.',
     PREFERRED_SITTER_HISTORY_REQUIRED: 'Bạn chỉ có thể chọn người chăm sóc đã từng chăm thú cưng này trước đó.',
     RESOURCE_NOT_FOUND: 'Báo giá, địa chỉ hoặc dịch vụ không còn khả dụng.',
@@ -77,7 +80,7 @@ export function BookingFlow({ service, api, onBooked }) {
   const [step, setStep] = useState(0), [quote, setQuote] = useState(null);
   const [available, setAvailable] = useState(null), [selected, setSelected] = useState(''), [consent, setConsent] = useState(false);
   const [msg162Dialog, setMsg162Dialog] = useState(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [uncertain, setUncertain] = useState(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [scheduleError, setScheduleError] = useState(null), [uncertain, setUncertain] = useState(false);
   const [debtReported, setDebtReported] = useState(false);
   const generation = useRef(0), command = useRef(null), locked = useRef(false);
   const durationMinutes = unit === 'tiếng' ? Number(units) * 60 : unit === '30 phút' ? Number(units) * 30 : service.details?.durationMinutes ?? 60;
@@ -92,6 +95,7 @@ export function BookingFlow({ service, api, onBooked }) {
     setConsent(false);
     setMsg162Dialog(null);
     setError('');
+    setScheduleError(null);
   }
 
   function schedule(selectedStarts = starts) {
@@ -161,12 +165,18 @@ export function BookingFlow({ service, api, onBooked }) {
       || location === 'HOME' && Date.parse(start + '+07:00') < now + homeNoticeMs);
     if (invalid !== -1) {
       setActiveVisit(invalid);
+      if (starts[invalid] && location === 'HOME' && Date.parse(starts[invalid] + '+07:00') < now + homeNoticeMs) {
+        setScheduleError({ index: invalid, message: MSG19 });
+        setError('');
+        return;
+      }
       const instruction = !starts[invalid] ? 'Chọn ngày và giờ bắt đầu.'
-        : location === 'HOME' ? 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.'
-          : 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
-      setError(`Buổi ${invalid + 1}. ${instruction}`);
+        : 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
+      setScheduleError({ index: invalid, message: `Buổi ${invalid + 1}. ${instruction}` });
+      setError('');
       return;
     }
+    setScheduleError(null);
     const ordered = starts.map((value, index) => ({ at: Date.parse(value + '+07:00'), index })).sort((a, b) => a.at - b.at);
     const overlap = ordered.find((slot, i) => i > 0 && slot.at < ordered[i - 1].at + durationMinutes * 60000);
     if (overlap) { setActiveVisit(overlap.index); setError(`Buổi ${overlap.index + 1} trùng giờ chăm sóc với một buổi khác. Hãy đổi giờ.`); return; }
@@ -234,6 +244,14 @@ export function BookingFlow({ service, api, onBooked }) {
       const value = await api.confirm(command.current.body, command.current.key);
       onBooked(value);
     } catch (failure) {
+      const visitIndex = homeNoticeVisitIndex(failure, command.current.body.visits);
+      if (visitIndex >= 0) {
+        setActiveVisit(visitIndex);
+        setStep(0);
+        setScheduleError({ index: visitIndex, message: MSG19 });
+        setUncertain(false);
+        return;
+      }
       if (failure.status === 409 && failure.code === 'SITTER_AVAILABILITY_CONSENT_REQUIRED' && selectedSitter) {
         const visits = Object.entries(failure.lineFields ?? {}).flatMap(([key, fields]) => {
           const index = Number(key);
@@ -310,6 +328,7 @@ export function BookingFlow({ service, api, onBooked }) {
             value={starts[activeVisit]} minimum={minimum} today={vietnamDate()} visits={starts} activeVisit={activeVisit}
             durationMinutes={boarding || !Number.isFinite(durationMinutes) ? undefined : durationMinutes}
             markedDays={new Set(starts.filter(Boolean).map(value => value.slice(0, 10)))}
+            error={scheduleError?.index === activeVisit ? scheduleError.message : ''} errorId="booking-schedule-error"
             onChange={value => { invalidate(); setStarts(current => current.map((start, index) => index === activeVisit ? value : start)); }}
           />
           {starts.length > 1 && <div className="booking-schedule-footer">

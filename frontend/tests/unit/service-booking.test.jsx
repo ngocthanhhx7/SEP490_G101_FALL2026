@@ -343,3 +343,84 @@ test('ST-BKG-14: a grooming debt found at confirmation shows the same message an
   await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận đặt dịch vụ' })).toBeDisabled());
   expect(screen.getAllByRole('alert')).toHaveLength(1);
 });
+
+test('ST-BKG-11 shows MSG19 under the date/time field when home booking is less than 2 hours ahead and maps server error', async () => {
+  jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
+  jest.setSystemTime(new Date('2026-11-28T03:00:00Z'));
+  try {
+    const api = fixture();
+    api.confirm.mockRejectedValueOnce({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
+    render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+    fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+    fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+    const startInput = screen.getByLabelText('Buổi 1 (giờ Việt Nam)');
+    expect(startInput).not.toHaveAttribute('min');
+    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
+    const timeInput = screen.getByLabelText(/Chọn giờ khác trong ngày/);
+    expect(timeInput).not.toHaveAttribute('min');
+    fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+    const fieldContainer = startInput.closest('.pwc-booking-daytime');
+    expect(within(fieldContainer).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+    expect(api.quote).not.toHaveBeenCalled();
+
+    fireEvent.change(startInput, { target: { value: '2026-11-28T12:30' } });
+    fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+    await screen.findByText('Sắp xếp người chăm sóc');
+    await reviewAndConfirm();
+    const resumedInput = await screen.findByLabelText('Buổi 1 (giờ Việt Nam)');
+    expect(within(resumedInput.closest('.pwc-booking-daytime')).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('MSG19 from the server stays on the rejected visit when switching visits', async () => {
+  const api = fixture();
+  api.confirm.mockRejectedValueOnce({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422,
+    lineFields: { 1: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } } });
+  render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh buổi tiếp theo' }));
+  fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: '2098-11-04T09:00' } });
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  await screen.findByText('Sắp xếp người chăm sóc');
+  await reviewAndConfirm();
+
+  const rejected = await screen.findByLabelText('Buổi 2 (giờ Việt Nam)');
+  const message = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
+  expect(within(rejected.closest('.pwc-booking-daytime')).getByText(message)).toBeVisible();
+  fireEvent.change(screen.getByRole('combobox', { name: /Buổi cần chỉnh/i }), { target: { value: '0' } });
+  expect(screen.getByLabelText('Buổi 1 (giờ Việt Nam)')).toHaveAttribute('aria-invalid', 'false');
+  expect(screen.queryByText(message)).not.toBeInTheDocument();
+});
+
+test('non-HOME service blocks past time under the date/time field without quoting and allows valid future time', async () => {
+  jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
+  jest.setSystemTime(new Date('2026-11-28T03:00:00Z'));
+  try {
+    const api = fixture();
+    const outdoorService = {
+      id: 'dog-walking', name: 'Dắt chó đi dạo', code: 'dog-walking', species: ['DOG'],
+      price: { unitLabel: 'lượt' }, details: { locations: ['OUTDOOR'], durationMinutes: 30 }
+    };
+    render(<MemoryRouter><BookingFlow service={outdoorService} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+    fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+    fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+    const startInput = screen.getByLabelText('Buổi 1 (giờ Việt Nam)');
+    fireEvent.change(startInput, { target: { value: '2026-11-28T09:00' } });
+    fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+    const fieldContainer = startInput.closest('.pwc-booking-daytime');
+    expect(within(fieldContainer).getByText('Buổi 1. Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.')).toBeVisible();
+    expect(api.quote).not.toHaveBeenCalled();
+
+    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
+    fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+    await screen.findByText('Sắp xếp người chăm sóc');
+    expect(api.quote).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});

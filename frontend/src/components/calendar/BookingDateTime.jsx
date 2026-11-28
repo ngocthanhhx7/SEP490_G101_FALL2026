@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { timelineMinute } from './CalendarTimeline.jsx';
 import { WeekCalendar } from './WeekCalendar.jsx';
 
-export function BookingDateTime({ label, value, onChange, today, minimum, name, disabled, readOnly, compact = false, visits, activeVisit = 0, durationMinutes, markedDays }) {
+export function BookingDateTime({ label, value, onChange, today, minimum, name, disabled, readOnly, compact = false, visits, activeVisit = 0, durationMinutes, markedDays, error = '', errorId }) {
   const [visible, setVisible] = useState(!compact);
   const [draftDay, setDraftDay] = useState('');
   const [savedDay = '', time = ''] = value.split('T');
@@ -18,7 +18,7 @@ export function BookingDateTime({ label, value, onChange, today, minimum, name, 
   }
   const directField = <label className="pwc-booking-daytime__manual">{label}
     <input type="datetime-local" name={name} required={compact} readOnly={readOnly} disabled={disabled}
-      value={value} min={compact && !readOnly ? minimum : undefined}
+      value={value} aria-invalid={Boolean(error)} aria-describedby={error && errorId ? errorId : undefined}
       onChange={changeNative} />
   </label>;
   return <div className="pwc-booking-daytime">
@@ -56,7 +56,8 @@ export function BookingDateTime({ label, value, onChange, today, minimum, name, 
         ? `Đã chọn ${time}${endLabel} ngày ${savedDay.slice(8)}/${savedDay.slice(5, 7)}`
         : 'Chọn một ô giờ trên lịch.'}</p>
       {day && <label className="pwc-booking-daytime__manual">Chọn giờ khác trong ngày {day.slice(8)}/{day.slice(5, 7)}
-        <input type="time" value={savedDay === day ? time : ''} disabled={disabled} min={day === minimum.slice(0, 10) ? minimum.slice(11) : undefined}
+        <input type="time" value={savedDay === day ? time : ''} disabled={disabled}
+          aria-invalid={Boolean(error)} aria-describedby={error && errorId ? errorId : undefined}
           onChange={event => {
             const hour = event.target.value;
             setDraftDay(day);
@@ -68,5 +69,6 @@ export function BookingDateTime({ label, value, onChange, today, minimum, name, 
       <summary>Nhập ngày giờ trực tiếp</summary>
       {directField}
     </details>}
+    {error && <p id={errorId} className="booking-error pwc-booking-daytime__error" role="alert">{error}</p>}
   </div>;
 }

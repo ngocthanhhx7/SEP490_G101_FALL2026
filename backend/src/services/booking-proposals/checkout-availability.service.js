@@ -37,7 +37,7 @@ export function createCheckoutAvailabilityService({ connection, repository, cloc
       if (pets.length !== selection.petIds.length || pets.some(pet => !quoted?.petVersions?.some(p => p.id === String(pet._id) && p.version === pet.version)))
         fail('QUOTE_CHANGED', 'Pet profile changed', 409);
       if (selection.dayCount) return { sitters: [], status: 'STAFF_CARE_PLAN_REQUIRED', complete: true };
-      const address = row.location !== 'FACILITY' && await CustomerAddress.findOne({ _id: row.addressId, ownerId: actor.userId, state: 'ACTIVE', pointConfirmedAt: { $ne: null } }).select('+point').lean();
+      const address = row.location !== 'FACILITY' && await CustomerAddress.findOne({ _id: row.addressId, ownerId: actor.userId, state: 'ACTIVE', pointConfirmedAt: { $ne: null }, profileHidden: { $ne: true } }).select('+point').lean();
       if (row.location !== 'FACILITY' && !address) fail('RESOURCE_NOT_FOUND', 'Owned confirmed address required', 404);
       const visit = { ...row, serviceId: selection.serviceId, endAt: new Date(row.startAt.getTime() + selection.durationMinutes * 60000),
         areaCode: address?.areaCode ?? 'DISTRICT_HAI_BA_TRUNG', snapshots: { pets, serviceAddress: facilityAddress,

@@ -38,5 +38,5 @@ test('service, pet, date and amount identify an order; white detail action targe
   const link = screen.getByRole('link', { name: /Xem chi tiết Cắt móng/ });
   expect(link).toHaveAttribute('href', `/account/bookings/${id}`);
   expect(link).toHaveClass('customer-bookings__detail-button');
-  expect(link.parentElement).toContainElement(screen.getByText('Chờ người chăm sóc'));
+  expect(link.parentElement).toContainElement(screen.getByText('Đã xác nhận'));
 });

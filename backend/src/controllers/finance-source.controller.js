@@ -3,8 +3,12 @@ import { validateFinanceSourceInput } from '../validators/finance-source.validat
 
 export function createFinanceSourceController({ service, webhook, bookingCancellation }) {
   const visitCommand = method => async (req, res) => {
-    const input = validateFinanceSourceInput(req.body, method === 'updateChecklist'
-      ? ['expectedVersion', 'items', 'customerNote'] : ['expectedVersion', 'mediaId']);
+    const allowed = method === 'updateChecklist'
+      ? ['expectedVersion', 'items', 'customerNote']
+      : method === 'checkOut'
+        ? ['expectedVersion', 'mediaId', 'customerNote']
+        : ['expectedVersion', 'mediaId'];
+    const input = validateFinanceSourceInput(req.body, allowed);
     const data = await service[method]({ ...input, visitId: req.params.id, actor: req.auth,
       idempotencyKey: req.get('Idempotency-Key') });
     res.status(200).json({ data, meta: metadata(req) });

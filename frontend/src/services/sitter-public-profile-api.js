@@ -3,6 +3,8 @@ export function createSitterPublicProfileApi(request) {
   return Object.freeze({
     own: async ({ signal } = {}) => (await request('/sitter-public-profiles/me', { signal })).data,
     submit: async (body, key) => (await request('/sitter-public-profiles/me', { method: 'PUT', body, idempotencyKey: key })).data,
+    selfProfile: async ({ signal } = {}) => (await request('/sitter-public-profiles/me/profile', { signal })).data,
+    saveSelfProfile: async (body, key) => (await request('/sitter-public-profiles/me/profile', { method: 'PUT', body, idempotencyKey: key })).data,
     list: async ({ signal, cursor, userId, state } = {}) => {
       const params = new globalThis.URLSearchParams();
       if (state) params.set('state',state);

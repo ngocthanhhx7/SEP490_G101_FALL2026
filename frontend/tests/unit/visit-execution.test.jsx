@@ -175,3 +175,92 @@ test('stored check-in photo is fetched through the authenticated port and checkl
   expect(api.readEvidence).toHaveBeenCalledWith('a'.repeat(64),expect.objectContaining({signal:expect.anything()}));
   unmount();expect(URL.revokeObjectURL).toHaveBeenCalled();
 });
+
+test('ST-BKG-42 shows MSG82 toast with saved Vietnam check-in time after check-in', async () => {
+  const api = {
+    execution: jest.fn()
+      .mockResolvedValueOnce({ data: { visitId: 'visit', version: 2, state: 'ASSIGNED', checklistItemIds: [], checklist: [] } })
+      .mockResolvedValueOnce({ data: { visitId: 'visit', version: 3, state: 'IN_PROGRESS', checkInAt: '2026-11-28T02:05:00.000Z', checklistItemIds: [], checklist: [] } }),
+    uploadEvidence: jest.fn().mockResolvedValue({ id: 'a'.repeat(64), state: 'READY' }),
+    executeVisit: jest.fn().mockResolvedValue({ data: { visitId: 'visit', version: 3, state: 'IN_PROGRESS' } })
+  };
+  render(<VisitExecution api={api} visitId="visit" />);
+  fireEvent.change(await screen.findByLabelText('Ảnh tại ca chăm sóc'), { target: { files: [new globalThis.File(['sample'], 'in.png', { type: 'image/png' })] } });
+  fireEvent.click(screen.getByRole('button', { name: 'Check-in bắt đầu ca' }));
+  expect(await screen.findByText('Bạn đã check-in lúc 09:05.')).toBeVisible();
+});
+
+test('ST-BKG-42 preserves MSG82 toast when parent page unmounts and remounts VisitExecution on onChanged', async () => {
+  const api = {
+    execution: jest.fn()
+      .mockResolvedValueOnce({ data: { visitId: 'visit-remount', version: 2, state: 'ASSIGNED', checklistItemIds: [], checklist: [] } })
+      .mockResolvedValue({ data: { visitId: 'visit-remount', version: 3, state: 'IN_PROGRESS', checkInAt: '2026-11-28T02:15:00.000Z', checklistItemIds: [], checklist: [] } }),
+    uploadEvidence: jest.fn().mockResolvedValue({ id: 'a'.repeat(64), state: 'READY' }),
+    executeVisit: jest.fn().mockResolvedValue({ data: { visitId: 'visit-remount', version: 3, state: 'IN_PROGRESS' } })
+  };
+  let remount;
+  const { rerender } = render(<VisitExecution key="1" api={api} visitId="visit-remount" onChanged={() => remount()} />);
+  remount = () => rerender(<VisitExecution key="2" api={api} visitId="visit-remount" onChanged={() => {}} />);
+  fireEvent.change(await screen.findByLabelText('Ảnh tại ca chăm sóc'), { target: { files: [new globalThis.File(['sample'], 'in.png', { type: 'image/png' })] } });
+  fireEvent.click(screen.getByRole('button', { name: 'Check-in bắt đầu ca' }));
+  expect(await screen.findByText('Bạn đã check-in lúc 09:15.')).toBeVisible();
+});
+
+test('ST-BKG-42 does not show toast when follow-up execution reload fails', async () => {
+  const api = {
+    execution: jest.fn()
+      .mockResolvedValueOnce({ data: { visitId: 'visit', version: 2, state: 'ASSIGNED', checklistItemIds: [], checklist: [] } })
+      .mockRejectedValueOnce({ code: 'NETWORK_ERROR' }),
+    uploadEvidence: jest.fn().mockResolvedValue({ id: 'a'.repeat(64), state: 'READY' }),
+    executeVisit: jest.fn().mockResolvedValue({ data: { visitId: 'visit', version: 3, state: 'IN_PROGRESS' } })
+  };
+  render(<VisitExecution api={api} visitId="visit" />);
+  fireEvent.change(await screen.findByLabelText('Ảnh tại ca chăm sóc'), { target: { files: [new globalThis.File(['sample'], 'in.png', { type: 'image/png' })] } });
+  fireEvent.click(screen.getByRole('button', { name: 'Check-in bắt đầu ca' }));
+  expect(await screen.findByText(/Chưa tải được tiến độ ca/)).toBeVisible();
+  expect(screen.queryByText(/Bạn đã check-in lúc/)).not.toBeInTheDocument();
+});
+
+test('ST-BKG-44 shows MSG83 toast with saved Vietnam check-out time after check-out', async () => {
+  const api = {
+    execution: jest.fn()
+      .mockResolvedValueOnce({ data: { visitId: 'visit', version: 3, state: 'IN_PROGRESS', checkInAt: '2026-11-28T02:05:00.000Z',
+        checklistItemIds: ['pet-condition'], checklist: [{ itemId: 'pet-condition', status: 'DONE' }], customerNote: 'Milo ăn ngoan.' } })
+      .mockResolvedValueOnce({ data: { visitId: 'visit', version: 4, state: 'COMPLETED', checkInAt: '2026-11-28T02:05:00.000Z',
+        checkOutAt: '2026-11-28T03:35:00.000Z', checklistItemIds: ['pet-condition'], checklist: [{ itemId: 'pet-condition', status: 'DONE' }], customerNote: 'Milo ăn ngoan.' } }),
+    uploadEvidence: jest.fn().mockResolvedValue({ id: 'b'.repeat(64), state: 'READY' }),
+    executeVisit: jest.fn().mockResolvedValue({ data: { visitId: 'visit', version: 4, state: 'COMPLETED' } })
+  };
+  render(<VisitExecution api={api} visitId="visit" />);
+  fireEvent.change(await screen.findByLabelText('Ảnh tại ca chăm sóc'), { target: { files: [new globalThis.File(['sample'], 'out.png', { type: 'image/png' })] } });
+  fireEvent.click(screen.getByRole('button', { name: 'Check-out hoàn tất ca' }));
+  expect(await screen.findByText('Bạn đã check-out lúc 10:35. Báo cáo chăm sóc đã được gửi cho khách.')).toBeVisible();
+});
+
+test('ST3-31 blocks check-out when customer note is empty or whitespace and shows MSG01 under note field', async () => {
+  const api = {
+    execution: jest.fn().mockResolvedValue({ data: { visitId: 'visit', version: 3, state: 'IN_PROGRESS',
+      checklistItemIds: ['pet-condition'], checklist: [{ itemId: 'pet-condition', status: 'DONE' }] } }),
+    uploadEvidence: jest.fn().mockResolvedValue({ id: 'b'.repeat(64), state: 'READY' }),
+    executeVisit: jest.fn().mockResolvedValue({ data: { visitId: 'visit', version: 4, state: 'COMPLETED' } })
+  };
+  render(<VisitExecution api={api} visitId="visit" />);
+  const noteInput = await screen.findByLabelText('Ghi chú cho khách');
+  fireEvent.change(noteInput, { target: { value: '   ' } });
+  fireEvent.change(screen.getByLabelText('Ảnh tại ca chăm sóc'), { target: { files: [new globalThis.File(['sample'], 'out.png', { type: 'image/png' })] } });
+  fireEvent.click(screen.getByRole('button', { name: 'Check-out hoàn tất ca' }));
+  const errorEl = document.getElementById('visit-customer-note-error');
+  expect(errorEl).toBeVisible();
+  expect(errorEl).toHaveTextContent('Trường này là bắt buộc.');
+  expect(noteInput).toHaveAttribute('aria-invalid', 'true');
+  expect(api.uploadEvidence).not.toHaveBeenCalled();
+  expect(api.executeVisit).not.toHaveBeenCalled();
+
+  fireEvent.change(noteInput, { target: { value: 'Bé đã ăn đủ và ngủ ngoan.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Check-out hoàn tất ca' }));
+  await waitFor(() => expect(api.executeVisit).toHaveBeenCalledWith('visit', 'check-outs', {
+    expectedVersion: 3,
+    mediaId: 'b'.repeat(64),
+    customerNote: 'Bé đã ăn đủ và ngủ ngoan.'
+  }, expect.any(String)));
+});

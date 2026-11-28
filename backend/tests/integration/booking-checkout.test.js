@@ -143,7 +143,8 @@ test('home-care availability and checkout share the inclusive 120-minute boundar
   await expect(availability.search(owner, { quoteId: q.quoteId, visit: short.visits[0] }))
     .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
   await expect(checkout.confirm(owner, short, 'home-notice-boundary'))
-    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
+    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422,
+      details: { lineFields: { 0: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } } } });
   expect(await connection.collection('visits').countDocuments()).toBe(0);
   const exact = { ...body, visits: [visitAt(120)] };
   await expect(availability.search(owner, { quoteId: q.quoteId, visit: exact.visits[0] })).resolves.toHaveProperty('sitters');
@@ -382,6 +383,21 @@ test('availability endpoint requires session and CSRF and never caches private r
     .set('x-test-actor', 'owner').set('x-csrf-token', 'synthetic-csrf').send(body).expect(503);
   expect(disabled.body.error.code).toBe('SCHEDULING_UNAVAILABLE');
   expect(disabled.headers['cache-control']).toContain('no-store');
+});
+
+test('online checkout refuses an owned address reserved for counter bookings', async () => {
+  const q = await quote('home-care', 1);
+  const hidden = await connection.models.CustomerAddress.create({
+    ownerId: owner.userId, label: 'Synthetic counter address', location: 'Synthetic counter location',
+    areaCode: address.areaCode, point: { type: 'Point', coordinates: [105.85, 21.02] },
+    pointConfirmedAt: at, version: 0, profileHidden: true, createdChannel: 'COUNTER'
+  });
+  const body = input(q);
+  body.visits[0].addressId = String(hidden._id);
+  const before = await connection.collection('bookings').countDocuments();
+  await expect(checkout.confirm(owner, body, 'online-counter-address-001'))
+    .rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
+  expect(await connection.collection('bookings').countDocuments()).toBe(before);
 });
 
 test('rejects changed price/policy/pets, expired quote, missing consent, overlap and foreign address without writing orders', async () => {

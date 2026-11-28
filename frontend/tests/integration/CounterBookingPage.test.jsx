@@ -1,8 +1,17 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { beforeAll } from '@jest/globals';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CounterBookingPage } from '../../src/pages/admin/CounterBookingPage.jsx';
+jest.mock('../../src/components/common/VietmapView.jsx', () => ({
+  VietmapView: () => <div role="region" aria-label="Bản đồ địa chỉ" />
+}));
+
+beforeAll(() => {
+  window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
 
 const customer = {
-  id: 'customer-1', displayName: 'Trần Thị Lan', tierCode: 'SILVER',
+  id: 'customer-1', displayName: 'T*** T** Lan', tierCode: 'SILVER',
   pets: [
     { id: 'pet-1', name: 'Mít', species: 'DOG', breedName: 'Poodle', weightKg: 6 },
     { id: 'pet-2', name: 'Bơ', species: 'CAT', breedName: 'Anh lông ngắn', weightKg: 4 }
@@ -19,7 +28,10 @@ const base = () => ({
   lookup: jest.fn().mockResolvedValue({ customer }),
   createCustomer: jest.fn().mockResolvedValue({ ...customer, id: 'customer-created' }),
   createPet: jest.fn().mockResolvedValue({ id: 'new-pet', name: 'Mướp', species: 'DOG', breedName: 'Poodle', weightKg: 3 }),
-  petCatalog: jest.fn().mockResolvedValue({ breeds: [{ code: 'dog-poodle', name: 'Poodle', species: 'DOG' }], traits: [] }),
+  petCatalog: jest.fn().mockResolvedValue({ breeds: [{ code: 'dog-poodle', name: 'Poodle', species: 'DOG' }],
+    traits: [], workAreas: [{ code: 'AREA-1', label: 'Quận thử nghiệm' }] }),
+  createAddress: jest.fn().mockResolvedValue({ id: 'address-counter', label: 'Tại quầy', areaCode: 'AREA-1',
+    pointConfirmedAt: '2026-11-28T04:00:00.000Z' }),
   slots: jest.fn().mockResolvedValue({ slots: ['08:00', '09:00', '10:00'] }),
   pickupQuote: jest.fn().mockResolvedValue({ allowed: true, distanceKm: 6.8, feeVnd: 40000 }),
   preview: jest.fn().mockResolvedValue({ previewId: 'synthetic-preview', subtotalVnd: 150000, tierDiscountVnd: 7500, pickupFeeVnd: 40000, totalVnd: 182500 }),
@@ -29,10 +41,62 @@ async function initialize(api = base()) {
   render(<CounterBookingPage api={api} initialDate="2026-11-28" initialPhone="0912345678" />);
   await screen.findByText('Tắm và vệ sinh thú cưng');
   fireEvent.click(screen.getByRole('button', { name: 'Tìm khách' }));
-  await screen.findByText(/Trần Thị Lan · hạng Bạc/);
+  await screen.findByText(/T\*\*\* T\*\* Lan · hạng Bạc/);
   fireEvent.click(screen.getByRole('checkbox', { name: /Mít/ }));
   return api;
 }
+test('phone lookup shows only the masked name returned by the API', async () => {
+  await initialize();
+  expect(screen.queryByText(/Trần Thị Lan/)).not.toBeInTheDocument();
+  expect(screen.getByText(/T\*\*\* T\*\* Lan/)).toBeInTheDocument();
+});
+async function fillCounterAddress(modal) {
+  fireEvent.change(within(modal).getByRole('textbox', { name: 'Tên gợi nhớ' }), { target: { value: 'Tại quầy' } });
+  fireEvent.change(within(modal).getByRole('combobox', { name: 'Khu vực phục vụ' }), { target: { value: 'AREA-1' } });
+  fireEvent.change(within(modal).getByRole('textbox', { name: 'Địa chỉ đầy đủ' }), { target: { value: '12 Đường thử nghiệm' } });
+  fireEvent.change(within(modal).getByRole('spinbutton', { name: 'Kinh độ' }), { target: { value: '105.85' } });
+  fireEvent.change(within(modal).getByRole('spinbutton', { name: 'Vĩ độ' }), { target: { value: '21.03' } });
+  fireEvent.click(within(modal).getByRole('checkbox', { name: /Tôi xác nhận địa chỉ/ }));
+  await act(async () => {
+    fireEvent.click(within(modal).getByRole('button', { name: 'Lưu địa chỉ cho lịch đặt' }));
+  });
+}
+test('Escape closes the counter address dialog without saving', async () => {
+  const api = await initialize();
+  fireEvent.click(screen.getAllByRole('button', { name: '+ Thêm' })[2]);
+  fireEvent.change(screen.getByRole('combobox', { name: 'Địa chỉ' }), { target: { value: '__new__' } });
+  const dialog = await screen.findByRole('dialog', { name: 'Nhập địa chỉ mới' });
+  await within(dialog).findByRole('option', { name: 'Quận thử nghiệm' });
+  fireEvent(dialog, new window.Event('cancel', { cancelable: true }));
+  expect(screen.queryByRole('dialog', { name: 'Nhập địa chỉ mới' })).not.toBeInTheDocument();
+  expect(api.createAddress).not.toHaveBeenCalled();
+});
+
+test('new counter-only address can be attached to a home service', async () => {
+  const api = await initialize();
+  fireEvent.click(screen.getAllByRole('button', { name: '+ Thêm' })[2]);
+  fireEvent.change(screen.getByRole('combobox', { name: 'Địa chỉ' }), { target: { value: '__new__' } });
+  const modal = await screen.findByRole('dialog', { name: 'Nhập địa chỉ mới' });
+  await within(modal).findByRole('option', { name: 'Quận thử nghiệm' });
+  await fillCounterAddress(modal);
+  await waitFor(() => expect(api.createAddress).toHaveBeenCalledWith(customer.id,
+    expect.objectContaining({ pointConfirmed: true, coordinates: [105.85, 21.03], areaCode: 'AREA-1' }),
+    expect.any(String)));
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Địa chỉ' })).toHaveValue('address-counter'));
+});
+test('new counter-only address can be selected for pickup', async () => {
+  const api = await initialize();
+  fireEvent.click(screen.getAllByRole('button', { name: '+ Thêm' })[0]);
+  fireEvent.click(screen.getByRole('checkbox', { name: /Đón và trả tận nhà/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Địa chỉ đón' }), { target: { value: '__new__' } });
+  const modal = await screen.findByRole('dialog', { name: 'Nhập địa chỉ mới' });
+  await within(modal).findByRole('option', { name: 'Quận thử nghiệm' });
+  await fillCounterAddress(modal);
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Địa chỉ đón' })).toHaveValue('address-counter'));
+  await waitFor(() => expect(api.pickupQuote).toHaveBeenCalledWith({
+    customerId: customer.id, addressId: 'address-counter'
+  }));
+});
 test('counter booking mockup: search customer, pick pet, add services and choose pickup', async () => {
   const api = await initialize();
   fireEvent.click(screen.getAllByRole('button', { name: '+ Thêm' })[0]);

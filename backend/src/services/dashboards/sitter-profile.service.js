@@ -8,7 +8,9 @@ export function createSitterProfileService({ repository } = {}) {
         || row.approved !== true || row.id !== scope.userId) fail(503, 'INVALID_PROJECTION');
       const reviewCount = row.reviewsAvailable === false && row.reviewCount === null && row.rating === null ? null : integer(row.reviewCount);
       if (reviewCount > 0 && (!Number.isFinite(row.rating) || row.rating < 1 || row.rating > 5)) fail(503, 'INVALID_PROJECTION');
-      return { id: row.id, displayName: row.displayName, bio: row.bio, areas: [...row.areas],
+      return { id: row.id, displayName: row.displayName, bio: row.bio,
+        ...(row.experience ? { experience: row.experience } : {}),
+        areas: [...row.areas],
         reviewCount, rating: reviewCount ? row.rating : null, ...(reviewCount === null ? { reviewsAvailable: false } : {}) };
     }) }) });
 }

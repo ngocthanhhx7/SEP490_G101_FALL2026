@@ -19,5 +19,6 @@
 .pwc-booking-checkout .pwc-week-calendar button { margin: 0; }
 .pwc-booking-toast { position: fixed; top: 1.25rem; right: 1.25rem; z-index: 60; display: flex; align-items: center; gap: .75rem; padding: .85rem 1.1rem; border: 1px solid #216443; border-radius: 10px; background: #edf8f1; color: #195136; box-shadow: 0 8px 24px #18272224; font-weight: 600; }
 .pwc-booking-toast button { min-height: 28px; min-width: 28px; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font-size: 1.2rem; }
+.pwc-booking-daytime__error { color: var(--pwc-error, #b42318); font-size: 0.875rem; font-weight: 600; margin: 0.35rem 0 0; }
 .pwc-booking-alert { margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid #d99aa2; border-radius: 8px; background: #fdf1f2; color: #a52232; font-weight: 600; }
 .pwc-booking-pending-payment { margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid #d8c28a; border-radius: 8px; background: #fff9ea; color: #6b4e0f; }

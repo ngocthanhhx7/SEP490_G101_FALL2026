@@ -35,7 +35,7 @@ export function createMongoSitterProfileRepository({ connection, cursorSecret })
         $regex: query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i'
       } } });
       pipeline.push({ $sort: { userId: 1 } }, { $limit: query.limit + 1 },
-        { $project: { _id: 0, userId: 1, bio: 1, areas: 1, updatedAt: 1, reviewedAt: 1,
+        { $project: { _id: 0, userId: 1, bio: 1, experience: 1, areas: 1, updatedAt: 1, reviewedAt: 1,
           displayName: '$user.displayName', userUpdatedAt: '$user.updatedAt', statusUpdatedAt: { $max: '$status.updatedAt' } } });
       const rows = await profiles.aggregate(pipeline).session(session).option({ maxTimeMS: 5000 });
       const page = rows.slice(0, query.limit);
@@ -52,7 +52,9 @@ export function createMongoSitterProfileRepository({ connection, cursorSecret })
       return { ready: true, scope, asOf: asOf.toISOString(), sourceVersion: `sitter-public-profile/v1/${asOf.toISOString()}`,
         metrics: [], items: page.map(row => {
           const rating = ratings.find(value => value._id === String(row.userId));
-          return { id: String(row.userId), displayName: row.displayName, bio: row.bio, areas: row.areas,
+          return { id: String(row.userId), displayName: row.displayName, bio: row.bio,
+            ...(row.experience ? { experience: row.experience } : {}),
+            areas: row.areas,
             approved: true, reviewsAvailable, reviewCount: reviewsAvailable ? rating?.count ?? 0 : null, rating: rating?.rating ?? null };
         }), nextCursor: rows.length > query.limit ? codec.encode({ userId: String(page.at(-1).userId) }, context) : null };
     }, { readConcern: { level: 'snapshot' }, readPreference: 'primary' });
