@@ -43,9 +43,10 @@ afterEach(() => {
   else delete document.hidden;
   jest.useRealTimers();
 });
-function show(getTracker, getPhoto) {
+function show(getTracker, getPhoto, getWalk) {
   globalThis.fetch = jest.fn(async url => {
     if (url === tracker) return envelope(await getTracker());
+    if (getWalk && url === '/api/v1/employee-scheduling/visits/' + visitId + '/dog-walk') return envelope(await getWalk());
     if (url.startsWith('/api/v1/private-images/') && getPhoto) return getPhoto(url);
     if (url === '/api/v1/checkout/bookings/' + bookingId)
       return envelope({ id: bookingId, state: 'IN_PROGRESS', paymentMode: 'POSTPAY', paymentState: 'UNPAID',
@@ -83,6 +84,31 @@ test('opening the profile on a completed visit rechecks publication', async () =
 test('exposes the journey only when the owner tracker returns the travel capability', async () => {
   show(() => ({ ...active, actions: { ...active.actions, travel: true } }));
   expect(await screen.findByText('Hành trình đến điểm chăm sóc')).toBeVisible();
+});
+
+test('UC-46 exposes fresh walk data, a stale-location message and the same visit incident link', async () => {
+  jest.useFakeTimers();
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  let walk = { available: true, state: 'EN_ROUTE', sharing: true, fresh: true,
+    location: { coordinates: [105.85, 21.02], observedAt: new Date().toISOString(), accuracyMeters: 10 } };
+  let status = { ...active, actions: { ...active.actions, walkLocation: { eligible: true, available: true }, incident: true } };
+  show(() => status, undefined, () => walk);
+  const disclosure = await screen.findByText('Vị trí buổi đi dạo');
+  const details = disclosure.closest('details');
+  details.open = true;
+  fireEvent(details, new window.Event('toggle'));
+  expect(await screen.findByRole('region', { name: 'Vị trí hiện tại của người chăm sóc khi đi dạo' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Báo cáo sự cố' })).toHaveAttribute('href', '/visits/' + visitId + '/incidents/new');
+
+  walk = { ...walk, fresh: false, location: null };
+  await act(async () => { jest.advanceTimersByTime(30000); });
+  expect(screen.getByText('Chưa có vị trí mới.')).toHaveAttribute('data-message-code', 'MSG146');
+  expect(screen.queryByRole('region', { name: 'Vị trí hiện tại của người chăm sóc khi đi dạo' })).toBeNull();
+
+  status = done;
+  await act(async () => { jest.advanceTimersByTime(30000); });
+  expect(screen.queryByText('Vị trí buổi đi dạo')).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Báo cáo sự cố' })).toBeNull();
 });
 
 test('UC-78 renders current progress and newest updates and returns to the booking', async () => {

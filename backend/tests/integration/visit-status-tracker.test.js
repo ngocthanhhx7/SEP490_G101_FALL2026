@@ -30,7 +30,7 @@ beforeAll(async () => {
   app = express();
   app.use(requestId);
   app.use('/api/v1', customerReadRuntime({ config, connection, sessionService, clock,
-    env: { BOOKING_CHECKOUT_ENABLED: 'true', EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: 'true' } }).router);
+    env: { BOOKING_CHECKOUT_ENABLED: 'true', EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: 'true', FINANCE_SOURCES_ENABLED: 'true' } }).router);
   app.use(notFound, errorHandler(() => {}));
   const ids = [scheduled, complete, active, cancelled, arrived];
   await col('bookings').insertOne({ _id: booking, customerId: owner, bookingCode: 'BK-0042',
@@ -54,9 +54,9 @@ beforeAll(async () => {
   await col('services').insertOne({ _id: service, code: 'dog-walking' });
   await col('users').insertOne({ _id: sitter, displayName: 'Lê Văn Minh' });
   await col('reviews').insertMany([
-    { sitterId: sitter, direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', rating: 5 },
-    { sitterId: String(sitter), direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', rating: 4 },
-    { sitterId: sitter, direction: 'CUSTOMER_TO_SITTER', state: 'DRAFT', rating: 1 }
+    { visitId: complete, sitterId: sitter, direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', rating: 5 },
+    { visitId: oid(), sitterId: String(sitter), direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', rating: 4 },
+    { visitId: oid(), sitterId: sitter, direction: 'CUSTOMER_TO_SITTER', state: 'DRAFT', rating: 1 }
   ]);
   const events = financeSourceModels(connection).FinanceSourceEvent.collection;
   const event = (id, resourceId, time, actorId = sitter) => ({ _id: id, type: 'VisitCHECKLIST',
@@ -97,13 +97,27 @@ test('UC-78 owner reads live times, first matching checklist and newest updates 
     booking: { code: 'BK-0042', visitNumber: 3, visitCount: 5 },
     visit: { startAt: at('07:00').toISOString(), status: 'IN_PROGRESS' },
     sitter: { name: 'Lê Văn Minh', rating: 4.5 },
-    actions: { profile: false, walkLocation: { eligible: true, available: false }, incident: false, careReport: false }
+    actions: { profile: false, walkLocation: { eligible: true, available: true }, incident: true, careReport: false }
   });
   const { milestones, updates } = response.body.data;
   expect(milestones.map(row => row.at)).toEqual([at('06:30').toISOString(), at('06:58').toISOString(),
     at('07:03').toISOString(), null, null]);
   expect(updates.map(row => row.key)).toEqual(['IN_PROGRESS', 'ARRIVED', 'ASSIGNED']);
   expect(response.text).not.toMatch(/SECRET_FIXTURE|coordinates|actorId/);
+});
+
+test('UC-46 exposes the map only after dog walk check-in while travel is enabled', async () => {
+  const homeCare = oid();
+  await col('services').insertOne({ _id: homeCare, code: 'home-care' });
+  await col('visits').updateOne({ _id: active }, { $set: { serviceId: homeCare } });
+  try {
+    const care = (await read(active).expect(200)).body.data.actions;
+    expect(care).toMatchObject({ walkLocation: { eligible: false, available: false }, incident: false });
+    const finished = (await read(complete).expect(200)).body.data.actions;
+    expect(finished).toMatchObject({ walkLocation: { eligible: false, available: false }, incident: false });
+  } finally {
+    await col('visits').updateOne({ _id: active }, { $set: { serviceId: service } });
+  }
 });
 
 test('UC-78 rejects unauthenticated, other actors, mismatched and superseded visits', async () => {
