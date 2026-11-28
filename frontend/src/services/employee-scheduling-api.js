@@ -13,6 +13,7 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     visitWorkflow: createServiceWorkflowApi(request).visit,
     reviewWorkflow: createServiceWorkflowApi(request).review,
     ...createVisitTravelApi(request),
+    dogWalk: createVisitTravelApi(request, { dogWalk: true }),
     ...createVisitClosureApi(request),
     ...createNeedsActionApi(request),
     async assignedVisitSummary(id, { signal } = {}) {
@@ -81,6 +82,15 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
           !row.note || !Array.isArray(row.pets) || !Array.isArray(row.reports) || !Array.isArray(row.care?.pets) ||
           !Array.isArray(row.care?.tasks) || !['startAt', 'endAt', 'accessOpensAt', 'checkInOpensAt'].every(field => Number.isFinite(Date.parse(row[field]))))))
         throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async handoverEarlierReport(id, reportVisitId, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/handover/reports/${encodeURIComponent(reportVisitId)}`, signal);
+      if (result.pending) return result;
+      const row = result.data;
+      if (row?.id !== reportVisitId || !Array.isArray(row.checklist) || !Array.isArray(row.evidence)) {
+        throw new ApiError('INVALID_RESPONSE');
+      }
       return result;
     },
     async confirmHandover(id, body, key) {

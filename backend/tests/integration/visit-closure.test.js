@@ -85,8 +85,11 @@ describe('closing a visit that was not checked out (GBR-24)', () => {
       .rejects.toMatchObject({ status: 409, code: 'CLOSE_NOT_ALLOWED_YET' });
     await expect(service.details(actorOf(staff), visitId)).rejects.toMatchObject({ status: 409, code: 'INVALID_STATE' });
     now = END + 2 * HOUR;
+    const walkId = 'dog-walk:' + visitId;
+    await col('employeevisittravels').insertOne({ _id: walkId, coordinates: [105.85, 21.01] });
     await expect(service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: 'Đúng mốc' }, key('boundary')))
       .resolves.toMatchObject({ state: 'STAFF_CLOSED' });
+    expect(await col('employeevisittravels').findOne({ _id: walkId })).toBeNull();
   });
 
   test.each([

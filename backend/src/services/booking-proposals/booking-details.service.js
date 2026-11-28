@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { workflowProjection } from '../care/workflow-snapshot.service.js';
+import { projectVisitCareReport } from '../care/visit-care-report.service.js';
 import { DEMO_WORK_AREAS } from '../../constants/demo-work-areas.js';
 import { hasRole } from '../../utils/roles.js';
 import { fail, id } from '../../validators/pet-care.validator.js';
@@ -135,22 +135,18 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
           return actual.length === 1 ? { ...saved, startAt: actual[0].startAt, endAt: actual[0].endAt } : saved;
         }).sort((a, b) => new Date(a.startAt) - new Date(b.startAt)),
         visits: visits.map(visit => ({
-          id: String(visit._id), ...(visit.snapshots?.workflow ? { workflow: workflowProjection(visit, { customer: !includeCustomerName }) } : {}), startAt: visit.startAt ?? null, endAt: visit.endAt ?? null,
+          ...projectVisitCareReport(visit, {
+            sitterName: personName(names, visit.sitterId),
+            customerView: !includeCustomerName,
+            includeCustomerNote: !includeCustomerName
+          }),
           ...previousSlotFor(visit),
           ...(pendingOfferVisitIds.has(String(visit._id)) ? { hasPendingOffer: true } : {}),
-          checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
           ...(visit.location === 'FACILITY' && visit.snapshots?.pickup ? { pickup: {
             addressText: visit.snapshots.pickup.addressText, distanceMeters: visit.snapshots.pickup.distanceMeters,
             feeVnd: visit.snapshots.pickup.feeVnd, pickedUpAt: visit.pickedUpAt ?? null, returnedAt: visit.returnedAt ?? null,
             ...(includeCustomerName ? pickupHandoverActions(visit, clock()) : {})
           } } : {}),
-          ...(!includeCustomerName && visit.customerNote ? { customerNote: visit.customerNote } : {}),
-          checklist: (visit.checklist ?? []).slice(0, 100).map(item => ({ itemId: item.itemId,
-            label: visit.snapshots?.checklistItems?.find(row => row.itemId === item.itemId)?.label ?? item.itemId,
-            status: item.status, ...(item.reason ? { reason: item.reason } : {}) })),
-          evidence: (visit.evidenceRefs ?? []).filter(item => ['CHECK_IN','CHECK_OUT'].includes(item.kind) && /^[a-f0-9]{64}$/.test(item.mediaId)).slice(0,2)
-            .map(({kind,mediaId}) => ({kind,mediaId})),
-          state: visit.state, sitterName: personName(names, visit.sitterId),
           ...(visit.cancelledAt ? { cancelledAt: visit.cancelledAt } : {}),
           ...(Number.isSafeInteger(visit.cancellationFeeVnd) ? { cancellationFeeVnd: visit.cancellationFeeVnd } : {}),
           ...(visit.cancellationReason ? { cancellationReason: visit.cancellationReason } : {})
