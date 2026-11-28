@@ -73,6 +73,16 @@ test('state changing counter operations require CSRF and a valid session', async
   await f.get('invalid', '/services').expect(401);
   expect(f.directory.createCustomer).not.toHaveBeenCalled();
 });
+test('counter address creation requires staff and a stable operation key', async () => {
+  const f = fixture();
+  const address = { label: 'Synthetic visit location', pointConfirmed: true };
+  await f.post('staff', '/customers/customer-id/addresses').set('idempotency-key', 'counter-address-001')
+    .send(address).expect(201);
+  expect(f.directory.addAddress).toHaveBeenCalledWith(expect.objectContaining({ roles: roles.staff }),
+    'customer-id', address, 'counter-address-001');
+  await f.post('customer', '/customers/customer-id/addresses').set('idempotency-key', 'counter-address-002')
+    .send(address).expect(403);
+});
 test('incomplete checkout cannot capture funds or write partial orders', async () => {
   const f = fixture();
   const preview = await f.post('staff', '/previews').send({ amountVnd: 1 }).expect(503);

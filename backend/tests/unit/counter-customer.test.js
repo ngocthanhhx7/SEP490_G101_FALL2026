@@ -1,5 +1,5 @@
 import { expect, jest, test } from '@jest/globals';
-import { createCounterCustomerService } from '../../src/services/counter-booking/counter-customer.service.js';
+import { createCounterCustomerService, maskCounterCustomerName } from '../../src/services/counter-booking/counter-customer.service.js';
 
 const staff = { userId: 'aaaaaaaaaaaaaaaaaaaaaaaa', state: 'ACTIVE', roles: ['SALE_STAFF'] };
 const customer = { _id: 'bbbbbbbbbbbbbbbbbbbbbbbb', displayName: 'Nguyễn Văn An' };
@@ -40,12 +40,18 @@ test('translates unique contact race and closes transaction session', async () =
 
 test('looks up pending and verified identities without revealing contact or non-customer data', async () => {
   const f = fixture({ ids: [customer._id], pending: [{ userId: customer._id }] });
-  await expect(f.service.lookup(staff, { phone })).resolves.toEqual({ customer: { id: customer._id, displayName: customer.displayName } });
+  const masked = maskCounterCustomerName(customer.displayName);
+  await expect(f.service.lookup(staff, { phone })).resolves.toEqual({ customer: { id: customer._id, displayName: masked } });
   const pending = fixture({ pending: [{ userId: customer._id }] });
-  await expect(pending.service.lookup(staff, { phone })).resolves.toEqual({ customer: { id: customer._id, displayName: customer.displayName } });
+  await expect(pending.service.lookup(staff, { phone })).resolves.toEqual({ customer: { id: customer._id, displayName: masked } });
   const nonCustomer = fixture({ ids: [customer._id], found: null });
   await expect(nonCustomer.service.lookup(staff, { phone })).rejects.toMatchObject({ status: 409 });
   await expect(fixture().service.lookup(staff, { phone })).resolves.toEqual({ customer: null });
+});
+test('counter name masks every earlier word but preserves the last word and single names', () => {
+  expect(maskCounterCustomerName('Nguyễn Minh Khách')).toBe('N***** M*** Khách');
+  expect(maskCounterCustomerName('An')).toBe('An');
+  expect(maskCounterCustomerName('  Trần   Thị  Lan ')).toBe('T*** T** Lan');
 });
 
 test('rejects invalid actor/input and delegates pet commands only for active customers', async () => {

@@ -96,7 +96,7 @@ function appointmentSchema() {
     cancellation: new Schema({
       at: { type: Date, required: true },
       byRole: { type: String, enum: GROOMING_CANCELLATION_ROLES, required: true },
-      byUserId: { type: oid, required: true },
+      byUserId: { type: oid, required() { return this.byRole !== 'SYSTEM'; } },
       reason: { type: String, maxlength: 1000 }
     }, embedded),
     payment: new Schema({

@@ -47,7 +47,7 @@ export function createCounterPickupService({
   connection, settings, facilityCoordinates, routeDistance
 }) {
   const { CustomerAddress } = petCareModels(connection);
-  async function quoteForCustomer(customerId, addressId, session = null) {
+  async function quoteForCustomer(customerId, addressId, session = null, { counter = false } = {}) {
     if (!Types.ObjectId.isValid(customerId) || !Types.ObjectId.isValid(addressId))
       fail('VALIDATION_FAILED', 'Customer/address selection is invalid', 422);
     if (!isLngLat(facilityCoordinates) || typeof routeDistance !== 'function') fail();
@@ -55,7 +55,7 @@ export function createCounterPickupService({
     if (!policy) fail();
     const address = await CustomerAddress.findOne({
       _id: addressId, ownerId: customerId, state: 'ACTIVE',
-      pointConfirmedAt: { $type: 'date' }
+      pointConfirmedAt: { $type: 'date' }, ...(counter ? {} : { profileHidden: { $ne: true } })
     }).select('+point +location').session(session).lean();
     if (!isLngLat(address?.point?.coordinates))
       fail('ADDRESS_CONFIRMATION_REQUIRED', 'Select an active confirmed address', 422);
@@ -76,8 +76,8 @@ export function createCounterPickupService({
   }
   return Object.freeze({
     quoteForCustomer,
-    async confirm(customerId, selection, session) {
-      const fare = await quoteForCustomer(customerId, selection.addressId, session);
+    async confirm(customerId, selection, session, options) {
+      const fare = await quoteForCustomer(customerId, selection.addressId, session, options);
       if (!fare.allowed) fail('PICKUP_DISTANCE_EXCEEDED', 'Địa chỉ này cách cửa hàng ' + fare.distanceKm.toFixed(1) + ' km, quá ' + fare.maxKm + ' km. Không đón được; vui lòng mang thú cưng đến cửa hàng.', 422);
       if (fare.policyVersion !== selection.policyVersion || fare.feeVnd !== selection.expectedFeeVnd)
         fail('PICKUP_QUOTE_CHANGED', 'Phí đón vừa thay đổi. Vui lòng xem lại trước khi xác nhận.', 409);
@@ -86,7 +86,7 @@ export function createCounterPickupService({
     async quote(actor, { customerId, addressId } = {}) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['SALE_STAFF', 'ADMIN'].includes(role)))
         fail('FORBIDDEN', 'Counter staff role required', 403);
-      return quoteForCustomer(customerId, addressId);
+      return quoteForCustomer(customerId, addressId, null, { counter: true });
     }
   });
 }

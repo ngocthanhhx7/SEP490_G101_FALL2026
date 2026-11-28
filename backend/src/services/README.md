@@ -170,3 +170,21 @@ returns only its three order counts and maps source query failures to 503.
 `customer-tier.service.js` evaluates JOB-05 and exposes the internal tier read.
 `mongo-customer-tier.repository.js` reads spend snapshots and fences tier writes.
 The storage provisioner creates the tier collections and an unapproved DRAFT sample policy. Read/run and resumed writes require an explicitly approved policy with approval metadata and the same version. The worker remains disabled until owner policy approval and spend-source acceptance; no sample discount is applied automatically.
+
+# Counter booking UC-96
+
+`counter-booking/counter-directory.service.js` coordinates Customer lookup,
+counter-only addresses and the shared pet-care catalog. New counter addresses
+are stored in the existing `CustomerAddress` collection with
+`createdChannel: 'COUNTER'`, `profileHidden: true` and `createdBy`.
+Customer address listings and online booking, pickup and delivery exclude these
+records. Counter checkout and pickup use them through their internal context.
+Creation returns the stored command result so retries are independent of the
+address list page.
+The Customer's booking and grooming snapshots retain the selected address details.
+`counter-booking/counter-customer.service.js` masks existing Customer names in
+phone lookup responses; new counter registrations may show the entered name.
+`counter-booking/counter-checkout.service.js` releases linked booking and
+grooming reservations in one transaction after verified unpaid VietQR expiry.
+Automatic expiry is recorded as a system cancellation without a user actor.
+Staff-initiated cancellation retains its separate cancellation behavior.
