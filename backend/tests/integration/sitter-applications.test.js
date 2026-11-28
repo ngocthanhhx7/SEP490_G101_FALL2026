@@ -284,7 +284,7 @@ describe('P16 public sitter application submission', () => {
     expect(newApplication.body.data.id).not.toBe(submitted.body.data.id);
   });
 
-  test('ST-ONB-08 rejects email or phone already owned by an account with CONTACT_UNAVAILABLE and conflictField', async () => {
+  test('ST-ONB-08 returns generic conflicts to guests and MSG40 only for the verified contact of the signed-in account', async () => {
     const application = app();
     const existingUser = await User.create({
       _id: CUSTOMER_ID, displayName: 'Existing Account', roles: ['CUSTOMER'],
@@ -303,24 +303,27 @@ describe('P16 public sitter application submission', () => {
       }
     ]);
 
-    const emailConflict = await submit(application, applicationBody({
-      email: 'taken@example.test', phone: '0987654321'
-    }), 'submit-key-taken-email').expect(409);
-    expect(emailConflict.body.error).toMatchObject({
-      code: 'CONTACT_UNAVAILABLE',
-      conflictField: 'email',
-      fieldErrors: { email: 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.' }
-    });
+    const emailBody = applicationBody({ email: 'taken@example.test', phone: '0987654321' });
+    const phoneBody = applicationBody({ email: 'fresh@example.test', phone: '0912345678' });
+    for (const [body, key] of [[emailBody, 'submit-key-taken-email'], [phoneBody, 'submit-key-taken-phone']]) {
+      const { body: { error } } = await submit(application, body, key).expect(409);
+      expect(error.code).toBe('APPLICATION_SUBMISSION_UNAVAILABLE');
+      expect(error).not.toHaveProperty('conflictField');
+      expect(error).not.toHaveProperty('fieldErrors');
+    }
 
-    const phoneConflict = await submit(application, applicationBody({
-      email: 'fresh@example.test', phone: '0912345678'
-    }), 'submit-key-taken-phone').expect(409);
-    expect(phoneConflict.body.error).toMatchObject({
-      code: 'CONTACT_UNAVAILABLE',
-      conflictField: 'phone',
-      fieldErrors: { phone: 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.' }
-    });
-
+    const { SitterApplication: Applicant, SitterApplicationAudit: Audit,
+      SitterApplicationDownloadQuota: DownloadQuota, SitterStatus } = sitterApplicationModels(connection);
+    const service = createSitterApplicationService({ connection, User, Applicant, Audit, DownloadQuota, SitterStatus,
+      contactCrypto, privateMedia: mediaPort, lookupSecret: SECRETS.CONTACT_LOOKUP_SECRET,
+      cursorSecret: SECRETS.SESSION_TOKEN_SECRET, employmentDocuments: { activate: async () => {} }, clock: () => clockNow });
+    const actor = { userId: CUSTOMER_ID, state: 'ACTIVE', roles: ['CUSTOMER'] };
+    for (const [body, field] of [[emailBody, 'email'], [phoneBody, 'phone']]) {
+      await expect(service.submit({ actor, body, idempotencyKey: `verified-conflict-${field}` }))
+        .rejects.toMatchObject({ code: 'CONTACT_UNAVAILABLE', details: {
+          conflictField: field, fieldErrors: { [field]: expect.any(String) }
+        } });
+    }
     expect(await sitterApplicationModels(connection).SitterApplication.countDocuments({})).toBe(0);
   });
 });

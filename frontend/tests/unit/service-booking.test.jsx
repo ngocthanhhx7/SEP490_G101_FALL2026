@@ -367,7 +367,8 @@ test('ST-BKG-11 shows MSG19 under the date/time field when home booking is less 
     fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
     await screen.findByText('Sắp xếp người chăm sóc');
     await reviewAndConfirm();
-    expect(await screen.findByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+    const resumedInput = await screen.findByLabelText('Buổi 1 (giờ Việt Nam)');
+    expect(within(resumedInput.closest('.pwc-booking-daytime')).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
   } finally {
     jest.useRealTimers();
   }

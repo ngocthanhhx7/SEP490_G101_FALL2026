@@ -143,7 +143,8 @@ test('home-care availability and checkout share the inclusive 120-minute boundar
   await expect(availability.search(owner, { quoteId: q.quoteId, visit: short.visits[0] }))
     .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
   await expect(checkout.confirm(owner, short, 'home-notice-boundary'))
-    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
+    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422,
+      details: { lineFields: { 0: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } } } });
   expect(await connection.collection('visits').countDocuments()).toBe(0);
   const exact = { ...body, visits: [visitAt(120)] };
   await expect(availability.search(owner, { quoteId: q.quoteId, visit: exact.visits[0] })).resolves.toHaveProperty('sitters');

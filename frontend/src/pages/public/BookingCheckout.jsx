@@ -1,6 +1,6 @@
 import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { bookingStatus, bookingDate } from '../../utils/booking-presentation.js';
+import { bookingStatus, bookingDate, homeNoticeVisitIndex } from '../../utils/booking-presentation.js';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -139,6 +139,12 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     locked.current = true; setBusy(true); setError(null);
     try { const response = await api.confirm(command.current.body, command.current.key); onConfirmed(response); }
     catch (failure) {
+      const visitIndex = homeNoticeVisitIndex(failure, command.current.body.visits);
+      if (visitIndex >= 0) {
+        setVisitErrors({ [visitIndex]: MSG19 });
+        setUncertain(false);
+        return;
+      }
       if (failure.status === 409 && failure.code === 'SITTER_AVAILABILITY_CONSENT_REQUIRED') {
         const conflicts = command.current.body.visits.flatMap((row, index) => row.requestedSitterId && !row.acceptUnavailableSitter
           && failure.lineFields?.[index]?.acceptUnavailableSitter ? [index] : []);

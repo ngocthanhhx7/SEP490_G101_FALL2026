@@ -19,3 +19,10 @@ export function bookingDate(value) {
 }
 export const bookingMoney = value => Number.isSafeInteger(value) && value >= 0
   ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value) : 'Xem trong chi tiết';
+
+
+export function homeNoticeVisitIndex(error, visits) {
+  if (error?.code !== 'HOME_BOOKING_NOTICE_REQUIRED') return -1;
+  const marked = visits.findIndex((row, index) => row.location === 'HOME' && error.lineFields?.[index]?.startAt);
+  return marked >= 0 ? marked : visits.findIndex(row => row.location === 'HOME');
+}

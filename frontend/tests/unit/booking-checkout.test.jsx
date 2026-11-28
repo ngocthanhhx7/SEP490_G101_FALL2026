@@ -241,7 +241,7 @@ test('ST-BKG-11 validates home visit under 2 hours in BookingCheckoutForm with M
 
     fireEvent.change(startInput, { target: { value: '2026-11-28T12:30' } });
     fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
-    expect(await screen.findByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+    expect(await within(fieldContainer).findByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
   } finally {
     jest.useRealTimers();
   }

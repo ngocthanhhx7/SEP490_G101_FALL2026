@@ -20,6 +20,8 @@ import { QuotePriceSummary } from '../../components/common/QuotePriceSummary.jsx
 import { ADDRESS_NOT_SERVED, GROOMING_DEBT_BLOCKS_BOOKING } from '../../constants/booking-messages.js';
 import './service-booking.css';
 
+import { homeNoticeVisitIndex } from '../../utils/booking-presentation.js';
+
 const homeNoticeMs = 2 * 60 * 60 * 1000;
 const MSG19 = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
 const scheduleLabel = value => new Date(value + '+07:00').toLocaleString('vi-VN', {
@@ -242,6 +244,14 @@ export function BookingFlow({ service, api, onBooked }) {
       const value = await api.confirm(command.current.body, command.current.key);
       onBooked(value);
     } catch (failure) {
+      const visitIndex = homeNoticeVisitIndex(failure, command.current.body.visits);
+      if (visitIndex >= 0) {
+        setActiveVisit(visitIndex);
+        setStep(0);
+        setScheduleError(MSG19);
+        setUncertain(false);
+        return;
+      }
       if (failure.status === 409 && failure.code === 'SITTER_AVAILABILITY_CONSENT_REQUIRED' && selectedSitter) {
         const visits = Object.entries(failure.lineFields ?? {}).flatMap(([key, fields]) => {
           const index = Number(key);
