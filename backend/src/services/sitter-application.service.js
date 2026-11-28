@@ -257,7 +257,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
   }
 
-  async function submit({ body, idempotencyKey, correlationId, actor, applicant, verifiedContactActor = actor }) {
+  async function submit({ body, idempotencyKey, correlationId, actor, applicant }) {
     if (!body || typeof body !== 'object' || Array.isArray(body)
       || Object.keys(body).some(key => !['displayName', 'contactChannel', 'contactValue', 'dateOfBirth',
         'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'policyVersions', 'employmentType', 'email', 'phone'].includes(key))) invalid();
@@ -373,25 +373,23 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         const policyConsents = registrationPolicyService
           ? await registrationPolicyService.validateAndBuildReceipt({ policyVersions: body.policyVersions, session, now }) : [];
         if (dualContact) {
-          const { Contact } = identityModels(connection);
-          const existingContacts = await Contact.find({ lookupKey: { $in: contactKeys }, state: 'VERIFIED' })
-            .select('lookupKey userId').session(session).lean();
+          const existingContacts = await identityModels(connection).Contact
+            .find({ lookupKey: { $in: contactKeys }, state: 'VERIFIED' })
+            .select('lookupKey').session(session).lean();
           if (existingContacts.length) {
-            if (verifiedContactActor?.userId && await User.exists({
-              _id: verifiedContactActor.userId, state: 'ACTIVE', roles: ['CUSTOMER'], synthetic: false
-            }).session(session)) {
-              const verifiedKeys = new Set(existingContacts
-                .filter(row => String(row.userId) === verifiedContactActor.userId).map(row => row.lookupKey));
-              const matchedEmail = verifiedKeys.has(contact.lookupKey);
-              const matchedPhone = Boolean(phone && verifiedKeys.has(phone.lookupKey));
-              if (matchedEmail || matchedPhone) throw contactUnavailableError(matchedEmail, matchedPhone);
-            }
-            throw submissionUnavailable();
+            const matched = new Set(existingContacts.map(row => row.lookupKey));
+            throw contactUnavailableError(matched.has(contact.lookupKey), Boolean(phone && matched.has(phone.lookupKey)));
           }
-          if (await Applicant.exists({
+          const approved = await Applicant.findOne({
             state: 'APPROVED', provisionedUserId: { $ne: null },
             $or: [{ contactLookupKey: { $in: contactKeys } }, { phoneLookupKey: { $in: contactKeys } }, { identityLookupKey }]
-          }).session(session)) throw submissionUnavailable();
+          }).select('+contactLookupKey +phoneLookupKey +identityLookupKey').session(session).lean();
+          if (approved) {
+            const matchedEmail = approved.contactLookupKey === contact.lookupKey || approved.phoneLookupKey === contact.lookupKey;
+            const matchedPhone = Boolean(phone && (approved.contactLookupKey === phone.lookupKey || approved.phoneLookupKey === phone.lookupKey));
+            if (matchedEmail || matchedPhone) throw contactUnavailableError(matchedEmail, matchedPhone);
+            throw submissionUnavailable();
+          }
         }
         if (actor?.userId) {
           const { Contact } = identityModels(connection);
@@ -403,7 +401,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           const existingContact = await connection.db.collection('contacts')?.findOne?.({
             channel: contactChannel, lookupKey: contact.lookupKey, state: 'VERIFIED'
           }, { session });
-          if (existingContact) throw submissionUnavailable();
+          if (existingContact) {
+            throw contactUnavailableError(contactChannel === 'EMAIL', contactChannel === 'PHONE');
+          }
         }
         const [created] = await Applicant.create([{
           ownerUserId: actor?.userId ?? null,

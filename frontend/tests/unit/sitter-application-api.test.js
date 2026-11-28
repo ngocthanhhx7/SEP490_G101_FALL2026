@@ -9,6 +9,8 @@ test('submission sends the Guest intake token and stable command key and validat
   await expect(api.submit({ displayName: 'Synthetic' }, { key: 'synthetic-command-key' })).resolves.toMatchObject({ state: 'PENDING' });
   expect(fetchImpl).toHaveBeenCalledWith('/api/v1/applications', expect.objectContaining({ method: 'POST', credentials: 'same-origin',
     headers: expect.objectContaining({ 'X-Application-Token': 'a'.repeat(64), 'Idempotency-Key': 'synthetic-command-key' }) }));
+  const submitCall = fetchImpl.mock.calls.find(([path]) => path === '/api/v1/applications');
+  expect(submitCall[1].headers).not.toHaveProperty('X-CSRF-Token');
   fetchImpl.mockResolvedValueOnce(response({ id: 'app' }, 201));
   await expect(api.submit({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });

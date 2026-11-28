@@ -37,11 +37,9 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
     const timer = setTimeout(() => { timedOut = true; abort(); }, timeoutMs);
     try {
       if (!intakeToken) throw new ApiError('INTAKE_VERIFICATION_REQUIRED', 403);
-      const csrfToken = getCsrfToken();
       const response = await fetchImpl('/api/v1/applications', {
         method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': key,
-          'X-Application-Token': intakeToken, ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': key, 'X-Application-Token': intakeToken },
         credentials: 'same-origin', cache: 'no-store', redirect: 'error',
         signal: controller.signal, body: JSON.stringify(body)
       });
