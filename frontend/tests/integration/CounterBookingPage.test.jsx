@@ -4,6 +4,11 @@ jest.mock('../../src/components/common/VietmapView.jsx', () => ({
   VietmapView: () => <div role="region" aria-label="Bản đồ địa chỉ" />
 }));
 
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
+
 const customer = {
   id: 'customer-1', displayName: 'T*** T** Lan', tierCode: 'SILVER',
   pets: [
@@ -55,6 +60,17 @@ async function fillCounterAddress(modal) {
     fireEvent.click(within(modal).getByRole('button', { name: 'Lưu địa chỉ cho lịch đặt' }));
   });
 }
+test('Escape closes the counter address dialog without saving', async () => {
+  const api = await initialize();
+  fireEvent.click(screen.getAllByRole('button', { name: '+ Thêm' })[2]);
+  fireEvent.change(screen.getByRole('combobox', { name: 'Địa chỉ' }), { target: { value: '__new__' } });
+  const dialog = await screen.findByRole('dialog', { name: 'Nhập địa chỉ mới' });
+  await within(dialog).findByRole('option', { name: 'Quận thử nghiệm' });
+  fireEvent(dialog, new Event('cancel', { cancelable: true }));
+  expect(screen.queryByRole('dialog', { name: 'Nhập địa chỉ mới' })).not.toBeInTheDocument();
+  expect(api.createAddress).not.toHaveBeenCalled();
+});
+
 test('new counter-only address can be attached to a home service', async () => {
   const api = await initialize();
   fireEvent.click(screen.getAllByRole('button', { name: '+ Thêm' })[2]);
