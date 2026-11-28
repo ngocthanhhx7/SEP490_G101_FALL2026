@@ -495,11 +495,16 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       await service.invite(agentActor, String(row._id), { expectedVersion: row.version }, `agent:${row._id}:${row.version}`);
       return 'invited';
     } catch (error) {
-      if (error.status !== 409) throw error;
       // A visit taken from a pet sitter must end with an offer or a Needs action entry (GBR-21), whatever stopped the offer.
       const released = afterOfferRevocation || Boolean(row.withdrawalDispatch);
-      if (!STAFF_REVIEW_CODES.includes(error.code) && (!released || RETRY_ONLY_CODES.includes(error.code))) return 'review';
-      const reviewCode = afterOfferRevocation && error.code === 'NO_ELIGIBLE_SITTER' ? 'STAFF_REVIEW_REQUIRED' : error.code;
+      if (error.status !== 409 && !released) throw error;
+      const nonConflictRelease = error.status !== 409;
+      if (!nonConflictRelease && !STAFF_REVIEW_CODES.includes(error.code) && (!released || RETRY_ONLY_CODES.includes(error.code))) return 'review';
+      const reviewCode = nonConflictRelease
+        ? 'STAFF_REVIEW_REQUIRED'
+        : afterOfferRevocation && error.code === 'NO_ELIGIBLE_SITTER'
+          ? 'STAFF_REVIEW_REQUIRED'
+          : error.code;
       await uow.run(async session => {
         const emptyRanking = !directedSitter(row) && ['NO_ELIGIBLE_SITTER', 'STAFF_REVIEW_REQUIRED'].includes(error.code)
           ? rankingForVisit(row, {}, [], [], new Date(clock())) : null;

@@ -210,7 +210,7 @@ describe('access and input', () => {
 });
 
 describe('booking', () => {
-  test('saves a Booked appointment with the final price of each pet, holds one place per pet and slot, and takes no payment', async () => {
+  test('IT-FE22-UC58-10 saves a Booked appointment, holds the selected slot and requires no deposit', async () => {
     await sitter(); await sitter();
     const rows = [row(pets.Milo, ['pet-bathing', 'nail-trimming']), row(pets.Bo, ['hair-trimming'])];
     const response = await bookFor(rows, { startAt: startOf('10:00') }).expect(201);
@@ -240,7 +240,7 @@ describe('booking', () => {
     expect([await held('09:00'), await held('10:00'), await held('11:00'), await held('12:00')]).toEqual([2, 1, 1, undefined]);
   });
 
-  test('numbers the appointments one by one and keeps the tier of the moment', async () => {
+  test('IT-FE22-UC58-03 calculates per-pet prices and tier discount before saving the appointment', async () => {
     await sitter(); await sitter();
     await db.collection('customer_tiers').insertOne({ _id: new mongoose.Types.ObjectId(actors.CUSTOMER.userId), tier: 'GOLD', asOf: new Date(NOW) });
     const first = (await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(201)).body.data;
@@ -260,7 +260,7 @@ describe('booking', () => {
     expect(data.pricing.tierDiscountVnd).toBe(0);
   });
 
-  test('a price that changed since the customer saw it is refused with the new total', async () => {
+  test('IT-FE22-UC58-09 refuses a stale price and returns the new total for confirmation', async () => {
     await sitter();
     const rows = [row(pets.Milo, ['pet-bathing'])];
     const response = await book(payload(rows, 99000)).expect(409);
@@ -332,7 +332,7 @@ describe('authoritative employee reservations', () => {
 });
 
 describe('slot holding', () => {
-  test('two customers booking the last place at the same moment: one 201 and one MSG64, one place held', async () => {
+  test('IT-FE22-UC58-07 lets only one customer reserve the last place and returns MSG64 to the other', async () => {
     await sitter();
     const lu = await petOf('CUSTOMER2', 'Lu');
     const [a, b] = await Promise.all([
@@ -501,7 +501,7 @@ describe('a pet cannot have two overlapping appointments (Q6)', () => {
     expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
   });
 
-  test('the same pet booked twice at the same moment with two keys gets one appointment', async () => {
+  test('IT-FE22-UC58-08 prevents two overlapping appointments for the same pet', async () => {
     await sitter(); await sitter();
     const rows = [row(pets.Milo, ['pet-bathing'])], body = payload(rows, await totalOf(rows));
     const responses = await Promise.all([book(body, 'synthetic-key-one'), book(body, 'synthetic-key-two')]);
@@ -563,6 +563,67 @@ describe('reading appointments', () => {
   });
 });
 
+test('IT-FE22-UC58-04 rejects a new appointment while a handed-back appointment has an outstanding balance', async () => {
+  await sitter();
+  const rows = [row(pets.Milo, ['pet-bathing'])];
+  const quote = await totalOf(rows);
+  const debt = await seed({
+    code: 'GR-0300',
+    status: 'HANDED_BACK_PAID',
+    more: {
+      customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId),
+      handedBackAt: new Date(NOW - DAY)
+    }
+  });
+
+  const denied = await book(payload(rows, quote)).expect(409);
+  expect(denied.body.error).toMatchObject({
+    code: 'GROOMING_PAYMENT_OUTSTANDING', message: expect.stringContaining('MSG21')
+  });
+  expect(await APPOINTMENTS().countDocuments()).toBe(1);
+  expect(await APPOINTMENTS().findById(debt._id).lean()).toMatchObject({
+    status: 'HANDED_BACK_PAID', handedBackAt: new Date(NOW - DAY)
+  });
+});
+
+describe('FE-22 scenarios pending integration coverage', () => {
+  test.todo('IT-FE22-UC58-05 blocks online booking when the customer exceeds the no-show limit (MSG160)');
+
+  test.todo('IT-FE22-UC59-01 shows the appointment, customer, pets, answers and services to Staff');
+  test.todo('IT-FE22-UC59-02 stores check-in condition photos for the correct pet');
+  test.todo('IT-FE22-UC59-03 stores confirmed difficulty for difficulty bonus calculation');
+  test.todo('IT-FE22-UC59-04 assigns an eligible on-shift grooming Pet Sitter and exposes Grooming Work');
+  test.todo('IT-FE22-UC59-05 allows check-in within thirty minutes and cancels work that cannot finish');
+  test.todo('IT-FE22-UC59-06 records no-show after thirty minutes');
+  test.todo('IT-FE22-UC59-07 lets the shop cancel without no-show when no eligible sitter is available and notifies the customer');
+  test.todo('IT-FE22-UC59-08 applies the configured surcharge only after customer consent');
+  test.todo('IT-FE22-UC59-09 cancels the affected pet without charge when surcharge consent is refused');
+  test.todo('IT-FE22-UC59-10 stores independent check-in evidence, difficulty and sitter assignments for multiple pets');
+
+  test.todo('IT-FE22-UC60-01 allows hand-back only after every pet is Ready, Cancelled or Stopped');
+  test.todo('IT-FE22-UC60-02 notifies the customer and displays the payable amount after all pets finish');
+  test.todo('IT-FE22-UC60-03 records a full cash payment and updates appointment payment state');
+  test.todo('IT-FE22-UC60-04 records a successful VietQR payment confirmed by payOS');
+  test.todo('IT-FE22-UC60-05 rejects a failed VietQR transaction with MSG32 and permits retry');
+  test.todo('IT-FE22-UC60-06 records the tip against the corresponding Pet Sitter');
+  test.todo('IT-FE22-UC60-07 excludes Stopped and Cancelled pets from the payable amount');
+  test.todo('IT-FE22-UC60-08 closes with zero payable amount when no pet is Ready');
+  test.todo('IT-FE22-UC60-09 hands pets back, closes as Not paid and stores the outstanding amount');
+  test.todo('IT-FE22-UC60-10 records an additional payment against a Not paid appointment');
+  test.todo('IT-FE22-UC60-11 refuses completion until every pet is handed back');
+  test.todo('IT-FE22-UC60-12 processes a repeated payOS result idempotently');
+
+  test.todo('IT-FE22-UC91-01 lists only pets assigned to the signed-in Pet Sitter');
+  test.todo('IT-FE22-UC91-02 updates the assigned pet to In Progress');
+  test.todo('IT-FE22-UC91-03 updates the assigned pet to Ready and synchronizes the appointment');
+  test.todo('IT-FE22-UC91-04 does not notify hand-back while another pet remains In Progress');
+  test.todo('IT-FE22-UC91-05 notifies the customer and enables UC-60 after all pets finish');
+  test.todo('IT-FE22-UC91-06 stores Stopped reason in Pet Profile and excludes the pet from charges');
+  test.todo('IT-FE22-UC91-07 records higher-difficulty notes for future bookings without changing current confirmed difficulty');
+  test.todo('IT-FE22-UC91-08 rejects status updates for a pet not assigned to the Pet Sitter');
+  test.todo('IT-FE22-UC91-09 updates only the selected pet in a multi-pet appointment');
+});
+
 describe('customer cancellation (ST-GRM-07, GBR-40)', () => {
   const HOTLINE = '024-7300-8899';
   const mine = more => ({ customerId: new mongoose.Types.ObjectId(actors.CUSTOMER.userId), ...more });
@@ -603,7 +664,7 @@ describe('customer cancellation (ST-GRM-07, GBR-40)', () => {
     expect(await held('11:00')).toBe(1);
   });
 
-  test('ST-GRM-07: allows cancellation at the exact 2-hour boundary and frees multi-pet slots', async () => {
+  test('IT-FE22-UC58-11 / ST-GRM-07: allows cancellation at the exact 2-hour boundary and frees multi-pet slots', async () => {
     await startApp({ hotline: HOTLINE });
     await sitter(); await sitter();
     const booked = (await bookFor([row(pets.Milo, ['pet-bathing']), row(pets.Bo, ['pet-bathing'])], { startAt: startOf('10:00') }).expect(201)).body.data;

@@ -293,7 +293,7 @@ test('policy changes apply to new submissions without rewriting the deadline of 
   expect(staff.body.data.reportPolicy).toEqual({ ...initialPolicy, deadlineAt: deadlineAt.toISOString() });
 });
 
-test('ST-ORD-14 full exchange flow: submit, MSG107/MSG108, Admin approve exchange, exchange-sent deducts stock once & writes FAULTY_EXCHANGE history without StockAdjustment', async () => {
+test('IT-FE23-UC92-01 / UC93-01 / UC93-02 / UC94-03 (ST-ORD-14): submit, notify Staff, decide, count claims and deduct replacement stock once', async () => {
   // Admin can read default 7 days and update setting to 10 days; non-admin gets 403
   await request(app)
     .put('/api/v1/system-settings/faulty-product-report-days')
