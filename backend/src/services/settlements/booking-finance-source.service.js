@@ -243,8 +243,25 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
               && !(visit.checklist ?? []).some(row => row.photoSkipReason?.trim() || row.reason?.trim())) {
               fail(409, 'CHECKLIST_PHOTO_REQUIRED');
             }
+            if (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000
+              || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote))) {
+              throw new AppError(422, 'VALIDATION_FAILED', 'Customer note is invalid', {
+                fieldErrors: { customerNote: 'Ghi chú cho khách không hợp lệ.' }
+              });
+            }
+            const effectiveNote = (customerNote !== undefined ? customerNote : (visit.customerNote ?? '')).trim();
+            if (!effectiveNote) {
+              throw new AppError(422, 'VALIDATION_FAILED', 'Customer note is required', {
+                fieldErrors: { customerNote: 'Trường này là bắt buộc.' }
+              });
+            }
             await bindMedia(mediaId, visit, current, operation, session);
-            fields = { state: 'COMPLETED', checkOutAt: at, completedAt: at };
+            fields = {
+              state: 'COMPLETED',
+              checkOutAt: at,
+              completedAt: at,
+              ...(customerNote !== undefined ? { customerNote: effectiveNote } : {})
+            };
           }
         }
         const update = { $set: fields, $inc: { version: 1 } };

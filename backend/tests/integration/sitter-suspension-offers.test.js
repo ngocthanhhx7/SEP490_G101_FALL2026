@@ -494,7 +494,8 @@ describe('UC-19 / GBR-04 / ST-CAS-12 suspending a pet sitter', () => {
       visitId: String(visitInProg),
       expectedVersion: 3,
       idempotencyKey: 'co-suspended-001',
-      mediaId: mediaOutId
+      mediaId: mediaOutId,
+      customerNote: 'Synthetic care note'
     });
     expect(checkedOut.state).toBe('COMPLETED');
     expect((await db.collection('visits').findOne({ _id: visitInProg })).state).toBe('COMPLETED');

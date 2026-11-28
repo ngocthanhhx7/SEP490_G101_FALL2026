@@ -176,7 +176,9 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               row.startAt.getTime() > at.getTime() + 30 * 86400000))
               fail('VALIDATION_FAILED', 'Counter visits must start at least two hours and within thirty days');
             if (row.location === 'HOME' && row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS)
-              fail('HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance');
+              throw new AppError(422, 'HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance', {
+                lineFields: { [input.visits.indexOf(row)]: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } }
+              });
             let privateAccessNotes = '', selectedAddress;
             let serviceAddress = facilityAddress, areaCode = 'DISTRICT_HAI_BA_TRUNG', point = facilityCoordinates ? { type: 'Point', coordinates: [...facilityCoordinates] } : undefined;
             if (row.location !== 'FACILITY') {

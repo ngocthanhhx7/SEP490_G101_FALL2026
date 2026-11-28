@@ -418,7 +418,8 @@ test.each(['legacy', 'versioned'])('ST-BKG-26 full flow: customer edits, sitter 
     .set(authHeaders(sitterSession, 'checklist-complete-01'))
     .send({
       expectedVersion: versionAfterNote,
-      items: [...defaults, { itemId: requiredCustom.itemId, status: 'DONE' }]
+      items: [...defaults, { itemId: requiredCustom.itemId, status: 'DONE' }],
+      ...(versioned ? {} : { customerNote: 'Milo đã uống nước.' })
     })
     .expect(200);
 
@@ -611,7 +612,8 @@ test('legacy visits without careInstructions continue working identically for ch
       items: [
         { itemId: 'service-scope', status: 'DONE' },
         { itemId: 'pet-condition', status: 'DONE' }
-      ]
+      ],
+      customerNote: 'Synthetic care note'
     })
     .expect(200);
   const co = await request(app)

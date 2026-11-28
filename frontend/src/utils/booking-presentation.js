@@ -1,7 +1,7 @@
 const states = {
   PENDING: ['Chờ xác nhận', 'PawWorld đang tiếp nhận yêu cầu của bạn.'],
   CONFIRMED: ['Đã xác nhận', 'Lịch chăm sóc đã được xác nhận.'],
-  DISPATCH_PENDING: ['Chờ người chăm sóc', 'PawWorld đang gửi lời mời. Bạn sẽ được thông báo khi sitter nhận ca.'],
+  DISPATCH_PENDING: ['Đã xác nhận', 'PawWorld đang gửi lời mời. Bạn sẽ được thông báo khi sitter nhận ca.'],
   CARE_PLAN_PENDING: ['Chờ kế hoạch chăm sóc', 'Nhân viên đang chuẩn bị các ca chăm sóc cho lịch của bạn.'],
   ASSIGNED: ['Đã có người chăm sóc', 'Sitter đã nhận ca. Xem chi tiết để kiểm tra lịch chăm sóc.'],
   IN_PROGRESS: ['Đang chăm sóc', 'Buổi chăm sóc đang diễn ra. Bạn có thể theo dõi trong chi tiết đơn.'],
@@ -19,3 +19,10 @@ export function bookingDate(value) {
 }
 export const bookingMoney = value => Number.isSafeInteger(value) && value >= 0
   ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value) : 'Xem trong chi tiết';
+
+
+export function homeNoticeVisitIndex(error, visits) {
+  if (error?.code !== 'HOME_BOOKING_NOTICE_REQUIRED') return -1;
+  const marked = visits.findIndex((row, index) => row.location === 'HOME' && error.lineFields?.[index]?.startAt);
+  return marked >= 0 ? marked : visits.findIndex(row => row.location === 'HOME');
+}

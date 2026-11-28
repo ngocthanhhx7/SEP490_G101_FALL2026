@@ -158,3 +158,47 @@ test.each(['unsupported file type', 'image read failure'])('blocks submission af
   await waitFor(() => expect(api.submit).toHaveBeenCalledTimes(1));
   expect(api.uploadDocument).toHaveBeenCalledTimes(3);
 });
+
+test('ST-ONB-10 shows MSG01 under empty email and phone fields while keeping format messages for invalid values', async () => {
+  const api = makeApi(async () => ({ id: 'app-1', state: 'PENDING', applicationCode: 'a'.repeat(24) }));
+  render(<MemoryRouter><SitterApplicationPage api={api} /></MemoryRouter>);
+  await fillRequiredFields();
+
+  const emailInput = screen.getByLabelText(/^Email/);
+  const phoneInput = screen.getByLabelText(/Số điện thoại/);
+  fireEvent.change(emailInput, { target: { value: '' } });
+  fireEvent.change(phoneInput, { target: { value: '   ' } });
+  fireEvent.click(screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ }));
+
+  expect(document.getElementById('sitter-error-contactValue')).toHaveTextContent('Trường này là bắt buộc.');
+  expect(document.getElementById('sitter-error-phone')).toHaveTextContent('Trường này là bắt buộc.');
+  expect(api.submit).not.toHaveBeenCalled();
+
+  fireEvent.change(emailInput, { target: { value: 'khong-hop-le' } });
+  fireEvent.change(phoneInput, { target: { value: '12345' } });
+  fireEvent.click(screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ }));
+
+  expect(document.getElementById('sitter-error-contactValue')).toHaveTextContent('Email chưa đúng định dạng.');
+  expect(document.getElementById('sitter-error-phone')).toHaveTextContent('Nhập số điện thoại Việt Nam hợp lệ, ví dụ 0912345678.');
+  expect(api.submit).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['email', 'sitter-error-contactValue', 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.'],
+  ['phone', 'sitter-error-phone', 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.']
+])('ST-ONB-08 shows MSG40 under %s field when contact already belongs to an account', async (conflictField, errorId, expectedText) => {
+  const api = makeApi(async () => {
+    throw new ApiError('CONTACT_UNAVAILABLE', 409, {
+      conflictField,
+      fieldErrors: { [conflictField]: expectedText }
+    });
+  });
+  render(<MemoryRouter><SitterApplicationPage api={api} /></MemoryRouter>);
+  await fillRequiredFields();
+  fireEvent.click(screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ }));
+
+  await waitFor(() => {
+    expect(document.getElementById(errorId)).toHaveTextContent(expectedText);
+  });
+  expect(document.getElementById(errorId)).toBeVisible();
+});

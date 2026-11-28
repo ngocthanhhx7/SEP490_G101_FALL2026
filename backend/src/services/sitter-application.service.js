@@ -217,6 +217,20 @@ function applicationView(application, contactValue, { includePrivate = false } =
   return result;
 }
 
+const MSG40_EMAIL = 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.';
+const MSG40_PHONE = 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.';
+
+function contactUnavailableError(matchedEmail, matchedPhone) {
+  const fieldErrors = {};
+  if (matchedEmail) fieldErrors.email = MSG40_EMAIL;
+  if (matchedPhone) fieldErrors.phone = MSG40_PHONE;
+  const conflictField = matchedEmail ? 'email' : 'phone';
+  return new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact already belongs to an account', {
+    conflictField,
+    fieldErrors
+  });
+}
+
 export function createSitterApplicationService({ connection, Applicant, User, Audit, DownloadQuota, SitterStatus,
   contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, employmentDocuments,
   guestSubmission = false, requeueVisit, clock = Date.now }) {
@@ -243,7 +257,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
   }
 
-  async function submit({ body, idempotencyKey, correlationId, actor, applicant }) {
+  async function submit({ body, idempotencyKey, correlationId, actor, applicant, verifiedContactActor = actor }) {
     if (!body || typeof body !== 'object' || Array.isArray(body)
       || Object.keys(body).some(key => !['displayName', 'contactChannel', 'contactValue', 'dateOfBirth',
         'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'policyVersions', 'employmentType', 'email', 'phone'].includes(key))) invalid();
@@ -358,11 +372,27 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       const application = await connection.transaction(async session => {
         const policyConsents = registrationPolicyService
           ? await registrationPolicyService.validateAndBuildReceipt({ policyVersions: body.policyVersions, session, now }) : [];
-        if (dualContact && await identityModels(connection).Contact.exists({ lookupKey: { $in: contactKeys }, state: 'VERIFIED' }).session(session))
-          throw submissionUnavailable();
-        if (dualContact && await Applicant.exists({ state: 'APPROVED', provisionedUserId: { $ne: null },
-          $or: [{ contactLookupKey: { $in: contactKeys } }, { phoneLookupKey: { $in: contactKeys } }, { identityLookupKey }] }).session(session))
-          throw submissionUnavailable();
+        if (dualContact) {
+          const { Contact } = identityModels(connection);
+          const existingContacts = await Contact.find({ lookupKey: { $in: contactKeys }, state: 'VERIFIED' })
+            .select('lookupKey userId').session(session).lean();
+          if (existingContacts.length) {
+            if (verifiedContactActor?.userId && await User.exists({
+              _id: verifiedContactActor.userId, state: 'ACTIVE', roles: ['CUSTOMER'], synthetic: false
+            }).session(session)) {
+              const verifiedKeys = new Set(existingContacts
+                .filter(row => String(row.userId) === verifiedContactActor.userId).map(row => row.lookupKey));
+              const matchedEmail = verifiedKeys.has(contact.lookupKey);
+              const matchedPhone = Boolean(phone && verifiedKeys.has(phone.lookupKey));
+              if (matchedEmail || matchedPhone) throw contactUnavailableError(matchedEmail, matchedPhone);
+            }
+            throw submissionUnavailable();
+          }
+          if (await Applicant.exists({
+            state: 'APPROVED', provisionedUserId: { $ne: null },
+            $or: [{ contactLookupKey: { $in: contactKeys } }, { phoneLookupKey: { $in: contactKeys } }, { identityLookupKey }]
+          }).session(session)) throw submissionUnavailable();
+        }
         if (actor?.userId) {
           const { Contact } = identityModels(connection);
           const verified = await Contact.exists({ userId: actor.userId, channel: contactChannel,

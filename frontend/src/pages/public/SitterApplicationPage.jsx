@@ -14,6 +14,9 @@ import { ApplicationImagePreview } from './ApplicationImagePreview.jsx';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SUPPORTING_FILES = 5;
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png']);
+const MSG01 = 'Trường này là bắt buộc.';
+const MSG40_EMAIL = 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.';
+const MSG40_PHONE = 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.';
 const MSG49 = 'Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.';
 const MSG49_DIMENSIONS = 'Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB và tối đa 4 megapixel.';
 const CONFLICT_FIELD_LABELS = {
@@ -103,12 +106,14 @@ function validate({
   else if (displayName.trim().length > 100)
     errors.displayName = 'Tối đa 100 ký tự.';
   if (!contactValue.trim())
-    errors.contactValue = 'Nhập email.';
+    errors.contactValue = MSG01;
   else if (
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactValue.trim())
   )
     errors.contactValue = 'Email chưa đúng định dạng.';
-  if (!/^(?:0[35789]\d{8}|\+84[35789]\d{8})$/.test((phone ?? '').trim()))
+  if (!(phone ?? '').trim())
+    errors.phone = MSG01;
+  else if (!/^(?:0[35789]\d{8}|\+84[35789]\d{8})$/.test((phone ?? '').trim()))
     errors.phone = 'Nhập số điện thoại Việt Nam hợp lệ, ví dụ 0912345678.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))
     errors.dateOfBirth = 'Chọn ngày sinh hợp lệ.';
@@ -385,12 +390,16 @@ export function SitterApplicationPage({
       setUploadedDocuments(null);
       idempotencyKey.current = null;
     } catch (error) {
-      const aliases = { requestedServices: 'services', workAreas: 'areas', documents: 'identityFile' };
+      const aliases = { requestedServices: 'services', workAreas: 'areas', documents: 'identityFile', email: 'contactValue' };
       const next = {};
       for (const [key, value] of Object.entries(error.fieldErrors ?? {})) {
         const field = aliases[key] ?? key;
-        if (['displayName', 'dateOfBirth', 'contactValue', 'identityNumber', 'experience', 'services', 'areas', 'identityFile', 'identityBackFile', 'portraitFile', 'supportingFiles', 'employmentType'].includes(field)
+        if (['displayName', 'dateOfBirth', 'contactValue', 'phone', 'identityNumber', 'experience', 'services', 'areas', 'identityFile', 'identityBackFile', 'portraitFile', 'supportingFiles', 'employmentType'].includes(field)
           && typeof value === 'string' && value.length <= 300) next[field] = value;
+      }
+      if (error.code === 'CONTACT_UNAVAILABLE') {
+        if (error.conflictField === 'phone' && !next.phone) next.phone = MSG40_PHONE;
+        if (error.conflictField === 'email' && !next.contactValue) next.contactValue = MSG40_EMAIL;
       }
       if (error.code === 'AGE_REQUIREMENT_NOT_MET') next.dateOfBirth = 'Bạn cần đủ 18 tuổi để ứng tuyển.';
       if (error.code === 'INVALID_DOCUMENT' && !next.identityFile && !next.supportingFiles) next.identityFile = MSG49;
