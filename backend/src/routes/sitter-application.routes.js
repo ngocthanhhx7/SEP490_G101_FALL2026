@@ -19,6 +19,7 @@ import { createApplicationMailService } from '../services/applications/applicati
 import { loadApplicantDocumentConfig } from '../config/r2.js';
 import { createRegistrationPolicyService } from '../services/registration-policy.service.js';
 import { applicationIntakeMiddleware } from '../middlewares/application-intake.js';
+import { employeePayrollPolicyResolver } from '../constants/employee-payroll-policy.js';
 
 function requireSameOrigin(req, _res, next) {
   const origin = req.get('origin');
@@ -63,7 +64,7 @@ export function sitterApplicationModule({
     lookupSecret: config.auth.contactLookupSecret,
     encryptionKey: config.auth.contactEncryptionKey
   });
-  const employmentDocuments = createEmploymentDocumentService({ connection, crypto: contactCrypto, lookupSecret: config.auth.contactLookupSecret, clock });
+  const employmentDocuments = createEmploymentDocumentService({ connection, crypto: contactCrypto, lookupSecret: config.auth.contactLookupSecret, clock, policy: employeePayrollPolicyResolver });
   const intake = authenticatedSubmission || guestSubmission ? createApplicationIntakeService({ connection, contactCrypto,
     media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable, clock }) : null;
   const applicationMail = createApplicationMailService({ connection, contactCrypto, delivery: ports.notificationDelivery, clock });

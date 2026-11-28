@@ -257,7 +257,6 @@ const navigationByRole = {
     ['Người chăm sóc', '/admin/sitters', 'Nhân sự & hồ sơ'],
     ['Người dùng', '/admin/users', 'Nhân sự & hồ sơ'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
-    ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
     ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
     ['Khiếu nại sản phẩm', '/admin/faulty-product-claims', 'Bán hàng'],
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
@@ -296,7 +295,6 @@ const navigationByRole = {
     ['Khu vực làm việc', '/sitter/work-areas', 'Công việc'],
     ['Lương và tạm ứng', '/sitter/payroll', 'Tài chính'],
     ['Hồ sơ người chăm sóc', '/sitter/profile', 'Hồ sơ của tôi'],
-    ['Hồ sơ công khai', '/sitter/public-profile', 'Hồ sơ của tôi'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
     ['Thông tin cá nhân', '/account/profile', 'Cá nhân'],
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
@@ -316,7 +314,6 @@ const navigationByRole = {
     ['Điều phối ca', '/staff/dispatch', 'Công việc'],
     ['Khiếu nại', '/staff/complaints', 'Công việc'],
     ['Người chăm sóc', '/staff/sitters', 'Nhân sự & hồ sơ'],
-    ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']

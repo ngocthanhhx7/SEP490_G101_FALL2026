@@ -14,6 +14,8 @@ import { useVisitTracker } from '../../../hooks/useVisitTracker.js';
 import { createVisitTrackerApi } from '../../../services/visit-tracker-api.js';
 import { createServiceBasketApi } from '../../../services/service-basket-api.js';
 import { createPrivateImageApi } from '../../../services/private-image-api.js';
+import { createComplaintApi } from '../../../services/complaint-api.js';
+import { complaintSubmitPath } from '../../../utils/complaint-presentation.js';
 import { apiErrorFeedback } from '../../../utils/api-error-feedback.js';
 import './visit-status-tracker.css';
 
@@ -80,14 +82,28 @@ function Progress({ visit, milestones }) {
 function ReportAction({ bookingId, visitId }) {
   const api = useMemo(() => createServiceBasketApi(), []);
   const images = useMemo(() => createPrivateImageApi(), []);
+  const complaints = useMemo(() => createComplaintApi(), []);
   const load = useCallback(async ({ signal }) => {
-    const booking = await api.booking(bookingId, { signal });
-    return { data: booking.details?.visits?.find(visit => visit.id === visitId) ?? null };
-  }, [api, bookingId, visitId]);
+    const [booking, eligibilityResult] = await Promise.all([
+      api.booking(bookingId, { signal }),
+      complaints.eligibility({ bookingId, signal }).catch(() => null)
+    ]);
+    const visit = booking.details?.visits?.find(row => row.id === visitId) ?? null;
+    const match = eligibilityResult?.data?.visits?.find(row => row.id === visitId || row.customerVisitId === visitId) ?? null;
+    const complaintAction = match && booking.state !== 'CANCELLED' && match.state !== 'CANCELLED' ? {
+      to: complaintSubmitPath(bookingId, match.id),
+      deadlineAt: match.eligibility?.deadlineAt ?? null,
+      deadlineSource: match.eligibility?.deadlineSource ?? null,
+      visitState: match.state,
+      eligible: match.eligibility?.eligible === true,
+      reason: match.eligibility?.reason ?? null
+    } : null;
+    return { data: visit ? { visit, complaintAction } : null };
+  }, [api, bookingId, complaints, visitId]);
   const report = useApiResource(load);
   if (report.status === 'loading') return <p role="status">Đang tải báo cáo chăm sóc…</p>;
-  if (report.status !== 'success' || !report.data) return <p>Chưa mở được báo cáo. <Button variant="ghost" onClick={report.retry}>Thử lại</Button></p>;
-  return <BookingVisitReport visit={report.data} readEvidence={images.read} />;
+  if (report.status !== 'success' || !report.data?.visit) return <p>Chưa mở được báo cáo. <Button variant="ghost" onClick={report.retry}>Thử lại</Button></p>;
+  return <BookingVisitReport visit={report.data.visit} readEvidence={images.read} complaintAction={report.data.complaintAction} />;
 }
 
 function CareUpdates({ tasks, startAt }) {

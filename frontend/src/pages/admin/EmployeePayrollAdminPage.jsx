@@ -117,6 +117,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
       ]);
       return {
         summary: overview?.summary,
+        payPolicy: overview?.payPolicy,
         advances: advances.items,
         statements: statements.items,
         adjustments: adjustments.items,
@@ -265,6 +266,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
           {contractNotice && <Notice state="error" title="Chưa lưu hợp đồng">{contractNotice}</Notice>}
           <EmployeeContractForm
             key={contractRevision}
+            payPolicy={state.data?.payPolicy}
             busy={state.busy}
             locked={contractLocked}
             fieldErrors={contractFieldErrors}

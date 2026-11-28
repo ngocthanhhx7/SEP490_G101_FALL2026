@@ -133,7 +133,19 @@ function CustomerBookingDetail({ bookingId }) {
   const visitActions = {
     headerAction: detailVisits.length >= 2 && <Link className="booking-details__schedule-link"
       to={'/account/bookings/' + encodeURIComponent(bookingId) + '/visits'}>Xem cả {detailVisits.length} buổi</Link>,
-    reportForVisit: visit => <BookingVisitReport visit={visit} readEvidence={images.read} />,
+    reportForVisit: visit => {
+      const match = (visitsByRow.get(visit.id) ?? []).find(item => item.id === visit.id)
+        ?? (visitsByRow.get(visit.id) ?? [])[0];
+      const complaintAction = match && !bookingCancelled && match.state !== 'CANCELLED' ? {
+        to: complaintSubmitPath(bookingId, match.id),
+        deadlineAt: match.eligibility?.deadlineAt ?? null,
+        deadlineSource: match.eligibility?.deadlineSource ?? null,
+        visitState: match.state,
+        eligible: match.eligibility?.eligible === true,
+        reason: match.eligibility?.reason ?? null
+      } : null;
+      return <BookingVisitReport visit={visit} readEvidence={images.read} complaintAction={complaintAction} />;
+    },
     booking: <section className="booking-change-actions">
       <h3>Thay đổi lịch hẹn</h3>
       {changeOptions.status === 'loading' && <p role="status">Đang kiểm tra điều kiện đổi giờ…</p>}
