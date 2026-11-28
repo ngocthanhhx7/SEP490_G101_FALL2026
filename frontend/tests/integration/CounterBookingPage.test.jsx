@@ -1,3 +1,4 @@
+import { beforeAll } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CounterBookingPage } from '../../src/pages/admin/CounterBookingPage.jsx';
 jest.mock('../../src/components/common/VietmapView.jsx', () => ({
@@ -5,8 +6,8 @@ jest.mock('../../src/components/common/VietmapView.jsx', () => ({
 }));
 
 beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
-  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+  window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
 });
 
 const customer = {
@@ -66,7 +67,7 @@ test('Escape closes the counter address dialog without saving', async () => {
   fireEvent.change(screen.getByRole('combobox', { name: 'Địa chỉ' }), { target: { value: '__new__' } });
   const dialog = await screen.findByRole('dialog', { name: 'Nhập địa chỉ mới' });
   await within(dialog).findByRole('option', { name: 'Quận thử nghiệm' });
-  fireEvent(dialog, new Event('cancel', { cancelable: true }));
+  fireEvent(dialog, new window.Event('cancel', { cancelable: true }));
   expect(screen.queryByRole('dialog', { name: 'Nhập địa chỉ mới' })).not.toBeInTheDocument();
   expect(api.createAddress).not.toHaveBeenCalled();
 });
