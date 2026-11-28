@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { applicationMailModel } from '../../models/application-mail.model.js';
 import { identityModels } from '../../models/identity.model.js';
+import { sitterApplicationModels } from '../../models/sitter-application.model.js';
 
 const SAFE_CODES = new Set(['PROVIDER_UNAVAILABLE', 'AUTHENTICATION_FAILED', 'INVALID_ADDRESS', 'TIMEOUT', 'THROTTLED', 'PROVIDER_ERROR', 'INVALID_REQUEST', 'EXPIRED']);
 
@@ -47,8 +48,16 @@ export function createApplicationMailService({ connection, contactCrypto, delive
       }
       let response;
       try {
+        let rejection;
+        if (row.applicationState === 'REJECTED') {
+          const { SitterApplication } = sitterApplicationModels(connection);
+          rejection = await SitterApplication.findOne({
+            _id: row.applicationId, version: row.applicationVersion, state: 'REJECTED'
+          }).select('decisionReason reapplyAt').lean();
+        }
         response = await delivery.send({ kind: 'SYSTEM', channel: 'EMAIL', template: 'SITTER_APPLICATION_STATUS',
           applicationState: row.applicationState, webOrigin: origin.origin,
+          ...(rejection && { rejectionReason: rejection.decisionReason, reapplyAt: rejection.reapplyAt?.toISOString() }),
           to: recipient, operationId: row.operationId });
       } catch (error) {
         response = error?.code === 'PROVIDER_UNAVAILABLE'

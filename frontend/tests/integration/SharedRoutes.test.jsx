@@ -128,8 +128,8 @@ test('actual Customer profile route loads its runtime API and appears in role na
 });
 
 
-test.each(['/register', '/sitter/apply'])('registration entry %s keeps PawWorld header, footer and role choices', async path => {
-  show(path);
+test.each(['/register', '/sitter/apply'])('guest registration entry %s keeps PawWorld header, footer and role choices', async path => {
+  show(path, { sessionAdapter: { resolve: async () => ({ status: 'guest' }) } });
   expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
   expect(screen.getAllByRole('navigation', { name: 'Điều hướng chính' })).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Khách hàng', exact: true })).toHaveAttribute('aria-pressed', String(path === '/register'));

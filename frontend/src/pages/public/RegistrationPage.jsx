@@ -7,22 +7,44 @@ import { SitterApplicationPage } from './SitterApplicationPage.jsx';
 import { sitterApplicationApi } from '../../services/sitter-application-api.js';
 import './auth-public.css';
 
-function GuestSitterApplication({ api }) {
-  const load = useCallback(({ signal }) => api.loadIntake({ signal }), [api]);
-  const resource = useApiResource(load);
+function ApplicationEntryState({ resource }) {
   if (resource.status === 'loading') return <p className="pwc-registration-state" role="status">Đang tải thông tin ứng tuyển…</p>;
-  if (resource.status !== 'success') return <div className="pwc-registration-state" role="alert">
+  return <div className="pwc-registration-state" role="alert">
     <h2>Chưa thể mở hồ sơ ứng tuyển</h2>
     <p>Chưa tải được biểu mẫu. Vui lòng thử lại.</p>
     <button type="button" onClick={resource.retry}>Thử lại</button>
   </div>;
-  const intake = resource.data;
-  const previous = intake.application;
-  if (previous && previous.state !== 'REJECTED') return <Navigate to="/sitter/application-status" replace />;
-  const canReapply = previous?.state === 'REJECTED' && previous.canReapply === true;
-  return <SitterApplicationPage key={`${previous?.applicationCode ?? ''}:${canReapply}`} api={api}
-    uploadsAvailable={intake.uploadsAvailable} previousApplication={canReapply ? null : previous}
-    onRefreshApplication={resource.retry} />;
+}
+
+function GuestSitterApplication({ api }) {
+  const load = useCallback(({ signal }) => api.loadIntake({ signal }), [api]);
+  const resource = useApiResource(load);
+  if (resource.status !== 'success') return <ApplicationEntryState resource={resource} />;
+  return <SitterApplicationPage api={api} uploadsAvailable={resource.data.uploadsAvailable} />;
+}
+
+function SignedInSitterApplication({ api }) {
+  const load = useCallback(({ signal }) => api.getMine({ signal }), [api]);
+  const resource = useApiResource(load);
+  if (resource.status !== 'success') return <ApplicationEntryState resource={resource} />;
+  const application = resource.data.application;
+  if (['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED'].includes(application?.state)) {
+    return <Navigate to="/sitter/application-status" replace />;
+  }
+  if (application?.state === 'REJECTED' && application.canReapply === false) {
+    return <SitterApplicationPage api={api} reapplyBlocked reapplyDate={application.reapplyDate}
+      onRefreshApplication={resource.retry} />;
+  }
+  return <GuestSitterApplication api={api} />;
+}
+
+function SitterApplicationEntry({ api, session }) {
+  if (session.status === 'loading') return <p role="status">Đang kiểm tra phiên đăng nhập…</p>;
+  if (session.status === 'authenticated'
+    && ['CUSTOMER', 'PET_SITTER'].includes(session.user.roles?.[0] ?? session.user.role)) {
+    return <SignedInSitterApplication key={session.user.id} api={api} />;
+  }
+  return <GuestSitterApplication api={api} />;
 }
 
 export function RegistrationPage({ initialSitter = false, registrationApi, applicationApi = sitterApplicationApi }) {
@@ -55,7 +77,7 @@ export function RegistrationPage({ initialSitter = false, registrationApi, appli
         <li className={authenticated || phase === 'otp' ? 'is-done' : 'is-current'}><span>1</span>Thông tin tài khoản</li>
         <li className={authenticated ? 'is-done' : phase === 'otp' ? 'is-current' : ''}><span>2</span>Xác minh email</li>
       </ol>}
-      {sitter ? <GuestSitterApplication api={applicationApi} />
+      {sitter ? <SitterApplicationEntry api={applicationApi} session={session} />
           : authenticated ? <div className="pwc-registration-state">
             <h2>{sitter ? 'Bạn đã có tài khoản PawWorld' : `Xin chào, ${session.user.displayName}`}</h2>
             <p>{sitter ? 'Tài khoản hiện tại không cần tạo thêm hồ sơ ứng tuyển Pet Sitter.' : 'Tài khoản của bạn đã sẵn sàng. Hãy bắt đầu chăm sóc bé yêu cùng PawWorld.'}</p>

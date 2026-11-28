@@ -24,6 +24,7 @@ export class ApiError extends Error {
     this.reason = typeof details.reason === 'string' ? details.reason : undefined;
     this.conflictField = ['phone', 'email', 'identityNumber'].includes(details.conflictField) ? details.conflictField : undefined;
     this.reapplyAt = typeof details.reapplyAt === 'string' && Number.isFinite(Date.parse(details.reapplyAt)) ? details.reapplyAt : undefined;
+    this.reapplyDate = typeof details.reapplyDate === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(details.reapplyDate) ? details.reapplyDate : undefined;
     this.effectiveAt = typeof details.effectiveAt === 'string' && Number.isFinite(Date.parse(details.effectiveAt)) ? details.effectiveAt : undefined;
     this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
   }

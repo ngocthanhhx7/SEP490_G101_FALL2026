@@ -29,13 +29,10 @@ function isValidImageFile(file) {
   return Boolean(file && ACCEPTED_TYPES.has(file.type) && file.size > 0 && file.size <= MAX_FILE_BYTES);
 }
 
-function formatVietnamDate(value) {
-  if (typeof value !== 'string') return null;
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return null;
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric'
-  }).format(new Date(timestamp));
+function reapplyMessage(date) {
+  return date
+    ? 'Bạn có thể nộp lại từ ' + date + '.'
+    : 'Hồ sơ trước chưa đủ 30 ngày kể từ ngày bị từ chối. Vui lòng ứng tuyển lại sau.';
 }
 
 function lines(value) {
@@ -70,10 +67,7 @@ function errorMessage(error) {
       : 'Hồ sơ dùng thông tin liên hệ hoặc số CCCD này vẫn đang được xét duyệt.';
   }
   if (error?.code === 'REAPPLY_NOT_AVAILABLE') {
-    const dateText = formatVietnamDate(error.reapplyAt);
-    return dateText
-      ? `Bạn có thể ứng tuyển lại từ ngày ${dateText}.`
-      : 'Hồ sơ trước chưa đủ 30 ngày kể từ ngày bị từ chối. Vui lòng ứng tuyển lại sau.';
+    return reapplyMessage(error.reapplyDate);
   }
   if (error?.code === 'VALIDATION_FAILED')
     return 'Một số thông tin chưa hợp lệ. Hãy kiểm tra lại các trường bắt buộc.';
@@ -148,7 +142,7 @@ function validate({
 
 export function SitterApplicationPage({
   api = sitterApplicationApi,
-  initialValues, uploadsAvailable = api.uploadsAvailable, previousApplication, onRefreshApplication
+  initialValues, uploadsAvailable = api.uploadsAvailable, reapplyBlocked = false, reapplyDate, onRefreshApplication
 }) {
   const policies = useRegistrationPolicies();
   const [agreementKey, setAgreementKey] = useState('');
@@ -176,7 +170,7 @@ export function SitterApplicationPage({
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [receipt, setReceipt] = useState(previousApplication ?? false);
+  const [receipt, setReceipt] = useState(false);
   const idempotencyKey = useRef(null);
   const serverErrorsToFocus = useRef(null);
   useEffect(() => {
@@ -297,7 +291,7 @@ export function SitterApplicationPage({
 
   async function submit(event) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || reapplyBlocked) return;
     const nextErrors = validate({
       ...form,
       services: form.services,
@@ -435,7 +429,6 @@ export function SitterApplicationPage({
           <small>Lưu mã này để tra cứu hồ sơ và xác minh bằng mã OTP gửi tới email đã nộp.</small>
         </div>
         <Link className="registration-submit" to="/sitter/application-status">Theo dõi hồ sơ →</Link>
-        {onRefreshApplication && <Button variant="secondary" onClick={onRefreshApplication}>Cập nhật trạng thái hồ sơ</Button>}
         <Link to="/">Về trang chủ</Link>
       </div>
     </section>;
@@ -459,10 +452,14 @@ export function SitterApplicationPage({
         <p>Hoàn thiện hồ sơ để bắt đầu hành trình chăm sóc những người bạn nhỏ.</p>
         <p>Nhập cả email và số điện thoại. Bạn chưa cần có tài khoản để ứng tuyển.</p>
       </header>
-      {apiUnavailable && <Notice state="pending" title="Chưa mở tiếp nhận giấy tờ">Kho giấy tờ riêng tư hiện chưa sẵn sàng. Bạn có thể chuẩn bị thông tin; hồ sơ chỉ được gửi khi hệ thống tiếp nhận hoạt động.</Notice>}
+      {!reapplyBlocked && apiUnavailable && <Notice state="pending" title="Chưa mở tiếp nhận giấy tờ">Kho giấy tờ riêng tư hiện chưa sẵn sàng. Bạn có thể chuẩn bị thông tin; hồ sơ chỉ được gửi khi hệ thống tiếp nhận hoạt động.</Notice>}
       <form className="sitter-application__form" noValidate onSubmit={submit}>
+        {reapplyBlocked && <Notice state="warning" title="Chưa đến hạn nộp lại"
+          action={<Button type="button" variant="secondary" onClick={onRefreshApplication}>Cập nhật trạng thái hồ sơ</Button>}>
+          {reapplyMessage(reapplyDate)}
+        </Notice>}
         {notice && <Notice state={notice.state} title={notice.title}>{notice.message}</Notice>}
-        <fieldset className="sitter-application__body" disabled={busy}>
+        <fieldset className="sitter-application__body" disabled={busy || reapplyBlocked}>
           <legend className="pwc-visually-hidden">Thông tin ứng tuyển</legend>
           <div className="sitter-application__section-heading"><span>01</span><h3>Thông tin cá nhân</h3><small>Cần đủ 18 tuổi để ứng tuyển</small></div>
           <div className="sitter-application__grid">
@@ -555,7 +552,7 @@ export function SitterApplicationPage({
             {errors.agreement && <p className="sitter-application__error" role="alert">{errors.agreement}</p>}
           </div>
         </fieldset>
-        <Button className="sitter-application__submit" type="submit" loading={busy} loadingLabel="Đang gửi hồ sơ…" disabled={apiUnavailable || !policies.ready}>Gửi hồ sơ ứng tuyển →</Button>
+        <Button className="sitter-application__submit" type="submit" loading={busy} loadingLabel="Đang gửi hồ sơ…" disabled={reapplyBlocked || apiUnavailable || !policies.ready}>Gửi hồ sơ ứng tuyển →</Button>
         <p className="sitter-application__review-hint">PawWorld sẽ kiểm tra hồ sơ và liên hệ với bạn về bước tiếp theo.</p>
       </form>
     </div>

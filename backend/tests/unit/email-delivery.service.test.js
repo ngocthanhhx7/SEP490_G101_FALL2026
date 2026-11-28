@@ -171,7 +171,7 @@ test('application status OTP is rendered and handed to the SMTP transport', asyn
   expect(transport.sendMail.mock.calls[0][0].text).toContain('APPLICATION_STATUS');
 });
 
-test.each(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'])('branded application mail renders %s without private attachments', async applicationState => {
+test.each(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED'])('branded application mail renders %s without private attachments', async applicationState => {
   const { service, transport } = fixture();
   expect(await service.send({ kind: 'SYSTEM', channel: 'EMAIL', to: command.to, operationId: command.operationId,
     template: 'SITTER_APPLICATION_STATUS', applicationState, webOrigin: 'https://pawworldvn.shop' })).toMatchObject({ status: 'ACCEPTED' });
@@ -179,6 +179,22 @@ test.each(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'])('bra
   expect(mail.html).toContain('PawWorld'); expect(mail.html).toContain('https://pawworldvn.shop/sitter/application-status');
   expect(mail.attachments).toBeUndefined();
   if (applicationState === 'APPROVED') { expect(mail.subject).toContain('Chúc mừng'); expect(mail.html).toContain('/sign-in'); }
+});
+test('ST-ONB-22 sends the Admin reason and Vietnam reapplication date in both email formats', async () => {
+  const { service, transport } = fixture();
+  const rejectionReason = 'Bổ sung kinh nghiệm & <minh chứng>.';
+  const response = await service.send({ ...command, kind: 'SYSTEM', template: 'SITTER_APPLICATION_STATUS',
+    applicationState: 'REJECTED', webOrigin: 'https://pawworldvn.shop',
+    rejectionReason, reapplyAt: '2026-12-27T17:30:00.000Z' });
+  expect(response).toMatchObject({ status: 'ACCEPTED' });
+  const mail = transport.sendMail.mock.calls[0][0];
+  expect(mail.text).toContain(rejectionReason);
+  expect(mail.html).toContain('Bổ sung kinh nghiệm &amp; &lt;minh chứng&gt;.');
+  for (const body of [mail.text, mail.html]) {
+    expect(body).toContain('Bạn có thể nộp lại từ 28/12/2026.');
+    expect(body).toContain('/sitter/application-status');
+  }
+  expect(mail.attachments).toBeUndefined();
 });
 test.each(['UNKNOWN', 'toString', '__proto__'])('unknown application mail state %s is rejected before transport', async applicationState => {
   const { service, transport } = fixture();

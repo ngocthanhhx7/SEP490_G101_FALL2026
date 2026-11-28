@@ -90,15 +90,15 @@ test('unverified submission conflict points to protected status lookup', async (
 
 test('ST-ONB-13 shows MSG38 with Vietnam dd/mm/yyyy date at top of form when reapplying within 30 days', async () => {
   const api = makeApi(async () => {
-    throw new ApiError('REAPPLY_NOT_AVAILABLE', 409, { reapplyAt: '2026-12-26T17:30:00.000Z' });
+    throw new ApiError('REAPPLY_NOT_AVAILABLE', 409, { reapplyAt: '2026-12-26T17:30:00.000Z', reapplyDate: '27/12/2026' });
   });
   render(<MemoryRouter><SitterApplicationPage api={api} /></MemoryRouter>);
   await fillRequiredFields();
   fireEvent.click(screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ }));
-  const alert = await screen.findByText('Bạn có thể ứng tuyển lại từ ngày 27/12/2026.');
+  const alert = await screen.findByText('Bạn có thể nộp lại từ 27/12/2026.');
   expect(alert).toBeVisible();
   const form = screen.getByRole('button', { name: /Gửi hồ sơ ứng tuyển/ }).closest('form');
-  expect(form.firstElementChild.textContent).toContain('Bạn có thể ứng tuyển lại từ ngày 27/12/2026.');
+  expect(form.firstElementChild.textContent).toContain('Bạn có thể nộp lại từ 27/12/2026.');
 });
 
 test('ST-ONB-11 rejects oversized image, non-image file and >4MP image with MSG49 under the exact field and clears file', async () => {

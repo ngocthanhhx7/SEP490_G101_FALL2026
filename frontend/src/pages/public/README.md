@@ -57,10 +57,11 @@ SignInPage adapts Figma 2:5284 to the existing OTP flow. Email and SMS use the s
 
 RegistrationPage owns role choice and progression within the shared public header/footer. CustomerRegistrationPage validates account details/consent and sends email OTP directly. SitterApplicationPage opens after loading a guest intake capability, without account registration or email OTP first. The form collects both email and phone, uses the dedicated applicant-document upload adapter, policy consent and server receipts. Switching roles keeps the public layout. The application-status route also uses PublicSiteLayout. See [registration flow](../../../../doc/testing/registration-sitter-flow.md).
 
-Application receipts show the owner's rejection reason and Vietnam-local retry
-instant. The refresh action reads the server's canReapply flag before opening a
-new form; the device clock cannot bypass the waiting screen. Public OTP status
-provides a reapplication link when its server projection permits it.
+The signed-in apply entry opens the status page for the owner's open
+application. During cooldown, the form shows MSG38 with the server-formatted
+Vietnam date. Refresh checks the server's canReapply flag before restoring the
+form. Public OTP status provides a reapplication link when its server projection
+permits it.
 
 `ProductListPage.jsx` and `ProductDetailsPage.jsx` are the public shop at `/products` and `/products/:productId`. Filters live in the URL (`q`, `category`, `pet`); only Shown products are returned by the API. A guest pressing "Thêm vào giỏ hàng" is sent to sign-in and returns to the product page. Out-of-stock products lock the button (MSG98). Pressing + when the quantity already equals what can be sold shows MSG58 and the number does not go up (D-219; `QuantityStepper` `onLimit`); the cart still locks + at that quantity. A quantity above what can be sold when adding re-reads the product and shows MSG58 with the current number. Product Details shows the photos through `ProductGallery` (D-249): the large photo with a thumbnail row below it when the product has two or more photos, the single photo alone, or the brand placeholder when it has none. Product List and the cart keep showing the first photo.
 
