@@ -210,6 +210,10 @@
   display: none;
 }
 
+.handover-confirmation__report-action .pwc-button {
+  white-space: nowrap;
+}
+
 .handover-confirmation__confirm .pwc-field {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -288,7 +292,8 @@
 }
 
 @media (min-width: 641px) {
-  .handover-confirmation__table :is(th, td):nth-child(-n + 2) {
+  .handover-confirmation__table :is(th, td):nth-child(-n + 2),
+  .handover-confirmation__table :is(th, td):last-child {
     white-space: nowrap;
   }
   .handover-confirmation__details > div {

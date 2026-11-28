@@ -6,11 +6,13 @@ import { handoverConfirmationInput } from '../../validators/visit-handover.valid
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 import { HANDOVER_WINDOW_MS, handoverPending, lateCheckInExempt } from './visit-handover-policy.service.js';
 import { additionalCareChecklist } from './visit-care-instructions.service.js';
+import { projectVisitCareReport } from './visit-care-report.service.js';
 import { workflowMissing, workflowTasks } from './workflow-snapshot.service.js';
 
 const CHECK_IN_WINDOW_MS = 30 * 60000;
 const oid = value => new Types.ObjectId(value);
 const activeBookingStates = ['ASSIGNED', 'IN_PROGRESS', 'DISPATCH_PENDING'];
+const completedVisitFilter = { $or: [{ state: 'COMPLETED' }, { state: 'STAFF_CLOSED', 'closureVerification.outcome': 'SERVICE_PERFORMED' }] };
 const phases = ['CHECK_IN', 'EXECUTION', 'CHECK_OUT'];
 const validId = value => /^[a-f0-9]{24}$/i.test(String(value));
 const isAssignedBeforeCheckIn = visit => visit.state === 'ASSIGNED' && !visit.checkInAt;
@@ -45,7 +47,7 @@ function summarizeReport(visit, actorId, names) {
       (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
   const photos = new Set([...(visit.evidenceRefs ?? []), ...(visit.workflowResults ?? []).flatMap(row => row.evidence ?? [])]
     .map(photo => photo.mediaId).filter(Boolean));
-  return { startAt: visit.startAt, endAt: visit.endAt, sitterName: nameFor(names, visit.sitterId),
+  return { visitId: String(visit._id), startAt: visit.startAt, endAt: visit.endAt, sitterName: nameFor(names, visit.sitterId),
     mine: String(visit.sitterId) === actorId, requiredTasksComplete: complete, photoCount: photos.size };
 }
 
@@ -79,8 +81,7 @@ export function createVisitHandoverService({ repository, clock = Date.now }) {
       const care = careSnapshot(visit), note = visit.handoverNote;
       const previousSitterId = note?.previousSitterId ?? visit.withdrawalDispatch?.sitterId;
       const earlier = await visits.find({ bookingId: visit.bookingId, _id: { $in: booking.visitIds },
-        startAt: { $lt: visit.startAt }, $or: [{ state: 'COMPLETED' },
-          { state: 'STAFF_CLOSED', 'closureVerification.outcome': 'SERVICE_PERFORMED' }]
+        startAt: { $lt: visit.startAt }, ...completedVisitFilter
       }, { session, maxTimeMS: 2000, projection: { startAt: 1, endAt: 1, sitterId: 1, checklist: 1, evidenceRefs: 1,
         workflowResults: 1, location: 1, 'snapshots.pets': 1, 'snapshots.workflow': 1, 'snapshots.checklistItemIds': 1 } })
         .sort({ startAt: 1, _id: 1 }).toArray();
@@ -171,5 +172,38 @@ export function createVisitHandoverService({ repository, clock = Date.now }) {
     }
   }
 
-  return { get, confirm };
+  async function earlierReport(actor, value, reportValue) {
+    const visitId = id(value).toLowerCase();
+    const reportVisitId = id(reportValue).toLowerCase();
+    return uow.run(async session => {
+      const { visit, booking } = await context(actor, visitId, session);
+      if (!isAssignedBeforeCheckIn(visit) || !handoverPending(visit) || !activeBookingStates.includes(booking.state)) {
+        fail('RESOURCE_NOT_FOUND', 'Assigned visit unavailable', 404);
+      }
+      if (reportVisitId === visitId || !booking.visitIds?.some(item => String(item) === reportVisitId)) {
+        fail('RESOURCE_NOT_FOUND', 'Earlier care report unavailable', 404);
+      }
+      const target = await visits.findOne({
+        _id: oid(reportVisitId),
+        bookingId: visit.bookingId,
+        startAt: { $lt: visit.startAt },
+        ...completedVisitFilter
+      }, {
+        session,
+        maxTimeMS: 2000,
+        projection: {
+          startAt: 1, endAt: 1, state: 1, sitterId: 1, checkInAt: 1, checkOutAt: 1,
+          customerNote: 1, checklist: 1, workflowResults: 1, location: 1, evidenceRefs: 1,
+          'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1
+        }
+      });
+      if (!target) fail('RESOURCE_NOT_FOUND', 'Earlier care report unavailable', 404);
+      const sitter = validId(target.sitterId)
+        ? await col('users').findOne({ _id: oid(target.sitterId) }, { projection: { displayName: 1 }, session, maxTimeMS: 2000 })
+        : null;
+      return projectVisitCareReport(target, { sitterName: sitter?.displayName ?? null, customerView: true, includeCustomerNote: true });
+    });
+  }
+
+  return { get, confirm, earlierReport };
 }

@@ -83,6 +83,15 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
         throw new ApiError('INVALID_RESPONSE');
       return result;
     },
+    async handoverEarlierReport(id, reportVisitId, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/handover/reports/${encodeURIComponent(reportVisitId)}`, signal);
+      if (result.pending) return result;
+      const row = result.data;
+      if (row?.id !== reportVisitId || !Array.isArray(row.checklist) || !Array.isArray(row.evidence)) {
+        throw new ApiError('INVALID_RESPONSE');
+      }
+      return result;
+    },
     async confirmHandover(id, body, key) {
       const result = await mutate(`/visits/${encodeURIComponent(id)}/handover-confirmations`, body, key);
       if (result.pending || result.status === 202) return result;
