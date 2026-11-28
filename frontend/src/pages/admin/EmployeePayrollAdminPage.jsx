@@ -22,6 +22,7 @@ import {
   PayrollAdjustmentDecision,
 } from '../../components/payroll/PayrollAdjustmentForms.jsx';
 import { EmployeeContractForm } from '../../components/payroll/EmployeeContractForm.jsx';
+import { PayrollContractDirectory } from './PayrollContractDirectory.jsx';
 import './employee-payroll-admin.css';
 
 const employeeField = {
@@ -153,6 +154,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
   const contractBody = useRef(null);
   const [contractLocked, setContractLocked] = useState(false),
     [contractRevision, setContractRevision] = useState(0);
+  const [contractListRevision, setContractListRevision] = useState(0);
   const [contractNotice, setContractNotice] = useState(null);
   const [contractFieldErrors, setContractFieldErrors] = useState({});
   const saveContract = async (body) => {
@@ -187,6 +189,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
       setContractNotice(null);
       setContractFieldErrors({});
       setContractRevision((value) => value + 1);
+      setContractListRevision((value) => value + 1);
     }
     return saved;
   };
@@ -261,6 +264,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
       </details>
       <p>Hợp đồng tuyển mới được soạn, in và xác minh ngay trong hồ sơ ứng viên trước khi hoàn tất duyệt.</p>
       <section className="ops-builder">
+        <PayrollContractDirectory api={api} revision={contractListRevision} />
         <details>
           <summary>Xác minh hợp đồng cũ / thay đổi hợp đồng</summary>
           {contractNotice && <Notice state="error" title="Chưa lưu hợp đồng">{contractNotice}</Notice>}

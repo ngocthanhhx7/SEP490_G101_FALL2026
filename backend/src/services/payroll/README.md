@@ -1,5 +1,12 @@
 # Employment contracts and payroll
 
+`contract-directory.service.js` provides the private Admin UC-21 list. Each result
+uses one server time for status, counts and the 20-row page. Full verified phone
+numbers use the contact lookup key. The response contains the contract summary
+and excludes contact details. Contract replacement records `endsOn` as the last
+Vietnam calendar day and `endsAt` as the exclusive boundary in the same payroll
+transaction as the new version.
+
 `commission-source.service.js` excludes unresolved case/refund booking credits
 from commission, carries unclaimed released credits to a later period and checks
 statement sources again at approval/payment. Complaint and completion writers

@@ -286,6 +286,51 @@
   min-width: 0;
 }
 
+.payroll-contract-directory {
+  margin-bottom: var(--pwc-space-5);
+}
+
+.payroll-contract-directory__tabs,
+.payroll-contract-directory__filters,
+.payroll-contract-directory__pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--pwc-space-3);
+  margin: var(--pwc-space-3) 0;
+}
+
+.payroll-contract-directory__tabs button,
+.payroll-contract-directory__pages button {
+  min-height: var(--pwc-target);
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--pa-input-border);
+  border-radius: 999px;
+  background: var(--pwc-surface);
+  color: var(--pa-link);
+  font: inherit;
+  font-weight: 700;
+}
+
+.payroll-contract-directory__tabs button[aria-selected="true"] {
+  border-color: var(--pa-link);
+  background: var(--pa-link);
+  color: var(--pwc-surface);
+}
+
+.payroll-contract-directory__pages button:disabled {
+  opacity: 0.55;
+}
+
+.payroll-contract-directory__filters label:first-child {
+  flex: 1 1 15rem;
+}
+
+.payroll-contract-directory td small {
+  display: block;
+  color: var(--pwc-ink-muted);
+}
+
 @media (max-width: 640px) {
   .payroll-admin-page > header {
     flex-direction: column;

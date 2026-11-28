@@ -23,6 +23,15 @@ export function createEmployeePayrollApi(request) {
     advances: ({ signal, cursor, view, limit } = {}) => get('/advances' + query({ cursor, view, limit }), signal),
     statements: ({ signal, cursor, limit } = {}) => get('/statements' + query({ cursor, limit }), signal),
     submit: (body, key) => post('/advances', body, key),
+    listContracts: async ({ signal, tab, search, employmentType, page, userId } = {}) => {
+      const result = await request('/payroll/contracts' + query({ tab, search, employmentType, page, userId }), { signal });
+      const data = result.data;
+      if (result.pending || !Array.isArray(data?.items) || data.pageSize !== 20 || data.items.length > data.pageSize ||
+        !Number.isSafeInteger(data.page) || data.page < 1 || !Number.isFinite(Date.parse(data.asOf)) ||
+        !['active', 'ended', 'all'].every(key => Number.isSafeInteger(data.counts?.[key]) && data.counts[key] >= 0))
+        throw new ApiError('INVALID_RESPONSE');
+      return data;
+    },
     contract: async (body, key) => {
       const result = await request('/payroll/contracts', { method: 'POST', body, idempotencyKey: key });
       if (result.pending || !/^[a-f0-9]{24}$/i.test(result.data?.id ?? '') || result.data?.version !== body.expectedVersion + 1)
