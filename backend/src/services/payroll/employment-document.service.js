@@ -4,12 +4,33 @@ import { Types } from 'mongoose';
 import { employmentDocumentModels } from '../../models/employment-document.model.js';
 import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
+import { employeePayrollPolicyResolver } from '../../constants/employee-payroll-policy.js';
 import { employmentTermsInput, contractDate, contractFieldError, normalizeContractGender } from '../../validators/employment-document.validator.js';
 import { exact, id, number, fail } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const TEMPLATE = 'PWC-VN-LABOUR-2026-11-05-v2';
-export function createEmploymentDocumentService({ connection, crypto, lookupSecret, clock = Date.now }) {
+function formatPayPolicy(value) {
+  const fullTimeMonthlyBaseVnd = Number.isSafeInteger(value?.fullTimeMonthlyBaseVnd) && value.fullTimeMonthlyBaseVnd >= 1
+    ? value.fullTimeMonthlyBaseVnd : null;
+  const partTimeMonthlyBaseVnd = Number.isSafeInteger(value?.partTimeMonthlyBaseVnd) && value.partTimeMonthlyBaseVnd >= 1
+    ? value.partTimeMonthlyBaseVnd : null;
+  return {
+    ready: Boolean(value?.ready && value.version),
+    version: value?.version ?? null,
+    fullTimeMonthlyBaseVnd,
+    partTimeMonthlyBaseVnd
+  };
+}
+function policyBaseFor(approved, employmentType) {
+  const key = employmentType === 'FULL_TIME' ? 'fullTimeMonthlyBaseVnd' : 'partTimeMonthlyBaseVnd';
+  const amount = approved?.[key];
+  if (!approved?.ready || !approved.version || !Number.isSafeInteger(amount) || amount < 1) {
+    fail('PAYROLL_POLICY_REQUIRED', 'Employee payroll policy awaits confirmation', 409);
+  }
+  return amount;
+}
+export function createEmploymentDocumentService({ connection, crypto, lookupSecret, clock = Date.now, policy = employeePayrollPolicyResolver }) {
   if (typeof lookupSecret !== 'string' || lookupSecret.length < 32 || typeof crypto?.encrypt !== 'function' || typeof crypto?.decrypt !== 'function') throw new TypeError('Private crypto and identity lookup key required');
   const { EmploymentDocument: Document, EmploymentDocumentCounter: Counter, EmploymentDocumentCommand: Command } = employmentDocumentModels(connection);
   const { SitterApplication: Application } = sitterApplicationModels(connection), { EmploymentContract: Contract } = payrollModels(connection), uow = createUnitOfWork(connection);
@@ -53,13 +74,19 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
           .sort({ version: -1 }).select('effectiveAt version').maxTimeMS(5000).lean() : null;
       const recordedContract = recorded ? { version: recorded.version,
         effectiveOn: new Date(+recorded.effectiveAt + 7 * 3600000).toISOString().slice(0, 10) } : null;
-      return { prefill: defaults, recordedContract, current: rows.length ? view(rows[0]) : null, history: rows.map(row => ({ id: String(row._id), reference: row.reference, state: row.state, revision: row.revision })) };
+      const payPolicy = formatPayPolicy(await policy?.resolve?.({ action: 'CONTRACT_READ' }));
+      return { prefill: defaults, payPolicy, recordedContract, current: rows.length ? view(rows[0]) : null, history: rows.map(row => ({ id: String(row._id), reference: row.reference, state: row.state, revision: row.revision })) };
     },
     async save(actor, applicationId, body, key) {
       admin(actor); exact(body, ['expectedRevision', 'applicationVersion', 'terms'], ['expectedRevision', 'applicationVersion', 'terms']);
       number(body.expectedRevision, 0, 100000, true); number(body.applicationVersion, 0, 100000, true);
       const terms = employmentTermsInput(body.terms, clock());
       return command(actor, applicationId, body, key, async (application, session) => {
+        const approved = await policy?.resolve?.({ action: 'CONTRACT' });
+        const expectedBaseVnd = policyBaseFor(approved, terms.employmentType);
+        if (terms.monthlyBaseVnd !== expectedBaseVnd) {
+          contractFieldError({ monthlyBaseVnd: 'POLICY_MISMATCH' }, 'VALIDATION_FAILED');
+        }
         if (createHmac('sha256', lookupSecret).update('applicant-identity\0' + terms.identityNumber.toUpperCase()).digest('hex') !== application.identityLookupKey) fail('CONTRACT_IDENTITY_MISMATCH', 'Identity must match the application verified by Admin', 409);
         if (application.version !== body.applicationVersion) fail('VERSION_CONFLICT', 'Application changed', 409);
         const prior = await Document.findOne({ applicationId }).sort({ revision: -1 }).session(session).lean();

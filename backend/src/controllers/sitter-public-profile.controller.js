@@ -7,5 +7,12 @@ export function createSitterPublicProfileController(service) {
       state:req.query.state, body: req.body, cursor: req.query.cursor, idempotencyKey: req.get('Idempotency-Key') });
     res.json({ data, meta: metadata(req) });
   };
-  return { own: action('readOwn'), list: action('listPending'), submit: action('submit'), review: action('review') };
+  return {
+    own: action('readOwn'),
+    selfProfile: action('readSelfProfile'),
+    saveSelfProfile: action('saveSelfProfile'),
+    list: action('listPending'),
+    submit: action('submit'),
+    review: action('review')
+  };
 }

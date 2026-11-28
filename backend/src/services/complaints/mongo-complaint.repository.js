@@ -30,7 +30,7 @@ const escapeRegex = value => value.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g, '\\$&');
 function matchList(actor, filter) {
   const match = { kind: filter.proposals ? { $in: ['COMPLAINT', 'INCIDENT'] } : 'COMPLAINT' };
   if (!hasRole(actor.roles, 'STAFF') && !oid(actor.userId)) fail(403, 'FORBIDDEN');
-  if (hasRole(actor.roles, 'CUSTOMER')) match.customerId = oid(actor.userId);
+  if (hasRole(actor.roles, 'CUSTOMER')) match.customerId = { $in: [oid(actor.userId), actor.userId] };
   else if (hasRole(actor.roles, 'PET_SITTER')) {
     match.sitterId = oid(actor.userId);
     match.visitId = { $type: 'objectId' };
@@ -57,6 +57,7 @@ function listFields(filter) {
   return {
     rowId: { $toString: '$_id' },
     displayBookingId: { $toString: '$bookingId' },
+    bookingOid: { $convert: { input: '$bookingId', to: 'objectId', onError: null, onNull: null } },
     customerOid: { $convert: { input: '$customerId', to: 'objectId', onError: null, onNull: null } },
     visitOid: { $convert: { input: '$visitId', to: 'objectId', onError: null, onNull: null } },
     submittedAt: { $convert: { input: orderInput, to: 'date', onError: new Date(0), onNull: new Date(0) } },
@@ -285,9 +286,9 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
           { case: { $eq: ['$state', 'ESCALATED'] }, then: 'UNDER_REVIEW' }
         ], default: '$state' } } } });
     }
-    stages.push(join('bookings', 'bookingId', 'bookingRows', { state: 1, version: 1, bookingCode: 1, code: 1, customerId: 1 }),
+    stages.push(join('bookings', 'bookingOid', 'bookingRows', { state: 1, version: 1, bookingCode: 1, code: 1, customerId: 1 }),
       { $set: { joinedBooking: { $first: '$bookingRows' } } });
-    if (hasRole(actor.roles, 'CUSTOMER')) stages.push({ $match: { 'joinedBooking.customerId': oid(actor.userId) } });
+    if (hasRole(actor.roles, 'CUSTOMER')) stages.push({ $match: { 'joinedBooking.customerId': { $in: [oid(actor.userId), actor.userId] } } });
     if (staff) stages.push(join('users', 'customerOid', 'customerRows', { displayName: 1 }),
       { $set: { customerName: { $first: '$customerRows.displayName' } } });
     if (filter.proposals) {
