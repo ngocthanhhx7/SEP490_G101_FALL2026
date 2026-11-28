@@ -1595,6 +1595,31 @@ test('signed upcoming contract permits onboarding preparation but does not autho
  await expect(module.repository.areas.replaceMine({actor:sitter,areas:[],expectedVersion:2,idempotencyKey:'unverified-contract-areas'})).rejects.toMatchObject({code:'CONTRACT_REQUIRED'});
 });
 
+test('ST-ONB-23 uses the old contract through 23:30 and switches at midnight for scheduling and assignment', async () => {
+  const sitter = await employee(), boundary = new Date('2026-12-27T00:00:00+07:00');
+  const oldStart = new Date('2026-12-26T23:30:00+07:00');
+  const afterBoundary = new Date('2026-12-27T00:30:00+07:00');
+  await payroll.EmploymentContract.updateOne({ employeeId: sitter.userId }, { $set: { endsAt: boundary, endsOn: '2026-12-26' } });
+  await expect(module.repository.contractAt(sitter.userId, oldStart, boundary)).resolves.toMatchObject({ version: 1 });
+  await expect(module.repository.contractAt(sitter.userId, boundary, boundary)).rejects.toMatchObject({ code: 'CONTRACT_REQUIRED' });
+
+  await payrollService.recordContract(actor('ADMIN'), { employeeId: sitter.userId, expectedVersion: 1,
+    employmentType: 'FULL_TIME', salaryBasis: 'GROSS', monthlyBaseVnd: 10000000, payCycle: 'MONTHLY', weeklyMinutes: 2400,
+    signedAt: '2026-10-30T00:00:00+07:00', effectiveAt: boundary.toISOString(), contractReference: 'synthetic-onb23-boundary',
+    workplaceRegion: 1, workplaceReference: 'Synthetic Hanoi workplace' }, 'onb23-midnight-contract');
+  await module.repository.availability.updateMine({ actor: sitter, command: {
+    zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30', expectedVersion: 2, idempotencyKey: 'onb23-midnight-shifts',
+    workingWindows: [{ weekday: 6, startLocalTime: '23:30', endLocalTime: '00:30' }]
+  } });
+  const before = await visit({ start: oldStart.toISOString(), minutes: 30 });
+  const after = await visit({ start: boundary.toISOString(), minutes: 30 });
+  await expect(module.repository.contractAt(sitter.userId, before.startAt, before.endAt)).resolves.toMatchObject({ version: 1, employmentType: 'PART_TIME' });
+  await expect(module.repository.contractAt(sitter.userId, after.startAt, after.endAt)).resolves.toMatchObject({ version: 2, employmentType: 'FULL_TIME' });
+  await expect(module.repository.eligible(sitter.userId, before)).resolves.toMatchObject({ eligible: true, workingHoursCovered: true });
+  await expect(module.repository.eligible(sitter.userId, after)).resolves.toMatchObject({ eligible: true, workingHoursCovered: true });
+  await expect(module.repository.eligible(sitter.userId, { ...before, endAt: afterBoundary })).rejects.toMatchObject({ code: 'CONTRACT_REQUIRED' });
+});
+
 test('UC-41 GBR-24 confirms an urgent assignment once and returns the MSG81 check-in time', async () => {
   const sitter = await employee(), other = await employee();
   const row = await assignedForWithdrawal(sitter, '2026-10-30T03:20:00Z');

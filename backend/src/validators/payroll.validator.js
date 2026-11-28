@@ -12,6 +12,18 @@ export function payrollPageInput(value = {}, own = false) {
   if (!own && value.view !== undefined && !['PENDING', 'HISTORY'].includes(value.view)) fail('VALIDATION_FAILED', 'Invalid payroll view');
   return result;
 }
+export function payrollContractListInput(value = {}) {
+  exact(value, ['tab', 'search', 'employmentType', 'page', 'userId'], []);
+  const { tab = 'ACTIVE', search = '', employmentType = '', page = '1', userId } = value;
+  if (!['ACTIVE', 'ENDED', 'ALL'].includes(tab) || !['', 'FULL_TIME', 'PART_TIME'].includes(employmentType))
+    fail('VALIDATION_FAILED', 'Invalid contract filters');
+  if (typeof search !== 'string' || search.length > 100 || /[\x00-\x1f\x7f]/.test(search))
+    fail('VALIDATION_FAILED', 'Invalid contract search');
+  if (typeof page !== 'string' || !/^[1-9]\d{0,5}$/.test(page)) fail('VALIDATION_FAILED', 'Invalid contract page');
+  if (userId !== undefined) id(userId);
+  return { tab, search: search.trim().normalize('NFC'), employmentType, page: Number(page), userId };
+}
+
 export function payrollAdjustmentInput(value) {
   const keys = ['statementId', 'expectedVersion', 'direction', 'amountVnd', 'reason', 'assessmentReference'];
   exact(value, keys, keys); id(value.statementId); number(value.expectedVersion, 0, 1000000, true);

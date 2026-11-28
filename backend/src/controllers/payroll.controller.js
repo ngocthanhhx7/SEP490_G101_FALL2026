@@ -9,6 +9,7 @@ export function createPayrollController(service) {
     adjustmentDecision: controllerAction(200, req => service.decideAdjustment(req.auth, req.params.id, req.body, req.get('Idempotency-Key'))),
     adjustments: controllerAction(200, req => service.listAdjustments(req.auth, req.query)),
     own: controllerAction(200, req => service.own(req.auth, req.query)),
+    listContracts: controllerAction(200, req => service.listContracts(req.auth, req.query)),
     contracts: controllerAction(201, req => service.recordContract(req.auth, req.body, req.get('Idempotency-Key'))),
     submit: controllerAction(201, req => service.submitAdvance(req.auth, req.body, req.get('Idempotency-Key'))),
     decision: controllerAction(200, req => service.decideAdvance(req.auth, req.params.id, req.body, req.get('Idempotency-Key'))),

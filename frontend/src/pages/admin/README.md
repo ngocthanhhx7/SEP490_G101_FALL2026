@@ -1,5 +1,11 @@
 # Admin pages
 
+`PayrollContractDirectory.jsx` renders UC-21 in the contract section of
+`EmployeePayrollAdminPage.jsx` beside its form on wide screens and above it on
+narrow screens. It uses the Admin payroll
+API for status totals, search, employment type and pagination. An acknowledged
+contract save refreshes the current list.
+
 `StockAdjustmentPage.jsx` renders `/admin/stock-adjustments`: one product selected
 through the shared ProductSearch, authoritative stock outputs, decrease/increase,
 blank required quantity/reason, local preview and immutable paged records. Saves

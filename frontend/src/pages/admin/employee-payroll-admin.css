@@ -286,6 +286,87 @@
   min-width: 0;
 }
 
+.payroll-contract-workspace {
+  display: grid;
+  gap: var(--pwc-space-6);
+  align-items: start;
+}
+
+.payroll-contract-workspace > * {
+  min-width: 0;
+}
+
+.payroll-workspace .payroll-contract-workspace > .payroll-contract-directory {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.payroll-contract-workspace .employee-contract-fields {
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
+.payroll-admin-page .payroll-contract-directory .ops-table {
+  min-width: 440px;
+}
+
+.payroll-admin-page .payroll-contract-directory .ops-table :is(th, td) {
+  padding-inline: 0.55rem;
+}
+
+@media (min-width: 1200px) {
+  .payroll-contract-workspace {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .payroll-workspace.payroll-admin-page .payroll-contract-workspace > details {
+    border-inline-start: 1px solid var(--pa-divider);
+    padding-inline-start: var(--pwc-space-4);
+  }
+}
+
+.payroll-contract-directory__tabs,
+.payroll-contract-directory__filters,
+.payroll-contract-directory__pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--pwc-space-3);
+  margin: var(--pwc-space-3) 0;
+}
+
+.payroll-contract-directory__tabs button,
+.payroll-contract-directory__pages button {
+  min-height: var(--pwc-target);
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--pa-input-border);
+  border-radius: 999px;
+  background: var(--pwc-surface);
+  color: var(--pa-link);
+  font: inherit;
+  font-weight: 700;
+}
+
+.payroll-contract-directory__tabs button[aria-selected="true"] {
+  border-color: var(--pa-link);
+  background: var(--pa-link);
+  color: var(--pwc-surface);
+}
+
+.payroll-contract-directory__pages button:disabled {
+  opacity: 0.55;
+}
+
+.payroll-contract-directory__filters label:first-child {
+  flex: 1 1 15rem;
+}
+
+.payroll-contract-directory td small {
+  display: block;
+  color: var(--pwc-ink-muted);
+}
+
 @media (max-width: 640px) {
   .payroll-admin-page > header {
     flex-direction: column;

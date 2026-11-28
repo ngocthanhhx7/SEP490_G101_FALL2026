@@ -68,10 +68,10 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       lookup('sitterpublicprofiles', '$_id', 'userId', 'profiles', ['bio', 'areas', 'state', 'version', 'updatedAt']),
       lookup('aisitterprofiles', '$_id', 'userId', 'capabilities', ['active', 'serviceIds', 'species', 'areaCodes', 'maxPets', 'maxWeightKg', 'allowedTraits', 'version']),
       lookup('employeeavailabilities', { $toString: '$_id' }, '_id', 'schedules', ['areas']),
-      lookup('employmentcontracts', '$_id', 'employeeId', 'contracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version', 'employeeCode'],
+      lookup('employmentcontracts', '$_id', 'employeeId', 'contracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'endsOn', 'version', 'employeeCode'],
         [{ $match: { supersededAt: null, effectiveAt: { $lte: now } } }, { $sort: { effectiveAt: -1, version: -1 } }, { $limit: 1 },
           { $match: { signedAt: { $lte: now }, $or: [{ endsAt: { $exists: false } }, { endsAt: null }, { endsAt: { $gt: now } }] } }]),
-      lookup('employmentcontracts', '$_id', 'employeeId', 'upcomingContracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version', 'employeeCode'],
+      lookup('employmentcontracts', '$_id', 'employeeId', 'upcomingContracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'endsOn', 'version', 'employeeCode'],
         [{ $match: { supersededAt: null, effectiveAt: { $gt: now }, signedAt: { $lte: now }, verifiedBy: { $exists: true, $ne: null },
           $expr: { $or: [{ $eq: [{ $ifNull: ['$endsAt', null] }, null] }, { $gt: ['$endsAt', '$effectiveAt'] }] } } },
         { $sort: { effectiveAt: 1, version: -1 } }, { $limit: 1 }]),
@@ -105,7 +105,7 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       capabilityActive: user.capabilities[0]?.active === true, createdAt: iso(user.createdAt), updatedAt: iso(user.updatedAt),
       upcomingContract: !user.contracts.length && user.upcomingContracts[0] ? {
         employmentType: user.upcomingContracts[0].employmentType, effectiveAt: iso(user.upcomingContracts[0].effectiveAt),
-        endsAt: iso(user.upcomingContracts[0].endsAt), weeklyMinutes: user.upcomingContracts[0].weeklyMinutes,
+        endsAt: iso(user.upcomingContracts[0].endsAt), endsOn: user.upcomingContracts[0].endsOn ?? null, weeklyMinutes: user.upcomingContracts[0].weeklyMinutes,
         version: user.upcomingContracts[0].version } : null };
   }
   function context(actor, query, kind, target = '') {
@@ -380,7 +380,7 @@ export function createSitterManagementService({ connection, cursorSecret, contac
         areas: user.areas, maxPets: capability.maxPets, maxWeightKg: capability.maxWeightKg,
         allowedTraits: capability.allowedTraits ?? [], services: serviceIds.map(value => { const service = services.find(s => id(s._id) === id(value)); return { id: id(value), code: service?.code ?? null, name: service?.versions?.[0]?.name ?? service?.code ?? null }; }) } : null,
       contracts: user.contracts.map(c => ({ employmentType: c.employmentType, weeklyMinutes: c.weeklyMinutes,
-        effectiveAt: iso(c.effectiveAt), endsAt: iso(c.endsAt), version: c.version })),
+        effectiveAt: iso(c.effectiveAt), endsAt: iso(c.endsAt), endsOn: c.endsOn ?? null, version: c.version })),
       availability: availability ? { state: availability.state, version: availability.version, zone: availability.zone,
         effectiveFrom: availability.effectiveFrom ?? null, areas: availability.areas ?? [],
         workingWindows: (availability.workingWindows ?? []).map(w => ({ weekday: w.weekday,

@@ -15,6 +15,10 @@ import { createPayrollAdjustmentService, publicPayrollAdjustment } from './payro
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 import { createCommissionSources } from './commission-source.service.js';
 
+import { createContractDirectory } from './contract-directory.service.js';
+import { vietnamDate } from '../../utils/vietnam-date.js';
+
+const DAY_MS = 86400000;
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const payrollMonth = at => new Date(at.getTime() + 7 * 3600000).toISOString().slice(0, 7);
 const publicAdvance = row => ({ id: String(row._id), amountVnd: row.amountVnd, currency: 'VND', monthKey: row.monthKey,
@@ -23,9 +27,10 @@ const publicAdvance = row => ({ id: String(row._id), amountVnd: row.amountVnd, c
 const publicStatement = row => ({ reference: row.reference ?? null, employeeName: row.employeeName ?? null, employeeCode: row.employeeCode ?? null, id: String(row._id), employeeId: String(row.employeeId), periodStart: row.periodStart, periodEnd: row.periodEnd,
   dueAt: row.dueAt, status: row.status, version: row.version, payCycle: row.payCycle, breakdown: row.breakdown, heldCommissionCredits: row.heldCreditIds?.length ?? 0, paidAt: row.paidAt ?? null, voidReason: row.voidReason ?? null });
 
-export function createPayrollService({ connection, policy, clock = () => new Date(), cursorSecret }) {
+export function createPayrollService({ connection, policy, clock = () => new Date(), cursorSecret, phoneLookup }) {
   const models = payrollModels(connection), User = userModel(connection), { SitterStatus, SitterApplication } = sitterApplicationModels(connection);
   const uow = createUnitOfWork(connection), draftService = createPayrollDraftService({ connection, clock: () => now().getTime() });
+  const listContracts = createContractDirectory({ connection, Contract: models.EmploymentContract, phoneLookup });
   const notifications = createDomainNotifications({ connection, clock: () => new Date(clock()).getTime() });
   const commissionSources = createCommissionSources({ connection });
   const now = () => new Date(clock());
@@ -95,6 +100,10 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
   return {
     ...createPayrollAdjustmentService({ connection, models, role, command, employeeGuard, claimTransfer, event, page, now }),
     models,
+    listContracts(actor, query) {
+      role(actor, 'ADMIN');
+      return listContracts(query, now());
+    },
     payrollEmployees: actor => draftService.employees(actor),
     previewStatement: (actor, body) => draftService.preview(actor, body),
     async prepareAutomaticStatement(actor, body, key) {
@@ -143,6 +152,14 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (shopReservations.some(row => input.employmentType !== 'FULL_TIME' || input.endsAt && row.endAt > input.endsAt
           || prior && input.weeklyMinutes < prior.weeklyMinutes))
           fail('CONFIRMED_VISIT_CONFLICT', 'Review reserved shop appointments before reducing contract coverage', 409);
+        const preceding = prior?.supersededAt
+          ? await models.EmploymentContract.findOne({ employeeId: input.employeeId, supersededAt: null })
+            .sort({ effectiveAt: -1, version: -1 }).session(session).lean()
+          : prior;
+        if (preceding && (!preceding.endsAt || preceding.endsAt >= input.effectiveAt)) {
+          const endsOn = vietnamDate(new Date(input.effectiveAt.getTime() - DAY_MS));
+          await models.EmploymentContract.updateOne({ _id: preceding._id }, { $set: { endsOn, endsAt: input.effectiveAt } }, { session });
+        }
         const { expectedVersion, ...fields } = input;
         const [record] = await models.EmploymentContract.create([{ ...fields, version: expectedVersion + 1, verifiedBy: actor.userId, recordedAt: now() }], { session });
         await event(actor, input.employeeId, record._id, 'CONTRACT_RECORDED', 'Admin verified signed contract', session);
@@ -153,8 +170,9 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       role(actor, 'PET_SITTER'); const input = payrollPageInput(query, true);
       await assertPayrollStorage(connection);
       const contracts = await models.EmploymentContract.find({ employeeId: actor.userId }).sort({ version: -1 }).limit(20).lean();
-      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, supersededAt: null, effectiveAt: { $lte: now() } }).sort({ version: -1 }).lean();
-      const active = effective && (!effective.endsAt || effective.endsAt > now()) ? effective : null;
+      const asOf = now();
+      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, supersededAt: null, effectiveAt: { $lte: asOf } }).sort({ version: -1 }).lean();
+      const active = effective && (!effective.endsAt || effective.endsAt > asOf) ? effective : null;
       if (active && !contracts.some(c => String(c._id) === String(active._id))) contracts.push(active);
       const advances = await page(models.SalaryAdvance, { employeeId: actor.userId }, actor,
         { limit: input.limit, cursor: input.advanceCursor }, 'requestedAt', 'own-advances', publicAdvance);
@@ -163,7 +181,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       const adjustments = await page(models.PayrollAdjustment, { employeeId: actor.userId }, actor,
         { limit: input.limit, cursor: input.adjustmentCursor }, 'requestedAt', 'own-adjustments', publicPayrollAdjustment);
       return { contracts: contracts.map(c => ({ id: String(c._id), version: c.version, employmentType: c.employmentType, salaryBasis: c.salaryBasis,
-        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, workScheduleMode: c.workScheduleMode, minimumWeeklyMinutes: c.minimumWeeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
+        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, workScheduleMode: c.workScheduleMode, minimumWeeklyMinutes: c.minimumWeeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null, endsOn: c.endsOn ?? null })),
         activeContractId: active ? String(active._id) : null, advances: advances.items, statements: statements.items,
         advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor,
         adjustments: adjustments.items, adjustmentNextCursor: adjustments.nextCursor };

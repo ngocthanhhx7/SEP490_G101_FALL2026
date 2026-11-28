@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, test, expect } from '@jest/globals';
+import { beforeAll, afterAll, test, expect, jest } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
 import request from 'supertest';
@@ -7,6 +7,8 @@ import { createPayrollService } from '../../src/services/payroll/payroll.service
 import { payrollRuntimeModule } from '../../src/routes/employee-payroll.routes.js';
 import { employeePayrollPolicyResolver } from '../../src/constants/employee-payroll-policy.js';
 import { errorHandler, requestId } from '../../src/middlewares/http.js';
+import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
+const contractLookupConfig = { lookupSecret: 'synthetic-lookup-secret-for-onb23-tests', encryptionKey: '0123456789abcdef0123456789abcdef' };
 let replica, connection, service, app, at = new Date('2026-10-30T09:00:00Z');
 const oid = () => new mongoose.Types.ObjectId();
 const sitter = { userId: String(oid()), roles: ['PET_SITTER'], state: 'ACTIVE' }, admin = { userId: String(oid()), roles: ['ADMIN'], state: 'ACTIVE' }, other = { ...sitter, userId: String(oid()) };
@@ -23,9 +25,9 @@ beforeAll(async () => {
   await connection.collection('sitterapplications').insertOne({ _id: oid(), state: 'APPROVED', provisionedUserId: new mongoose.Types.ObjectId(sitter.userId) });
   await connection.collection('sitterstatuses').insertOne({ _id: oid(), userId: new mongoose.Types.ObjectId(sitter.userId), status: 'ACTIVE', version: 0, changedAt: at });
   const sessions = { authenticate: async req => {
-    const actor = ({ sitter, admin, other })[req.get('x-test-actor')]; return actor ? { ...actor, expiresAt: at.getTime() + 60000 } : null;
+    const actor = ({ sitter, admin, other, staff: { ...other, roles: ['STAFF'] } })[req.get('x-test-actor')]; return actor ? { ...actor, expiresAt: at.getTime() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'test-csrf' };
-  const module = payrollRuntimeModule({ config: { auth: { enabled: true } }, connection, sessionService: sessions, clock: () => at.getTime() });
+  const module = payrollRuntimeModule({ config: { auth: { enabled: true, contactLookupSecret: contractLookupConfig.lookupSecret, contactEncryptionKey: contractLookupConfig.encryptionKey } }, connection, sessionService: sessions, clock: () => at.getTime() });
   app = express(); app.use(express.json(), requestId); app.use(module.mount, module.router); app.use(errorHandler(() => {}));
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
@@ -237,4 +239,105 @@ test('ST-ONB-14 returns structured contract date validation details without bloc
     code: 'VALIDATION_FAILED',
     fieldErrors: { endsAt: 'Ngày kết thúc phải sau ngày bắt đầu.' }
   });
+});
+
+async function onb23Employee(displayName = 'Synthetic Replacement Sitter') {
+  const employeeId = oid();
+  await connection.collection('users').insertOne({ _id: employeeId, displayName, state: 'ACTIVE', roles: ['PET_SITTER'] });
+  await connection.collection('sitterapplications').insertOne({
+    _id: oid(), submissionKeyDigest: String(employeeId), state: 'APPROVED', provisionedUserId: employeeId
+  });
+  return String(employeeId);
+}
+
+test('ST-ONB-23 closes the prior contract at the replacement boundary and preserves both on failure', async () => {
+  const employeeId = await onb23Employee();
+  const boundary = new Date('2026-12-27T00:00:00+07:00');
+  const old = await service.recordContract(admin, { ...contract(), employeeId, endsAt: '2027-05-27T00:00:00+07:00' }, 'onb23-first-contract');
+  const replacement = { ...contract(), employeeId, expectedVersion: 1, effectiveAt: boundary.toISOString(),
+    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000, weeklyMinutes: 2400 };
+  const saved = await service.recordContract(admin, replacement, 'onb23-replacement-contract');
+  expect(await service.recordContract(admin, replacement, 'onb23-replacement-contract')).toEqual(saved);
+  expect(await service.models.EmploymentContract.findById(old.id).lean()).toMatchObject({ endsOn: '2026-12-26', endsAt: boundary });
+  const create = jest.spyOn(service.models.EmploymentContract, 'create').mockRejectedValueOnce(new Error('synthetic replacement write failure'));
+  try {
+    await expect(service.recordContract(admin, { ...replacement, expectedVersion: 2, effectiveAt: '2027-02-01T00:00:00+07:00' }, 'onb23-roll-back'))
+      .rejects.toThrow('synthetic replacement write failure');
+  } finally { create.mockRestore(); }
+  expect(await service.models.EmploymentContract.countDocuments({ employeeId })).toBe(2);
+  expect((await service.models.EmploymentContract.findById(saved.id).lean()).endsAt).toBeUndefined();
+  const savedAt = at;
+  const worker = { ...sitter, userId: employeeId };
+  try {
+    at = new Date(boundary.getTime() - 1);
+    const own = await service.own(worker);
+    expect(own.activeContractId).toBe(old.id);
+    expect(own.contracts.find(row => row.id === old.id)).toMatchObject({ endsOn: '2026-12-26', endsAt: boundary });
+    at = boundary;
+    expect((await service.own(worker)).activeContractId).toBe(saved.id);
+    at = new Date('2027-01-02T00:00:00+07:00');
+    const assessment = { employeeId, dueAt: '2027-01-03T00:00:00+07:00', scheduledMonthMinutes: 4800, paidPeriodMinutes: 600,
+      kpiTargetMinutes: 0, seriousViolationConfirmed: false, includeMonthlyBonus: false, overtimeVnd: 0, employeeInsuranceVnd: 0,
+      incomeTaxVnd: 0, otherLawfulDeductionsVnd: 0, assessmentReference: 'synthetic attendance', deductionConsentReference: 'synthetic deductions',
+      advanceRepayments: [], periodStart: '2026-12-26T00:00:00+07:00', periodEnd: '2026-12-28T00:00:00+07:00' };
+    await expect(service.prepareStatement(admin, assessment, 'onb23-crossing-statement')).rejects.toMatchObject({ code: 'CONTRACT_REQUIRED' });
+    const priorStatement = await service.prepareStatement(admin, { ...assessment, periodEnd: boundary.toISOString() }, 'onb23-prior-statement');
+    const nextStatement = await service.prepareStatement(admin, { ...assessment, periodStart: boundary.toISOString() }, 'onb23-next-statement');
+    expect(String((await service.models.PayrollStatement.findById(priorStatement.id).lean()).contractId)).toBe(old.id);
+    expect(String((await service.models.PayrollStatement.findById(nextStatement.id).lean()).contractId)).toBe(saved.id);
+  } finally { at = savedAt; }
+});
+
+test('ST-ONB-23 preserves the end date of a contract that already ends before the next contract', async () => {
+  const employeeId = await onb23Employee();
+  const endsAt = '2026-11-10T00:00:00+07:00';
+  const prior = await service.recordContract(admin, { ...contract(), employeeId, endsAt }, 'onb23-gap-first');
+  await service.recordContract(admin, { ...contract(), employeeId, expectedVersion: 1, effectiveAt: '2026-11-20T00:00:00+07:00' }, 'onb23-gap-second');
+  expect(await service.models.EmploymentContract.findById(prior.id).lean()).toMatchObject({ endsAt: new Date(endsAt) });
+});
+
+test('ST-ONB-23 lists all sitter contracts for Admin with status counts, filters and pagination', async () => {
+  const path = '/api/v1/payroll/contracts';
+  const get = query => request(app).get(path).set('x-test-actor', 'admin').query(query).expect(200).expect('Cache-Control', 'private, no-store');
+  const employeeId = await onb23Employee('Synthetic ONB23 Directory');
+  const otherEmployeeId = await onb23Employee('Synthetic ONB23 Other');
+  const phone = createContactCrypto(contractLookupConfig).lookup('PHONE', '+84901234567');
+  await connection.collection('contacts').insertOne({ userId: new mongoose.Types.ObjectId(employeeId),
+    state: 'VERIFIED', channel: 'PHONE', lookupKey: phone.lookupKey });
+  const history = Array.from({ length: 22 }, (_, index) => ({
+    employeeId: new mongoose.Types.ObjectId(index === 0 ? otherEmployeeId : employeeId),
+    employeeCode: index === 0 ? 'SIT-ONB23-B' : 'SIT-ONB23-A',
+    version: index + 1, signedAt: new Date('2026-10-01'), effectiveAt: new Date(Date.UTC(2026, 10, index - 18)),
+    employmentType: index === 21 ? 'FULL_TIME' : 'PART_TIME', monthlyBaseVnd: 3000000
+  }));
+  history[19].endsAt = new Date('2026-11-10T00:00:00+07:00');
+  history[20].endsOn = '2026-11-02';
+  history[20].endsAt = history[21].effectiveAt;
+  await connection.collection('employmentcontracts').insertMany(history);
+  const savedAt = at;
+  try {
+    at = new Date(history[21].effectiveAt.getTime() - 1);
+    const { body: { data: all } } = await get({ tab: 'ALL', search: 'ONB23' });
+    expect(all).toMatchObject({ asOf: at.toISOString(), counts: { all: 22, active: 2, ended: 19 }, page: 1, pageSize: 20 });
+    expect(all.items).toHaveLength(20);
+    expect(all.items[0]).toMatchObject({ status: 'UPCOMING', employeeId, employmentType: 'FULL_TIME', monthlyBaseVnd: 3000000 });
+    expect(all.items[1]).toMatchObject({ status: 'ACTIVE', endsOn: '2026-11-02' });
+    expect(all.items[2]).toMatchObject({ status: 'ENDED', endsOn: '2026-11-10' });
+    expect((await get({ tab: 'ALL', search: 'ONB23', page: 2 })).body.data.items).toHaveLength(2);
+    for (const search of ['Direct', 'T-ONB23-A', '0901 234 567', '+84901234567']) {
+      const { data } = (await get({ search, tab: 'ALL', employmentType: 'FULL_TIME' })).body;
+      expect(data.counts).toEqual({ all: 1, active: 0, ended: 0 });
+      expect(data.items[0]).toMatchObject({ employeeId });
+      expect(data.items[0]).not.toHaveProperty('phone');
+    }
+    expect((await get({ search: '0901234', tab: 'ALL' })).body.data.counts.all).toBe(0);
+    expect((await get({ userId: employeeId, tab: 'ALL' })).body.data.counts.all).toBe(21);
+    at = history[21].effectiveAt;
+    const { data: ended } = (await get({ userId: employeeId, tab: 'ENDED' })).body;
+    expect(ended.counts).toEqual({ all: 21, active: 1, ended: 20 });
+    expect(ended.items[0]).toMatchObject({ status: 'ENDED', endsOn: '2026-11-02' });
+    await request(app).get(path).set('x-test-actor', 'staff').expect(403);
+    await request(app).get(path).expect(401);
+    await request(app).get(path).set('x-test-actor', 'admin').query({ page: 0 }).expect(422);
+  } finally { at = savedAt; }
 });

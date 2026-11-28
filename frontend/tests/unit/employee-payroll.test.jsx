@@ -13,6 +13,7 @@ const apiFixture = () => ({ own: jest.fn().mockResolvedValue({ contracts: [contr
   submit: jest.fn().mockResolvedValue({}), advanceDecision: jest.fn().mockResolvedValue({}),
   advances: jest.fn().mockResolvedValue({ items: [] }), statements: jest.fn().mockResolvedValue({ items: [] }),
   adjustments: jest.fn().mockResolvedValue({ items: [] }), submitAdjustment: jest.fn().mockResolvedValue({}), adjustmentDecision: jest.fn().mockResolvedValue({}),
+  listContracts: jest.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, counts: { active: 0, ended: 0, all: 0 } }),
   contract: jest.fn().mockResolvedValue({}), prepare: jest.fn().mockResolvedValue({}) });
 const fill = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
@@ -271,4 +272,50 @@ test('ST-BKG-37 and ST-BKG-38 show MSG66 toast on advance submit and clear Vietn
   fireEvent.click(screen.getByText('Gửi đề nghị'));
   expect(await screen.findByText('Tháng này bạn đã có một đề nghị tạm ứng. Mỗi tháng chỉ gửi được một đề nghị.')).toBeVisible();
   expect(screen.queryByText(/ADVANCE_MONTH_ALREADY_USED/)).toBeNull();
+});
+
+test('ST-ONB-23 sitter payroll legacy response does not revive an earlier contract after the latest expires', async () => {
+  const api = apiFixture();
+  api.own.mockResolvedValue({ contracts: [
+    { ...contract, effectiveAt: '2020-01-10T00:00:00+07:00', endsAt: '2020-02-10T00:00:00+07:00', version: 2 },
+    { ...contract, id: 'earlier-contract' }
+  ], advances: [], statements: [] });
+  render(<EmployeePayrollPage api={api} />);
+  expect(await screen.findByText('Chưa có hợp đồng đang hiệu lực được Admin xác minh.')).toBeInTheDocument();
+});
+
+test.each([['2026-12-26', '26/12/2026'], [undefined, '27/12/2026']])(
+  'ST-ONB-23 sitter payroll displays the current contract end day with endsOn %s', async (endsOn, expected) => {
+    const api = apiFixture();
+    api.own.mockResolvedValue({ contracts: [{ ...contract, endsOn, endsAt: '2026-12-26T17:00:00.000Z' }],
+      activeContractId: contract.id, advances: [], statements: [] });
+    render(<EmployeePayrollPage api={api} />);
+    expect(await screen.findByText(expected)).toBeInTheDocument();
+  }
+);
+
+test('ST-ONB-23 shows UC-21 contract tabs, filters and refreshes counts in Admin payroll after save', async () => {
+  const api = apiFixture();
+  const response = { asOf: '2026-11-28T09:00:00Z', page: 1, pageSize: 20, counts: { active: 21, ended: 1, all: 23 },
+    items: [{ ...contract, effectiveOn: '2020-01-01', employeeName: 'Synthetic Sitter UC-21', employeeCode: 'SIT-23', status: 'ACTIVE', endsOn: '2026-12-26' }] };
+  api.listContracts.mockImplementation(async ({ page }) => ({ ...response, page, counts: { ...response.counts, all: api.contract.mock.calls.length ? 24 : 23 } }));
+  render(<EmployeePayrollAdminPage api={api} />);
+  await screen.findByRole('tab', { name: 'Đang hiệu lực (21)' });
+  expect(screen.getByText('Synthetic Sitter UC-21')).toBeInTheDocument();
+  expect(screen.getByText('26/12/2026')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: 'Tất cả (23)' }));
+  await waitFor(() => expect(api.listContracts).toHaveBeenLastCalledWith(expect.objectContaining({ tab: 'ALL', page: 1 })));
+  fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
+  await waitFor(() => expect(api.listContracts).toHaveBeenLastCalledWith(expect.objectContaining({ tab: 'ALL', page: 2 })));
+  fill('Tìm hợp đồng', 'SIT-23');
+  fill('Loại hợp đồng', 'PART_TIME');
+  fireEvent.click(screen.getByRole('button', { name: 'Tìm hợp đồng' }));
+  await waitFor(() => expect(api.listContracts).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'SIT-23', employmentType: 'PART_TIME', page: 1 })));
+  const form = screen.getByText('Lưu hợp đồng đã xác minh').closest('form');
+  fireEvent.change(form.elements.employeeId, { target: { value: employeeId } });
+  fill('Phút làm việc mỗi tuần', '2400'); fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-02');
+  fill('Mã hồ sơ hợp đồng đã ký', 'synthetic-contract'); fill('Vùng lương nơi làm việc', '1');
+  fill('Phường/xã và căn cứ xác định vùng', 'Synthetic workplace');
+  fireEvent.submit(form);
+  await screen.findByRole('tab', { name: 'Tất cả (24)' });
 });

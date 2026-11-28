@@ -8,6 +8,7 @@ import { sitterLabel, managementDate, weekdayLabel } from '../../utils/sitter-ma
 import { ManagementState, SitterStatus } from './SitterManagementPage.jsx';
 import { EmployeeContractForm } from '../../components/payroll/EmployeeContractForm.jsx';
 import { CONTRACT_END_AFTER_START_MESSAGE, formatContractStartDateConflict } from '../../utils/contract-error-feedback.js';
+import { formatVietnamDate } from '../../utils/calendar-date.js';
 import './sitter-management.css';
 import { SitterCapabilityForm } from './SitterCapabilityForm.jsx';
 
@@ -132,7 +133,7 @@ function ProfileContent({ data, api, payrollApi, refresh }) {
       <div><dt>Đặc điểm được hỗ trợ</dt><dd>{data.capabilities.allowedTraits.join(', ') || 'Chưa thiết lập'}</dd></div></dl> : <p>Chưa có năng lực nhận việc.</p>}</section>
       <section><h2>Hợp đồng</h2><p>{data.upcomingContract ? 'Đã ký, chờ ngày hiệu lực' : <SitterStatus value={data.employmentType} />}</p>{data.contracts.map((c, i) => <dl key={i} className="sitter-profile-facts">
         <div><dt>Hình thức làm việc</dt><dd>{sitterLabel(c.employmentType)}</dd></div><div><dt>Thời lượng mỗi tuần</dt><dd>{c.weeklyMinutes / 60} giờ</dd></div>
-        <div><dt>Hiệu lực từ</dt><dd>{managementDate(c.effectiveAt)}</dd></div><div><dt>Kết thúc</dt><dd>{c.endsAt ? managementDate(c.endsAt) : 'Chưa có ngày kết thúc'}</dd></div><div><dt>Phiên bản</dt><dd>{c.version}</dd></div>
+        <div><dt>Hiệu lực từ</dt><dd>{managementDate(c.effectiveAt)}</dd></div><div><dt>Kết thúc</dt><dd>{formatVietnamDate(c.endsOn ?? c.endsAt) ?? 'Chưa có ngày kết thúc'}</dd></div><div><dt>Phiên bản</dt><dd>{c.version}</dd></div>
       </dl>)}{data.upcomingContract && <Notice state="pending" title="Hợp đồng đã ký, sắp có hiệu lực">
         {sitterLabel(data.upcomingContract.employmentType)} · Hiệu lực từ {managementDate(data.upcomingContract.effectiveAt)}.
         Có thể chuẩn bị khu vực, lịch làm và xác minh năng lực; chưa được nhận ca trước ngày hiệu lực.

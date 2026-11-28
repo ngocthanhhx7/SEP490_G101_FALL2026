@@ -12,7 +12,7 @@ export function payrollModels(connection) {
     salaryBasis: { type: String, enum: ['GROSS', 'NET'], required: true },
     monthlyBaseVnd: { ...money, required: true }, payCycle: { type: String, enum: ['MONTHLY', 'WEEKLY'], required: true },
     weeklyMinutes: { type: Number, required: true, min: 1, max: 2880, validate: Number.isSafeInteger },
-    signedAt: { type: Date, required: true }, effectiveAt: { type: Date, required: true }, endsAt: Date,
+    signedAt: { type: Date, required: true }, effectiveAt: { type: Date, required: true }, endsAt: Date, endsOn: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
     contractReference: { type: String, required: true, maxlength: 160, select: false },
     workplaceRegion: { type: Number, enum: [1, 2, 3, 4], required: true },
     workplaceReference: { type: String, required: true, maxlength: 160 },

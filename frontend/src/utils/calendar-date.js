@@ -1,9 +1,20 @@
 const zone = 'Asia/Ho_Chi_Minh';
 const localDay = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' });
 
+const displayDay = new Intl.DateTimeFormat('en-GB', {
+  timeZone: zone, day: '2-digit', month: '2-digit', year: 'numeric'
+});
+
 export function vietnamDate(now = new Date()) {
   const parts = Object.fromEntries(localDay.formatToParts(now).map(({ type, value }) => [type, value]));
   return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function formatVietnamDate(value) {
+  if (typeof value !== 'string') return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  return displayDay.format(new Date(timestamp));
 }
 
 export function vietnamDateTime(now = new Date()) {

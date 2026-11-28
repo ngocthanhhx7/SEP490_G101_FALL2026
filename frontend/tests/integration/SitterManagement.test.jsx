@@ -59,6 +59,17 @@ test('profile tabs show contracts, time windows, ratings without invented histor
   fireEvent.click(screen.getByRole('button', { name: '7 ngày' }));
   await waitFor(() => expect(api.activity).toHaveBeenLastCalledWith(id, expect.objectContaining({ days: 7, cursor: '' }), expect.anything()));
 });
+test.each([['2026-12-26', '26/12/2026'], [undefined, '27/12/2026']])(
+  'ST-ONB-23 displays the correct sitter contract end day with endsOn %s', async (endsOn, expected) => {
+    const api = fixture();
+    const { data } = await api.get();
+    Object.assign(data.contracts[0], { endsOn, endsAt: '2026-12-26T17:00:00.000Z' });
+    mount(api, true);
+    fireEvent.click(await screen.findByRole('button', { name: 'Năng lực và hợp đồng' }));
+    expect(screen.getByText('Kết thúc').nextElementSibling).toHaveTextContent(expected);
+  }
+);
+
 test('uncertain status response freezes reason and retries the identical version and operation key', async () => {
   const api = fixture(); api.changeStatus.mockRejectedValueOnce({ code: 'TIMEOUT' }); mount(api, true);
   fireEvent.click(await screen.findByRole('button', { name: 'Tạm ngưng' }));
