@@ -168,10 +168,10 @@ export function BookingFlow({ service, api, onBooked }) {
         setError('');
         return;
       }
-      setScheduleError('');
       const instruction = !starts[invalid] ? 'Chọn ngày và giờ bắt đầu.'
         : 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
-      setError(`Buổi ${invalid + 1}. ${instruction}`);
+      setScheduleError(`Buổi ${invalid + 1}. ${instruction}`);
+      setError('');
       return;
     }
     setScheduleError('');

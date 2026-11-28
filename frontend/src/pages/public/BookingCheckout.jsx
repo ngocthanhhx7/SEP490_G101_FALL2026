@@ -17,7 +17,7 @@ import { PickupSelectionField, pickupReady, pickupInput, pickupPrice, PICKUP_UNA
 import './booking-checkout.css';
 
 const MSG19 = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
-const HOME_BOOKING_NOTICE_MS = 2 * 60 * 60 * 1000;
+const FUTURE_START_ERROR = 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cửa hàng', OUTDOOR: 'Ngoài trời' };
 const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ sơ đã thay đổi. Vui lòng lấy báo giá mới.',
@@ -79,14 +79,10 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     event.preventDefault(); if (locked.current || (!uncertain && !allPickupsReady)) return;
     if (!uncertain) {
       if (!recommendation) {
-        const now = Date.now();
         const nextVisitErrors = {};
         starts.forEach((value, index) => {
-          if (selectedLocations[index] === 'HOME' && value) {
-            const started = Date.parse(`${value}:00+07:00`);
-            if (Number.isFinite(started) && started < now + HOME_BOOKING_NOTICE_MS) {
-              nextVisitErrors[index] = MSG19;
-            }
+          if (value && value < minimumFor(selectedLocations[index])) {
+            nextVisitErrors[index] = selectedLocations[index] === 'HOME' ? MSG19 : FUTURE_START_ERROR;
           }
         });
         if (Object.keys(nextVisitErrors).length > 0) {

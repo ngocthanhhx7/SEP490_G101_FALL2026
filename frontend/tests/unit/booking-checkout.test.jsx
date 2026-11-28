@@ -246,3 +246,33 @@ test('ST-BKG-11 validates home visit under 2 hours in BookingCheckoutForm with M
     jest.useRealTimers();
   }
 });
+
+test('non-HOME visit in BookingCheckoutForm blocks past time under the date/time field without confirming and allows valid future time', async () => {
+  jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
+  jest.setSystemTime(new Date('2026-11-28T03:00:00Z'));
+  try {
+    const api = apiFixture(), confirmed = jest.fn();
+    const outdoorService = { id: 'dog-walking', name: 'Dắt chó đi dạo', details: { locations: ['OUTDOOR'] } };
+    const outdoorQuote = {
+      quoteId: 'quote-outdoor', paymentMode: 'PREPAY',
+      items: [{ serviceId: 'dog-walking', visitCount: 1, durationMinutes: 30, servicePolicy: { title: 'Điều kiện dịch vụ', body: 'Synthetic published policy' } }]
+    };
+    render(<MemoryRouter><BookingCheckoutForm quote={outdoorQuote} services={[outdoorService]} api={api} onConfirmed={confirmed} /></MemoryRouter>);
+    await screen.findByText('Nhà đã xác nhận');
+    const startInput = screen.getByLabelText('Bắt đầu (giờ Việt Nam)');
+    fireEvent.change(startInput, { target: { value: '2026-11-28T09:00' } });
+    fireEvent.change(screen.getByLabelText('Địa chỉ đã lưu'), { target: { value: 'address' } });
+    fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
+    fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+    const fieldContainer = startInput.closest('.pwc-booking-daytime');
+    expect(within(fieldContainer).getByText('Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.')).toBeVisible();
+    expect(api.confirm).not.toHaveBeenCalled();
+
+    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
+    fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+    expect(confirmed).toHaveBeenCalledWith({ id: 'booking' });
+  } finally {
+    jest.useRealTimers();
+  }
+});
