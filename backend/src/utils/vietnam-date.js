@@ -1,5 +1,9 @@
 const FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
 
+const DAY_MONTH_YEAR = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric'
+});
+
 const TIME_DATE = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit',
   day: '2-digit', month: '2-digit', year: 'numeric', hourCycle: 'h23' });
 
@@ -8,6 +12,12 @@ export function vietnamTimeDate(moment) {
   const part = Object.fromEntries(TIME_DATE.formatToParts(moment instanceof Date ? moment : new Date(moment))
     .map(({ type, value }) => [type, value]));
   return `${part.hour}:${part.minute} ${part.day}/${part.month}/${part.year}`;
+}
+
+// The calendar day displayed in Vietnam as dd/mm/yyyy.
+export function vietnamDayMonthYear(moment) {
+  const date = typeof moment === 'string' ? new Date(moment) : moment;
+  return date instanceof Date && Number.isFinite(date.getTime()) ? DAY_MONTH_YEAR.format(date) : null;
 }
 
 // The calendar day in Vietnam for a moment, as YYYY-MM-DD. A receipt saved at 23:30 UTC is already the next day there.

@@ -18,12 +18,12 @@ call and a passing result. The assessment revision is independent of the
 application revision referenced by the signed contract. Only Admin detail
 returns assessment values. Saves use the existing transactional audit store.
 
-The authenticated intake includes applicant-visible rejectionReason and server-clock
-canReapply. Registration never decides cooldown eligibility from the device clock;
-refreshing the receipt reloads intake, then remounts the form only when allowed.
-Submission independently rechecks pending applications and cooldowns. Unverified
-callers and accounts without access to the matching record receive the same
-generic conflict. A guest retry must still own the submitted documents and
+The signed-in apply entry uses the owner-scoped application read. An open
+application is shown on the status page. The form uses the server's canReapply
+flag and the stored reapplyAt to show MSG38 during cooldown. Submission rechecks
+pending applications and cooldowns. Only the matching authenticated owner can
+receive the reapplyAt instant and Vietnam-local reapplyDate in a submit conflict.
+Unverified callers and unrelated accounts receive the same generic conflict. A guest retry must still own the submitted documents and
 recovers the original receipt only. Current status requires OTP or account access.
 
 `application-mail.service.js` enqueues one typed status email per application
@@ -35,7 +35,8 @@ failures retry at most three queue attempts with one operation id. Uncertain
 provider acceptance or an expired sending lease becomes UNKNOWN without blind
 resend; Admin can inspect safe delivery state, never addresses/credentials.
 `application-mail-template.service.js` owns responsive branded HTML/plain text,
-status guidance and approval congratulations. No documents or internal notes are
+status guidance and approval congratulations. The rejection email uses the saved
+Admin rejection reason and reapplication date. No documents or internal notes are
 included. ACCEPTED means SMTP acceptance, not inbox delivery. Existing records
 are not backfilled, and historical approved accounts are not changed.
 

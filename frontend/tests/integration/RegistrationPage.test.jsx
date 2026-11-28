@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { PublicPolicyProvider } from '../../src/contexts/PublicPolicyContext.jsx';
 import { RegistrationPage } from '../../src/pages/public/RegistrationPage.jsx';
@@ -10,13 +10,19 @@ const policies = ['terms', 'privacy'].map(slug => ({ slug, versionId: `synthetic
 const user = { id: 'synthetic-user', displayName: 'Nguyễn Văn A', roles: ['CUSTOMER'] };
 function applicationApi(overrides = {}) {
   return { uploadsAvailable: true, loadIntake: jest.fn(async () => ({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true, application: null } })),
+    getMine: jest.fn(async () => ({ data: { application: null } })),
     uploadDocument: jest.fn(async () => ({ documentId: 'synthetic-doc-id', storageRef: 'synthetic-storage-ref' })),
     createIdempotencyKey: () => 'synthetic-application-key', submit: jest.fn(async () => ({ id: 'app-1', state: 'PENDING', applicationCode: 'synthetic-secret-receipt-code' })), ...overrides };
 }
 function LocationProbe(){const location=useLocation();return <output data-testid="application-route">{location.pathname}</output>;}
 function view({ adapter = { resolve: async () => ({ status: 'authenticated', user }) }, api = applicationApi(), registrationApi, route = '/register?role=sitter', currentPolicies = policies } = {}) {
   render(<MemoryRouter initialEntries={[route]}><SessionProvider adapter={adapter}><PublicPolicyProvider policies={currentPolicies}>
-    <LocationProbe/><RegistrationPage applicationApi={api} registrationApi={registrationApi} />
+    <LocationProbe />
+    <Routes>
+      <Route path="/register" element={<RegistrationPage applicationApi={api} registrationApi={registrationApi} />} />
+      <Route path="/sitter/apply" element={<RegistrationPage initialSitter applicationApi={api} />} />
+      <Route path="/sitter/application-status" element={<h1>Hồ sơ ứng tuyển</h1>} />
+    </Routes>
   </PublicPolicyProvider></SessionProvider></MemoryRouter>);
   return api;
 }
@@ -114,11 +120,13 @@ test('employment preference is required and starts without a default choice', as
   expect(api.uploadDocument).not.toHaveBeenCalled();
 });
 
-test('existing pending applications recover their code and prevent duplicate application forms', async () => {
-  view({ api: applicationApi({ loadIntake: async () => ({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true,
-    application: { state: 'UNDER_REVIEW', applicationCode: 'recovered-private-receipt-code' } } }) }) });
-  await waitFor(()=>expect(screen.getByTestId('application-route')).toHaveTextContent('/sitter/application-status'));
-  expect(screen.queryByText('recovered-private-receipt-code')).not.toBeInTheDocument();
+test.each(['PENDING', 'UNDER_REVIEW', 'INTERVIEW'])('opens the status page directly for a signed-in owner with a %s application', async state => {
+  const api = view({ route: '/sitter/apply', api: applicationApi({
+    getMine: jest.fn(async () => ({ data: { application: { id: 'owned', state } } }))
+  }) });
+  await waitFor(() => expect(screen.getByTestId('application-route')).toHaveTextContent('/sitter/application-status'));
+  expect(api.getMine).toHaveBeenCalled();
+  expect(api.loadIntake).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' })).not.toBeInTheDocument();
 });
 
@@ -184,14 +192,15 @@ test('oversize pixel count blocks upload and server field errors focus their fie
 });
 
 test('rejection uses server eligibility and refresh opens a new form without trusting the device date', async () => {
-  const rejected = { state: 'REJECTED', applicationCode: 'rejected-private-code',
-    rejectionReason: 'Cần bổ sung kinh nghiệm chăm sóc.', reapplyAt: '2020-01-01T00:00:00Z', canReapply: false };
-  const api = applicationApi({ loadIntake: jest.fn()
-    .mockResolvedValueOnce({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true, application: rejected } })
-    .mockResolvedValueOnce({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true, application: { ...rejected, canReapply: true } } }) });
+  const rejected = { id: 'owned-rejected', state: 'REJECTED',
+    reapplyAt: '2026-12-27T17:30:00Z', reapplyDate: '28/12/2026', canReapply: false };
+  const api = applicationApi({ getMine: jest.fn()
+    .mockResolvedValueOnce({ data: { application: rejected } })
+    .mockResolvedValueOnce({ data: { application: { ...rejected, canReapply: true } } }) });
   view({ api });
-  expect(await screen.findByText(rejected.rejectionReason)).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' })).not.toBeInTheDocument();
+  expect(await screen.findByText('Bạn có thể nộp lại từ 28/12/2026.')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' })).toBeDisabled();
+  expect(api.loadIntake).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Cập nhật trạng thái hồ sơ' }));
   expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
   expect(api.uploadDocument).not.toHaveBeenCalled();
@@ -199,8 +208,9 @@ test('rejection uses server eligibility and refresh opens a new form without tru
 });
 
 test('pending decision details are not displayed as a rejection reason', async () => {
-  view({ api: applicationApi({ loadIntake: async () => ({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true,
-    application: { state: 'INTERVIEW', applicationCode: 'private-code', rejectionReason: 'Internal review note', canReapply: false } } }) }) });
+  view({ api: applicationApi({ getMine: async () => ({ data: {
+    application: { id: 'owned-interview', state: 'INTERVIEW', rejectionReason: 'Internal review note' }
+  } }) }) });
   await waitFor(()=>expect(screen.getByTestId('application-route')).toHaveTextContent('/sitter/application-status'));
   expect(screen.queryByText('Internal review note')).not.toBeInTheDocument();
 });

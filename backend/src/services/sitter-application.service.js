@@ -6,6 +6,7 @@ import { normalizeVietnamPhone } from './sms-template.service.js';
 import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
 import { AppError } from '../utils/app-error.js';
 import { isSingleRole } from '../utils/roles.js';
+import { vietnamDayMonthYear } from '../utils/vietnam-date.js';
 import { identityModels } from '../models/identity.model.js';
 import { createDomainNotifications } from './notifications/domain-notifications.service.js';
 import { releaseSuspendedSitterWork } from './employee-scheduling/visit-withdrawal.service.js';
@@ -355,9 +356,11 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       state: 'REJECTED', reapplyAt: { $gt: new Date(now) }
     }).sort({ reapplyAt: -1 }).select('reapplyAt').lean();
     if (tooEarly) {
-      if (!(await canReadSubmissionRecord(actor, tooEarly))) throw submissionUnavailable();
-      throw new AppError(409, 'REAPPLY_NOT_AVAILABLE', 'An application cannot be submitted at this time',
-        tooEarly.reapplyAt ? { reapplyAt: tooEarly.reapplyAt.toISOString() } : {});
+      if (!(await canReadSubmissionRecord(verifiedContactActor ?? actor, tooEarly))) throw submissionUnavailable();
+      throw new AppError(409, 'REAPPLY_NOT_AVAILABLE', 'An application cannot be submitted at this time', {
+        reapplyAt: tooEarly.reapplyAt.toISOString(),
+        reapplyDate: vietnamDayMonthYear(tooEarly.reapplyAt)
+      });
     }
     const duplicateFilter = { $or: [
       { activePendingContactKey: { $in: contactKeys } }, { activePendingIdentityKey: identityLookupKey },
@@ -904,8 +907,14 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     return {filter,contacts};
   }
   async function getMine({actor}) {
-    const {filter}=await ownerContext(actor);
-    const row=await Applicant.findOne(filter).sort({createdAt:-1,_id:-1}).select('+contactCiphertext +applicantParticularsCiphertext').lean();
+    const { filter } = await ownerContext(actor);
+    const now = clock();
+    const findMine = (criteria, sort) => Applicant.findOne({ ...filter, ...criteria })
+      .sort(sort).select('+contactCiphertext +applicantParticularsCiphertext').lean();
+    const latest = { createdAt: -1, _id: -1 };
+    const row = await findMine({ state: { $in: ACTIVE_STATES } }, latest)
+      ?? await findMine({ state: 'REJECTED', reapplyAt: { $gt: new Date(now) } }, { reapplyAt: -1, ...latest })
+      ?? await findMine({}, latest);
     if (!row) return {application:null};
     const particulars=row.applicantParticularsCiphertext ? JSON.parse(contactCrypto.decrypt(row.applicantParticularsCiphertext)) : {};
     const transitions=await Audit.find({resourceId:row._id,action:{$in:['APPLICATION_SUBMITTED','APPLICATION_UPDATED','APPLICATION_REVIEW_STARTED','APPLICATION_DECIDED']}}).sort({occurredAt:1,_id:1}).select('action state occurredAt').limit(100).lean();
@@ -914,6 +923,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       employmentType:row.employmentType??'',experience:row.experience,requestedServices:row.requestedServices,workAreas:row.workAreas,
       documents:row.privateDocuments.map(d=>({documentId:d.documentId,documentType:d.documentType})),submittedAt:row.createdAt.toISOString(),updatedAt:row.updatedAt.toISOString(),
       rejectionReason:row.state==='REJECTED'?row.decisionReason:null,reapplyAt:row.reapplyAt?.toISOString()??null,
+      reapplyDate: row.state === 'REJECTED' ? vietnamDayMonthYear(row.reapplyAt) : null,
+      canReapply: row.state === 'REJECTED' && Boolean(row.reapplyAt && row.reapplyAt.getTime() <= now),
       timeline:transitions.map(t=>({action:t.action,state:t.state,at:t.occurredAt.toISOString()}))}};
   }
   async function updateMine({actor,body,idempotencyKey,correlationId}) {

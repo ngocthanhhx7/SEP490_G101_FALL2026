@@ -51,7 +51,8 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
       if (!response.ok) throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
         fieldErrors: envelope?.error?.fieldErrors,
         conflictField: envelope?.error?.conflictField,
-        reapplyAt: envelope?.error?.reapplyAt
+        reapplyAt: envelope?.error?.reapplyAt,
+        reapplyDate: envelope?.error?.reapplyDate
       });
       if (envelope?.meta?.schemaVersion !== 1 || !envelope?.data || typeof envelope.data.id !== 'string'
         || !/^[A-Za-z0-9_-]{22,128}$/.test(envelope.data.applicationCode ?? '')

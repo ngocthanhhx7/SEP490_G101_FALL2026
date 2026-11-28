@@ -195,6 +195,7 @@ function schedulingRuntime(staff, autoDispatch) {
   app.use(module.mount, module.router);
   return {
     repository: module.repository,
+    dispatch: module.dispatch,
     requeueVisit: module.dispatch.requeueVisit,
     readBoard: async () => (await request(app).get(`${module.mount}/visit-board?tab=needs-action`).expect(200)).body.data
   };
@@ -408,6 +409,37 @@ describe('UC-19 / GBR-04 / ST-CAS-12 suspending a pet sitter', () => {
     expect(savedInProgress.state).toBe('IN_PROGRESS');
     expect(String(savedInProgress.sitterId)).toBe(String(sitterId));
     expect((await User.findById(sitterId).lean()).state).toBe('ACTIVE');
+  });
+
+  test('ST-CAS-12 sends a released assignment to Needs action when automatic re-offering fails outside 409', async () => {
+    const { visit, suspended, admin, staff } = await seedScheduledVisit();
+    const visits = connection.db.collection('visits');
+    await visits.updateOne({ _id: visit._id }, { $set: {
+      sitterId: suspended.sitterId, state: 'ASSIGNED', checkInAt: null, assignedAt: new Date(NOW - 3600000)
+    } });
+
+    const runtime = schedulingRuntime(staff, true);
+    const invite = jest.spyOn(runtime.dispatch, 'invite').mockRejectedValueOnce(new Error('Synthetic dispatch failure'));
+    const visitId = String(visit._id);
+    try {
+      expect((await runtime.readBoard()).items).toEqual([]);
+      await expect(suspendSitter({ admin, suspended, requeueVisit: runtime.requeueVisit })).resolves.toMatchObject({
+        status: 'SUSPENDED', requeuedVisitCount: 1
+      });
+      expect(invite).toHaveBeenCalledWith(expect.anything(), visitId, { expectedVersion: visit.version + 1 }, expect.any(String));
+    } finally {
+      invite.mockRestore();
+    }
+
+    expect(await visits.findOne({ _id: visit._id })).toMatchObject({
+      state: 'SCHEDULED', sitterId: null, handoverRequired: true, handoverAccepted: false,
+      handoverNote: { reasonCode: 'SITTER_SUSPENDED' },
+      dispatchReview: { code: 'STAFF_REVIEW_REQUIRED', retryAt: expect.any(Date) }
+    });
+    expect((await runtime.readBoard()).items).toEqual([expect.objectContaining({
+      id: visitId, reviewCode: 'STAFF_REVIEW_REQUIRED',
+      reasons: expect.arrayContaining([expect.objectContaining({ code: 'NO_SITTER_TO_OFFER' })])
+    })]);
   });
 
   test('the replacement sitter reads that the previous sitter was suspended, never what the Admin wrote', async () => {

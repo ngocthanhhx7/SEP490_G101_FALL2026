@@ -13,6 +13,7 @@ import { employmentTerms } from '../fixtures/employment-terms.js';
 import { assessmentInput } from '../fixtures/application-assessment.js';
 import { createApplicationMailService } from '../../src/services/applications/application-mail.service.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
+import { renderEmail } from '../../src/services/email-template.service.js';
 
 const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true', RATE_LIMIT_MAX: '1000',
   OTP_HMAC_SECRET: 'a'.repeat(32), SESSION_TOKEN_SECRET: 'b'.repeat(32), SESSION_CSRF_SECRET: 'c'.repeat(32),
@@ -167,6 +168,78 @@ test('contact-specific MSG40 requires a valid session for the verified contact o
   expect(verified.status).toBe(409);
   expect(verified.body.error).toMatchObject({ code: 'CONTACT_UNAVAILABLE', conflictField: 'email' });
   expect(await col('sitterapplications').countDocuments()).toBe(0);
+});
+
+test('ST-ONB-21/22 use one Vietnam reapplication date in the owner form, submit conflict and rejection mail', async () => {
+  now = Date.parse('2026-11-27T17:30:00.000Z');
+  const guest = await intake();
+  const created = (await guest.submit().expect(201)).body.data;
+  const User = userModel(connection);
+  const [owner, other, reviewer] = await User.create([
+    { displayName: 'Applicant', roles: ['CUSTOMER'], state: 'ACTIVE' },
+    { displayName: 'Other Customer', roles: ['CUSTOMER'], state: 'ACTIVE' },
+    { displayName: 'Reviewer', roles: ['ADMIN'], state: 'ACTIVE' }
+  ]);
+  const contactCrypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
+  const contact = contactCrypto.lookup('EMAIL', guest.body.email);
+  await identityModels(connection).Contact.create({
+    channel: 'EMAIL', userId: owner._id, state: 'VERIFIED', lookupKey: contact.lookupKey,
+    canonicalCiphertext: contactCrypto.encrypt(contact.canonicalValue), verifiedAt: new Date(now)
+  });
+  const sessions = createSessionService({ connection, clock: () => now, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
+  const issue = user => connection.transaction(session => sessions.issueInTransaction(user, session));
+  const [ownerSession, otherSession, adminSession] = await Promise.all([issue(owner), issue(other), issue(reviewer)]);
+  const headers = session => ({ ...base, Cookie: 'pwc_session=' + session.token, 'X-CSRF-Token': session.csrfToken });
+  const mine = session => request(app).get('/api/v1/applications/me').set(headers(session));
+  const root = '/api/v1/applications/' + created.id;
+  const command = (path, body) => request(app).post(root + path).set(headers(adminSession))
+    .set('Idempotency-Key', 'synthetic-rejection-' + path.slice(1)).send(body);
+
+  const reason = 'Cần bổ sung kinh nghiệm & minh chứng.';
+  const readState = async state => {
+    expect((await mine(ownerSession).expect(200)).body.data.application).toMatchObject({ id: created.id, state });
+  };
+  await readState('PENDING');
+  await command('/review', { expectedVersion: 0 }).expect(200);
+  await readState('UNDER_REVIEW');
+  await request(app).patch(root + '/assessment').set(headers(adminSession)).set('Idempotency-Key', 'synthetic-reject-assessment')
+    .send(assessmentInput(1, 0)).expect(200);
+  await command('/interview', { expectedVersion: 1 }).expect(200);
+  await readState('INTERVIEW');
+  const decision = (await command('/decisions', { action: 'REJECT', reason, expectedVersion: 2 }).expect(200)).body.data;
+  const expectedAt = '2026-12-27T17:30:00.000Z';
+  expect(decision.reapplyAt).toBe(expectedAt);
+  expect((await mine(otherSession).expect(200)).body.data.application).toBeNull();
+  await request(app).get('/api/v1/applications/me').expect(401);
+
+  const entry = (await mine(ownerSession).expect(200)).body.data.application;
+  const submit = (session, key) => request(app).post('/api/v1/applications').set(guest.headers)
+    .set('Cookie', guest.intakeCookie + '; ' + headers(session).Cookie)
+    .set('X-CSRF-Token', session.csrfToken).set('Idempotency-Key', key).send(guest.body);
+  const ownerConflict = (await submit(ownerSession, 'synthetic-owner-retry').expect(409)).body.error;
+  const guestConflict = (await guest.submit(guest.body, 'synthetic-guest-retry').expect(409)).body.error;
+  expect(guestConflict).toEqual({ code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time' });
+  expect((await submit(otherSession, 'synthetic-other-retry').expect(409)).body.error).toEqual(guestConflict);
+
+  const delivery = { send: async message => { mails.push(renderEmail(message, now)); return { status: 'ACCEPTED' }; } };
+  const mail = createApplicationMailService({ connection, contactCrypto, delivery, clock: () => now });
+  expect(await mail.runBatch()).toMatchObject({ accepted: 4 });
+  const rejection = mails.find(message => message.text?.includes('Đã có kết quả hồ sơ ứng tuyển'));
+  const datePattern = /Bạn có thể nộp lại từ (\d{2}\/\d{2}\/\d{4})\./;
+  expect({
+    form: entry.reapplyDate,
+    submission: ownerConflict.reapplyDate,
+    email: rejection?.text.match(datePattern)?.[1]
+  }).toEqual({ form: '28/12/2026', submission: '28/12/2026', email: '28/12/2026' });
+  expect(entry).toMatchObject({ reapplyAt: expectedAt, canReapply: false });
+  expect(ownerConflict).toMatchObject({ code: 'REAPPLY_NOT_AVAILABLE', reapplyAt: expectedAt });
+  expect(rejection.text).toContain(reason);
+  expect(rejection.html).toContain('Cần bổ sung kinh nghiệm &amp; minh chứng.');
+  expect(rejection.html).toContain('28/12/2026');
+
+  now = Date.parse(expectedAt);
+  const renewed = await issue(owner);
+  expect((await mine(renewed).expect(200)).body.data.application).toMatchObject({ reapplyAt: expectedAt, canReapply: true });
 });
 
 test('an intake can recover its original receipt without exposing later status or authorizing a different intake', async () => {
