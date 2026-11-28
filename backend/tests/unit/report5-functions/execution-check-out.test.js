@@ -57,6 +57,14 @@ function database(seed) {
       const row = (options.session?.data ?? state)[name]?.find(r => matches(r, filter));
       if (!row) return null; apply(row, update); writes.push(name); return copy(row);
     },
+    deleteOne: async (filter, { session }) => {
+      const rows = session.data[name] ?? [];
+      const index = rows.findIndex(row => matches(row, filter));
+      if (index === -1) return { deletedCount: 0 };
+      rows.splice(index, 1);
+      writes.push(name);
+      return { deletedCount: 1 };
+    },
     insertMany: async (rows, options = {}) => { ((options.session?.data ?? state)[name] ??= []).push(...copy(rows)); writes.push(name); }
   });
   const connection = { db: { collection }, transaction: async callback => {
@@ -79,7 +87,7 @@ function fixture({ started = false, clock = '10:00', foreign = false, suspended 
   const booking = { _id: BOOKING, customerId: '555555555555555555555555', visitIds: [VISIT], originalVisitCount: 1,
     paymentMode: 'POSTPAY', state: started ? 'IN_PROGRESS' : 'ASSIGNED', version: 0 };
   const db = database({ visits: [visit], bookings: [booking], privateimages: [{ _id: MEDIA, ownerId: SITTER.userId,
-    state: 'READY', contentDigest: 'c'.repeat(64), byteLength: 1024 }], commands: [], events: [], bindings: [] });
+    state: 'READY', contentDigest: 'c'.repeat(64), byteLength: 1024 }], commands: [], events: [], bindings: [], employeevisittravels: [{ _id: `dog-walk:${VISIT}` }] });
   db.connection.storage = { FinanceSourceCommand: db.model('commands'), FinanceSourceEvent: db.model('events'), CareMediaBinding: db.model('bindings') };
   db.connection.sitterStatus = { findOne: filter => ({ session() { return this; }, lean: async () =>
     !suspended && String(filter.userId) === SITTER.userId && filter.status === 'ACTIVE' ? { status: 'ACTIVE' } : null }) };
@@ -96,6 +104,7 @@ test("EXEC-VISIT-04-UTCID01 [N] Checklist DONE và ảnh hợp lệ cho phép ch
   expect(await f.service.checkOut(f.input)).toMatchObject({ visitId: VISIT, state: 'COMPLETED', version: 1 });
   expect(f.state().visits[0].checkOutAt).toEqual(at('11:00'));
   expect(f.state().visits[0].evidenceRefs).toContainEqual({ kind: 'CHECK_OUT', mediaId: MEDIA });
+  expect(f.state().employeevisittravels).toEqual([]);
 });
 
 // SRS: UC-43 bước2; GBR-16

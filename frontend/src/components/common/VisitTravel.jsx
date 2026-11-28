@@ -15,7 +15,7 @@ const locate = () => new Promise((resolve, reject) => {
     accuracyMeters: position.coords.accuracy, observedAt: new Date(position.timestamp).toISOString() }), reject,
   { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
 });
-function TravelPanel({ api, visitId, employee }) {
+function TravelPanel({ api, visitId, employee, dogWalk }) {
   const [data, setData] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [eta, setEta] = useState(null), [active, setActive] = useState(null);
   const sequence = useRef(0), live = useRef(null), mounted = useRef(true);
   const [now, setNow] = useState(Date.now);
@@ -42,7 +42,7 @@ function TravelPanel({ api, visitId, employee }) {
     if (!active) return;
     let inflight = false;
     const timer = globalThis.setInterval(async () => {
-      if (inflight || live.current?.sessionId !== active.sessionId) return;
+      if (inflight || (dogWalk && document.hidden) || live.current?.sessionId !== active.sessionId) return;
       inflight = true;
       try {
         const position = await locate();
@@ -52,12 +52,13 @@ function TravelPanel({ api, visitId, employee }) {
       } catch (failure) {
         if (mounted.current && live.current?.sessionId === active.sessionId) {
           setError(errorText(failure));
-          if (['LOCATION_SHARING_STOPPED', 'TRAVEL_WINDOW_CLOSED', 'FORBIDDEN', 'UNAUTHENTICATED'].includes(failure.code)) { live.current = null; setActive(null); }
+          if (['LOCATION_SHARING_STOPPED', 'TRAVEL_WINDOW_CLOSED', 'FORBIDDEN', 'UNAUTHENTICATED',
+            'SITTER_NOT_ELIGIBLE', 'RESOURCE_NOT_FOUND'].includes(failure.code)) { live.current = null; setActive(null); }
         }
       } finally { inflight = false; }
     }, 15000);
     return () => globalThis.clearInterval(timer);
-  }, [active, api, visitId]);
+  }, [active, api, dogWalk, visitId]);
   const command = async action => {
     if (busy || !data) return;
     const ticket = ++sequence.current; setBusy(true); setError(''); setEta(null);
@@ -87,31 +88,35 @@ function TravelPanel({ api, visitId, employee }) {
     finally { if (mounted.current) setBusy(false); }
   };
   const fresh = data?.sharing && data?.fresh && data.location && now - Date.parse(data.location.observedAt) <= 90000;
+  if (dogWalk && data?.available === false) return null;
   return <div className="pwc-visit-travel">
     {!data && !error && <p role="status">Đang tải hành trình…</p>}
     {data && <><p>{states[data.state] || data.state}</p>
-      {data.sharing && <p>{fresh ? `Cập nhật ${new Date(data.location.observedAt).toLocaleTimeString('vi-VN')} · Sai số ${Math.round(data.location.accuracyMeters)} m` : 'Chưa có vị trí mới.'}</p>}
-      {fresh && <VietmapView coordinates={data.location.coordinates} label="Vị trí nhân viên trên Vietmap" />}
+      {dogWalk && employee && <p>Khách của buổi này có thể xem vị trí hiện tại khi bạn bật chia sẻ.</p>}
+      {data.sharing && fresh && <p>Cập nhật {new Date(data.location.observedAt).toLocaleTimeString('vi-VN')} · Sai số {Math.round(data.location.accuracyMeters)} m</p>}
+      {!fresh && (data.sharing || (dogWalk && !employee)) && <p role="status" data-message-code={dogWalk ? 'MSG146' : undefined}>Chưa có vị trí mới.</p>}
+      {fresh && (!dogWalk || !employee) && <VietmapView coordinates={data.location.coordinates}
+        label={dogWalk ? 'Vị trí hiện tại của người chăm sóc khi đi dạo' : 'Vị trí nhân viên trên Vietmap'} />}
       {employee && data.available && <div className="employee-scheduling__actions">
         <Button disabled={busy || Boolean(active)} onClick={() => command('START')}><LocateFixed size={16} />Chia sẻ vị trí</Button>
         <Button variant="secondary" disabled={busy || !data.sharing} onClick={() => command('STOP')}><Pause size={16} />Dừng chia sẻ</Button>
-        <Button variant="secondary" disabled={busy || data.state !== 'EN_ROUTE'} onClick={() => command('ARRIVED')}><MapPin size={16} />Đã đến</Button>
+        {!dogWalk && <Button variant="secondary" disabled={busy || data.state !== 'EN_ROUTE'} onClick={() => command('ARRIVED')}><MapPin size={16} />Đã đến</Button>}
       </div>}
-      <Button variant="secondary" disabled={busy || !fresh} onClick={estimate}><Navigation size={16} />Ước tính giờ đến</Button>
+      {!dogWalk && <Button variant="secondary" disabled={busy || !fresh} onClick={estimate}><Navigation size={16} />Ước tính giờ đến</Button>}
     </>}
     {eta && fresh && Date.parse(eta.observedAt) === Date.parse(data.location.observedAt) && <p role="status">Khoảng {Math.ceil(eta.minutes)} phút · {routeNames[eta.source] || 'Tuyến đường đã kiểm tra'}</p>}
     {error && <p role="alert">{error}</p>}
     <Button variant="ghost" title="Tải lại hành trình" aria-label="Tải lại hành trình" disabled={busy} onClick={refresh}><RefreshCw size={16} /></Button>
   </div>;
 }
-function TravelDisclosure({ api, visitId, employee }) {
+function TravelDisclosure({ api, visitId, employee, dogWalk }) {
   const [open, setOpen] = useState(false);
-  return <details onToggle={event => setOpen(event.currentTarget.open)}><summary>Hành trình đến điểm chăm sóc</summary>
-    {open && <TravelPanel api={api} visitId={visitId} employee={employee} />}
+  return <details onToggle={event => setOpen(event.currentTarget.open)}><summary>{dogWalk ? 'Vị trí buổi đi dạo' : 'Hành trình đến điểm chăm sóc'}</summary>
+    {open && <TravelPanel api={api} visitId={visitId} employee={employee} dogWalk={dogWalk} />}
   </details>;
 }
 
-export function VisitTravel({ api, visitId, employee = false, startAt, endAt, available }) {
+export function VisitTravel({ api, visitId, employee = false, startAt, endAt, available, dogWalk = false }) {
   const [, setWindowTime] = useState(Date.now);
   const opensAt = Date.parse(startAt) - 30 * 60000;
   const closesAt = Date.parse(endAt);
@@ -134,5 +139,5 @@ export function VisitTravel({ api, visitId, employee = false, startAt, endAt, av
   }, [closesAt, hasAvailability, hasTravel, opensAt]);
   const now = Date.now();
   const inWindow = available ?? (now >= opensAt && now < closesAt);
-  return hasTravel && inWindow ? <TravelDisclosure key={visitId} api={api} visitId={visitId} employee={employee} /> : null;
+  return hasTravel && inWindow ? <TravelDisclosure key={visitId} api={api} visitId={visitId} employee={employee} dogWalk={dogWalk} /> : null;
 }

@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Input, Notice } from '../../components/ui/index.js';
+import { CareWorkflowReport } from '../../components/common/CareWorkflowReport.jsx';
+import { VisitEvidencePreview } from '../../components/common/VisitEvidencePreview.jsx';
+import { Button, Dialog, Input, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { formatWithdrawalDate as date, formatWithdrawalTime as time, VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
@@ -8,10 +10,11 @@ import './handover-confirmation.css';
 
 const shortDate = value => date(value).slice(0, 5);
 const localTime = value => `${time(value)} ngày ${date(value)}`;
+const reportDateTime = value => value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'Chưa ghi nhận';
 const interval = row => `${time(row.startAt)} – ${time(row.endAt)}`;
 const careLabels = { feeding: 'Cho ăn', handling: 'Hành vi', health: 'Sức khỏe', allergies: 'Dị ứng',
   medication: 'Thuốc theo hướng dẫn thú y', vaccination: 'Vaccine', emergencyContact: 'Liên hệ khẩn cấp', veterinaryContact: 'Phòng khám thú y' };
-const reportHeadings = ['Ngày', 'Giờ', 'Người chăm sóc', 'Tóm tắt'];
+const reportHeadings = ['Ngày', 'Giờ', 'Người chăm sóc', 'Tóm tắt', 'Báo cáo'];
 // Reasons the system sets itself. A suspension never shows what the Admin wrote.
 const systemReasons = {
   BOOKING_RESCHEDULED: 'Khách đổi lịch, người chăm sóc trước không thể nhận giờ mới.',
@@ -72,7 +75,42 @@ function CareInstructions({ care }) {
   </section>;
 }
 
-function EarlierReports({ reports }) {
+function EarlierReportContent({ api, visitId, reportVisitId }) {
+  const load = useCallback(({ signal }) => api.handoverEarlierReport(visitId, reportVisitId, { signal }), [api, visitId, reportVisitId]);
+  const resource = useApiResource(load);
+  if (resource.status === 'loading') return <p role="status">Đang tải báo cáo buổi chăm sóc…</p>;
+  if (resource.status !== 'success' || !resource.data) {
+    return <Notice state="error" title="Chưa tải được báo cáo buổi chăm sóc."
+      action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>} />;
+  }
+  const detail = resource.data;
+  return <div className="booking-visit-report">
+    <p>Lịch chăm sóc: {reportDateTime(detail.startAt)} – {reportDateTime(detail.endAt)}</p>
+    <p>Người chăm sóc: {detail.sitterName ?? 'Chưa phân công'}</p>
+    <dl>
+      <dt>Check-in thực tế</dt><dd>{reportDateTime(detail.checkInAt)}</dd>
+      <dt>Check-out thực tế</dt><dd>{reportDateTime(detail.checkOutAt)}</dd>
+    </dl>
+    <h3>Nội dung chăm sóc đã ghi nhận</h3>
+    {detail.workflow && detail.workflow.mode !== 'LEGACY'
+      ? <CareWorkflowReport workflow={detail.workflow} readEvidence={api.readEvidence} />
+      : detail.checklist?.length ? <ul>{detail.checklist.map(item => <li key={item.itemId}>
+        <strong>{item.label}</strong>
+        <p>{item.status === 'DONE' ? 'Đã thực hiện' : item.status === 'SKIPPED' ? 'Không thực hiện' : 'Chưa ghi nhận'}{item.reason ? ` · ${item.reason}` : ''}</p>
+      </li>)}</ul> : <p>Người chăm sóc chưa lưu checklist cho buổi này.</p>}
+    {detail.customerNote && <>
+      <h3>Ghi chú cho khách</h3>
+      <p className="booking-visit-report__note">{detail.customerNote}</p>
+    </>}
+    <h3>Ảnh bằng chứng</h3>
+    {detail.evidence?.length ? <div className="visit-evidence-gallery">{detail.evidence.map(item => <VisitEvidencePreview
+      key={item.kind + item.mediaId} mediaId={item.mediaId} read={api.readEvidence}
+      label={item.kind === 'CHECK_IN' ? 'Ảnh check-in' : 'Ảnh check-out'} />)}</div>
+      : <p>Không có ảnh check-in/check-out được lưu cho buổi này.</p>}
+  </div>;
+}
+
+function EarlierReports({ reports, onView }) {
   return <section className="handover-confirmation__card handover-confirmation__reports">
     <h2>Báo cáo các buổi trước</h2>
     {reports.length ? <table className="handover-confirmation__table">
@@ -81,11 +119,17 @@ function EarlierReports({ reports }) {
         const cells = [shortDate(report.startAt), interval(report),
           (report.sitterName ?? 'Chưa ghi nhận') + (report.mine ? ' (bạn)' : ''),
           [report.requiredTasksComplete ? 'Đủ việc bắt buộc' : 'Chưa có đủ dữ liệu việc bắt buộc', `${report.photoCount} ảnh`].join(' · ')];
-        return <tr key={index}>{cells.map((value, column) => <td key={reportHeadings[column]}>
-          <span className="handover-confirmation__mobile-label" aria-hidden="true">{reportHeadings[column]}</span>{value}
-        </td>)}</tr>;
+        return <tr key={report.visitId ?? index}>
+          {cells.map((value, column) => <td key={reportHeadings[column]}>
+            <span className="handover-confirmation__mobile-label" aria-hidden="true">{reportHeadings[column]}</span>{value}
+          </td>)}
+          <td className="handover-confirmation__report-action">
+            <span className="handover-confirmation__mobile-label" aria-hidden="true">{reportHeadings[4]}</span>
+            <Button variant="secondary" type="button" onClick={() => onView(report)} disabled={!report.visitId}>Xem</Button>
+          </td>
+        </tr>;
       })}</tbody>
-    </table> : <p>Chưa có buổi nào xong trong lịch này.</p>}
+    </table> : <p>Chưa có báo cáo buổi trước.</p>}
   </section>;
 }
 
@@ -96,7 +140,8 @@ export function HandoverConfirmationPage({ api, visitId }) {
   const [checked, setChecked] = useState(false);
   const [confirmed, setConfirmed] = useState(null);
   const [changed, setChanged] = useState(false);
-  const command = useSchedulingCommand(result => setConfirmed(result.data));
+  const [selectedReport, setSelectedReport] = useState(null);
+  const command = useSchedulingCommand(result => { setSelectedReport(null); setConfirmed(result.data); });
   const visit = confirmed ?? resource.data;
   const pending = visit?.state === 'PENDING';
 
@@ -148,7 +193,7 @@ export function HandoverConfirmationPage({ api, visitId }) {
         <div className="handover-confirmation__main">
           <HandoverNote note={visit.note} assignedAt={visit.assignedAt} />
           <CareInstructions care={visit.care} />
-          <EarlierReports reports={visit.reports} />
+          <EarlierReports reports={visit.reports} onView={setSelectedReport} />
         </div>
         <div className="handover-confirmation__side">
         <section className="handover-confirmation__card handover-confirmation__pets">
@@ -170,6 +215,9 @@ export function HandoverConfirmationPage({ api, visitId }) {
         </form>
         </div>
       </div>
+      <Dialog open={Boolean(selectedReport)} title="Báo cáo buổi chăm sóc" onClose={() => setSelectedReport(null)} className="visit-evidence-dialog">
+        {selectedReport && <EarlierReportContent key={selectedReport.visitId} api={api} visitId={visitId} reportVisitId={selectedReport.visitId} />}
+      </Dialog>
     </>}
   </section>;
 }

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { visitServiceDisplayName } from '../employee-scheduling/dispatch-visit-presentation.js';
+import { clearDogWalkLocation, isDogWalkService, isDogWalkWindowOpen } from '../employee-scheduling/dog-walk-location.service.js';
 import { additionalCareChecklist } from '../care/visit-care-instructions.service.js';
 import { handoverPending } from '../care/visit-handover-policy.service.js';
 import { assertWorkflowGate, workflowProjection } from '../care/workflow-snapshot.service.js';
@@ -25,7 +26,7 @@ const oid = value => typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value)
 
 // Only canonical primary rows are read here. No command accepts an earning,
 // fee, completion instant, eligibility flag or payment amount from a browser.
-export function createBookingFinanceSourceService({ connection, clock = () => new Date(), compensationModel = 'EMPLOYEE' }) {
+export function createBookingFinanceSourceService({ connection, clock = () => new Date(), compensationModel = 'EMPLOYEE', walkTrackingEnabled = false }) {
   if (!['EMPLOYEE', 'LEGACY_PARTNER'].includes(compensationModel)) throw new TypeError('Invalid compensation model');
   const storage = financeSourceModels(connection, { legacyTasks: compensationModel === 'LEGACY_PARTNER' });
   const unitOfWork = createUnitOfWork(connection);
@@ -269,7 +270,10 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
           update, { session, returnDocument: 'after' });
         if (!saved) fail(409, 'VERSION_CONFLICT');
         const updatedBooking = await touch(booking, session, { state: 'IN_PROGRESS' });
-        if (operation === 'CHECK_OUT') await completeWholeBooking(updatedBooking, session);
+        if (operation === 'CHECK_OUT') {
+          await clearDogWalkLocation(connection, visitId, session);
+          await completeWholeBooking(updatedBooking, session);
+        }
         await event(`Visit${operation}`, updatedBooking, current.userId, `${visitId}:${saved.version}`, session);
         await createDomainNotifications({ connection, clock: () => now().getTime() }).visit({ visitId, version: saved.version,
           customerId: booking.customerId, bookingId: String(booking._id), operation }, session);
@@ -354,11 +358,14 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             label: itemId,
             required: true
           }));
+        const walkLocationAvailable = Boolean(walkTrackingEnabled && isDogWalkWindowOpen(visit, +now())
+          && await isDogWalkService(col, visit, session));
         const hasInstructionVersion = Number.isInteger(visit.currentInstructionVersion);
         const careInstructionsPendingAck = hasInstructionVersion
           && (visit.acknowledgedInstructionVersion ?? 0) < visit.currentInstructionVersion;
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
           workflow: workflowProjection(visit),
+          ...(walkLocationAvailable && { walkLocationAvailable }),
           serviceName: visit.snapshots?.serviceName ?? null, completionAttention: visit.completionAttention?.code ?? null,
           closureOutcome: visit.closureVerification?.outcome ?? null,
           ...(hasInstructionVersion ? {

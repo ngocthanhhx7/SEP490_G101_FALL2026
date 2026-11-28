@@ -29,7 +29,8 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
   }
   if (env.FINANCE_SOURCES_ENABLED !== 'true' || !config.auth?.enabled || !connection?.db) return null;
   const compensationModel = storageProfile(env);
-  const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()), compensationModel });
+  const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()), compensationModel,
+    walkTrackingEnabled: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' && env.VISIT_TRAVEL_ENABLED === 'true' });
   const session = sessionService ?? createSessionService({ connection, clock,
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const payos = loadPayosConfig(env);

@@ -6,6 +6,7 @@ import { createReferenceCatalogFacade } from '../reference-catalog.service.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { workflowProjection } from '../care/workflow-snapshot.service.js';
 import { isVisitTravelWindowOpen } from '../employee-scheduling/visit-travel.service.js';
+import { isDogWalkWindowOpen, TRAVEL_BOOKING_STATES } from '../employee-scheduling/dog-walk-location.service.js';
 
 const validId = value => typeof value === 'string' && /^[0-9a-f]{24}$/i.test(value);
 const notFound = () => { throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy buổi chăm sóc.'); };
@@ -45,7 +46,7 @@ function progress(booking, visit, checklistAt, asOf) {
     inCare: showProgress && visit.state === 'IN_PROGRESS' && Boolean(checkInAt) && !visit.checkOutAt };
 }
 
-export function createVisitTrackerService({ connection, clock = Date.now, travelEnabled = false }) {
+export function createVisitTrackerService({ connection, clock = Date.now, travelEnabled = false, incidentEnabled = false }) {
   const col = name => connection.db.collection(name);
   const uow = createUnitOfWork(connection);
 
@@ -128,6 +129,9 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
         const { status, showProgress, milestones, updates, reportReady, inCare } = progress(booking, visit, checklistAt, asOf);
         const service = inCare && visit.serviceId ? await col('services').findOne({ _id: visit.serviceId },
           { session, ...timeLimit, projection: { code: 1 } }) : null;
+        const walkEligible = inCare && service?.code === 'dog-walking';
+        const activeBooking = TRAVEL_BOOKING_STATES.includes(booking.state);
+        const walkAvailable = Boolean(travelEnabled && walkEligible && activeBooking && isDogWalkWindowOpen(visit, +asOf));
         const pets = await visitPets(visit, customerId, session);
         const sitter = await visitSitter(visit.sitterId, session, ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(visit.state));
         return {
@@ -142,10 +146,9 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
             photos: task.evidence.map(photo => ({ mediaId: photo.mediaId,
               label: task.step.photoSlots.find(slot => slot.photoSlotId === photo.photoSlotId)?.title ?? 'Ảnh nhiệm vụ' }))
           })) : null,
-          actions: { profile: Boolean(sitter?.profile), walkLocation: { eligible: inCare && service?.code === 'dog-walking', available: false },
-            ...(travelEnabled && ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'].includes(booking.state)
-              && isVisitTravelWindowOpen(visit, asOf.getTime()) ? { travel: true } : {}),
-            incident: false, careReport: reportReady }
+          actions: { profile: Boolean(sitter?.profile), walkLocation: { eligible: walkEligible, available: walkAvailable },
+            ...(travelEnabled && activeBooking && isVisitTravelWindowOpen(visit, +asOf) ? { travel: true } : {}),
+            incident: incidentEnabled && walkAvailable, careReport: reportReady }
         };
       });
     }

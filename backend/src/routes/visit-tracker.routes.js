@@ -3,9 +3,9 @@ import { requireSession } from '../middlewares/session.js';
 import { controllerAction } from '../controllers/controller-action.js';
 import { createVisitTrackerService } from '../services/visit-tracker/visit-tracker.service.js';
 
-export function createVisitTrackerRouter({ connection, sessionService, clock, travelEnabled }) {
+export function createVisitTrackerRouter({ connection, sessionService, clock, travelEnabled, incidentEnabled }) {
   const router = Router();
-  const tracker = createVisitTrackerService({ connection, clock, travelEnabled });
+  const tracker = createVisitTrackerService({ connection, clock, travelEnabled, incidentEnabled });
   router.get('/bookings/:bookingId/visits/:visitId/tracker', (_req, res, next) => {
     res.set('Cache-Control', 'private, no-store');
     res.vary('Cookie');
