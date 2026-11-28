@@ -374,6 +374,29 @@ test('ST-BKG-11 shows MSG19 under the date/time field when home booking is less 
   }
 });
 
+test('MSG19 from the server stays on the rejected visit when switching visits', async () => {
+  const api = fixture();
+  api.confirm.mockRejectedValueOnce({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422,
+    lineFields: { 1: { startAt: 'HOME_BOOKING_NOTICE_REQUIRED' } } });
+  render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh buổi tiếp theo' }));
+  fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: '2098-11-04T09:00' } });
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  await screen.findByText('Sắp xếp người chăm sóc');
+  await reviewAndConfirm();
+
+  const rejected = await screen.findByLabelText('Buổi 2 (giờ Việt Nam)');
+  const message = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
+  expect(within(rejected.closest('.pwc-booking-daytime')).getByText(message)).toBeVisible();
+  fireEvent.change(screen.getByRole('combobox', { name: /Buổi cần chỉnh/i }), { target: { value: '0' } });
+  expect(screen.getByLabelText('Buổi 1 (giờ Việt Nam)')).toHaveAttribute('aria-invalid', 'false');
+  expect(screen.queryByText(message)).not.toBeInTheDocument();
+});
+
 test('non-HOME service blocks past time under the date/time field without quoting and allows valid future time', async () => {
   jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
   jest.setSystemTime(new Date('2026-11-28T03:00:00Z'));

@@ -147,11 +147,11 @@ test('contact-specific MSG40 requires a valid session for the verified contact o
   });
   const sessions = createSessionService({ connection, clock: () => now, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
   const issue = user => connection.transaction(session => sessions.issueInTransaction(user, session));
-  const send = async (user, key) => {
+  const send = async (user, key, csrfOverride) => {
     const session = await issue(user);
     return request(app).post('/api/v1/applications').set(guest.headers)
       .set('Cookie', `${guest.intakeCookie}; pwc_session=${session.token}`)
-      .set('X-CSRF-Token', session.csrfToken).set('Idempotency-Key', key).send(guest.body);
+      .set('X-CSRF-Token', csrfOverride ?? session.csrfToken).set('Idempotency-Key', key).send(guest.body);
   };
 
   const anonymous = await guest.submit(guest.body, 'anonymous-conflict').expect(409);
@@ -160,6 +160,9 @@ test('contact-specific MSG40 requires a valid session for the verified contact o
   const foreign = await send(other, 'foreign-verified-contact');
   expect(foreign.status).toBe(409);
   expect(foreign.body.error).toEqual(anonymous.body.error);
+  const rejected = await send(owner, 'owner-invalid-csrf', 'invalid-csrf-fixture');
+  expect(rejected.status).toBe(403);
+  expect(rejected.body.error.code).toBe('CSRF_REJECTED');
   const verified = await send(owner, 'owner-verified-contact');
   expect(verified.status).toBe(409);
   expect(verified.body.error).toMatchObject({ code: 'CONTACT_UNAVAILABLE', conflictField: 'email' });

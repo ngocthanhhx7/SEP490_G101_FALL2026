@@ -80,7 +80,7 @@ export function BookingFlow({ service, api, onBooked }) {
   const [step, setStep] = useState(0), [quote, setQuote] = useState(null);
   const [available, setAvailable] = useState(null), [selected, setSelected] = useState(''), [consent, setConsent] = useState(false);
   const [msg162Dialog, setMsg162Dialog] = useState(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [scheduleError, setScheduleError] = useState(''), [uncertain, setUncertain] = useState(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [scheduleError, setScheduleError] = useState(null), [uncertain, setUncertain] = useState(false);
   const [debtReported, setDebtReported] = useState(false);
   const generation = useRef(0), command = useRef(null), locked = useRef(false);
   const durationMinutes = unit === 'tiếng' ? Number(units) * 60 : unit === '30 phút' ? Number(units) * 30 : service.details?.durationMinutes ?? 60;
@@ -95,7 +95,7 @@ export function BookingFlow({ service, api, onBooked }) {
     setConsent(false);
     setMsg162Dialog(null);
     setError('');
-    setScheduleError('');
+    setScheduleError(null);
   }
 
   function schedule(selectedStarts = starts) {
@@ -166,17 +166,17 @@ export function BookingFlow({ service, api, onBooked }) {
     if (invalid !== -1) {
       setActiveVisit(invalid);
       if (starts[invalid] && location === 'HOME' && Date.parse(starts[invalid] + '+07:00') < now + homeNoticeMs) {
-        setScheduleError(MSG19);
+        setScheduleError({ index: invalid, message: MSG19 });
         setError('');
         return;
       }
       const instruction = !starts[invalid] ? 'Chọn ngày và giờ bắt đầu.'
         : 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
-      setScheduleError(`Buổi ${invalid + 1}. ${instruction}`);
+      setScheduleError({ index: invalid, message: `Buổi ${invalid + 1}. ${instruction}` });
       setError('');
       return;
     }
-    setScheduleError('');
+    setScheduleError(null);
     const ordered = starts.map((value, index) => ({ at: Date.parse(value + '+07:00'), index })).sort((a, b) => a.at - b.at);
     const overlap = ordered.find((slot, i) => i > 0 && slot.at < ordered[i - 1].at + durationMinutes * 60000);
     if (overlap) { setActiveVisit(overlap.index); setError(`Buổi ${overlap.index + 1} trùng giờ chăm sóc với một buổi khác. Hãy đổi giờ.`); return; }
@@ -248,7 +248,7 @@ export function BookingFlow({ service, api, onBooked }) {
       if (visitIndex >= 0) {
         setActiveVisit(visitIndex);
         setStep(0);
-        setScheduleError(MSG19);
+        setScheduleError({ index: visitIndex, message: MSG19 });
         setUncertain(false);
         return;
       }
@@ -328,7 +328,7 @@ export function BookingFlow({ service, api, onBooked }) {
             value={starts[activeVisit]} minimum={minimum} today={vietnamDate()} visits={starts} activeVisit={activeVisit}
             durationMinutes={boarding || !Number.isFinite(durationMinutes) ? undefined : durationMinutes}
             markedDays={new Set(starts.filter(Boolean).map(value => value.slice(0, 10)))}
-            error={scheduleError} errorId="booking-schedule-error"
+            error={scheduleError?.index === activeVisit ? scheduleError.message : ''} errorId="booking-schedule-error"
             onChange={value => { invalidate(); setStarts(current => current.map((start, index) => index === activeVisit ? value : start)); }}
           />
           {starts.length > 1 && <div className="booking-schedule-footer">
