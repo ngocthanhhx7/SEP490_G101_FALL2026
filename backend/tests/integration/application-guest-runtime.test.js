@@ -213,6 +213,82 @@ test('ST-ONB-08 (R3): approved application with provisioned account returns MSG4
   expect(await col('sitterapplications').countDocuments()).toBe(1);
 });
 
+test('ST-ONB-08 (R3): counter-created customer with UNVERIFIED phone blocks sitter application with MSG40', async () => {
+  const guest = await intake();
+  const User = userModel(connection);
+  const staff = await User.create({
+    displayName: 'Synthetic Staff', roles: ['SALE_STAFF'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+  });
+  const counterCustomer = await User.create({
+    displayName: 'Synthetic Counter Customer', roles: ['CUSTOMER'], state: 'ACTIVE',
+    authEpoch: 0, version: 0, synthetic: false, createdChannel: 'COUNTER', createdBy: staff._id
+  });
+  const crypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
+  const phoneContact = crypto.lookup('PHONE', '+84912345678');
+  await identityModels(connection).Contact.create({
+    channel: 'PHONE', userId: counterCustomer._id, state: 'UNVERIFIED', lookupKey: phoneContact.lookupKey,
+    canonicalCiphertext: crypto.encrypt(phoneContact.canonicalValue)
+  });
+
+  const phoneConflict = await guest.submit({
+    ...guest.body, email: 'fresh-counter-check@example.test', phone: '0912345678'
+  }, 'counter-unverified-phone-conflict').expect(409);
+  expect(phoneConflict.body.error).toMatchObject({
+    code: 'CONTACT_UNAVAILABLE',
+    conflictField: 'phone',
+    fieldErrors: { phone: 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.' }
+  });
+  expect(await col('sitterapplications').countDocuments()).toBe(0);
+});
+
+test('decide() blocks approving a guest application when its phone belongs to an UNVERIFIED counter customer contact', async () => {
+  const guest = await intake();
+  const created = (await guest.submit(guest.body, 'pending-before-counter').expect(201)).body.data;
+  const User = userModel(connection);
+  const adminUser = await User.create({
+    displayName: 'Synthetic Admin', roles: ['ADMIN'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+  });
+  const sessions = createSessionService({ connection, clock: () => now, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
+  let session;
+  await connection.transaction(async mongoSession => { session = await sessions.issueInTransaction(adminUser, mongoSession); });
+  const admin = { ...base, Cookie: `pwc_session=${session.token}`, 'X-CSRF-Token': session.csrfToken };
+  const root = `/api/v1/applications/${created.id}`;
+  await request(app).post(`${root}/review`).set(admin).set('Idempotency-Key', 'uv-review-01').send({ expectedVersion: 0 }).expect(200);
+  await request(app).patch(`${root}/assessment`).set(admin).set('Idempotency-Key', 'uv-assess-01').send(assessmentInput(1, 0)).expect(200);
+  await request(app).post(`${root}/interview`).set(admin).set('Idempotency-Key', 'uv-interview-01').send({ expectedVersion: 1 }).expect(200);
+  const signedOn = new Date(now + 7 * 3600000).toISOString().slice(0, 10);
+  const effectiveOn = new Date(now + 86400000 + 7 * 3600000).toISOString().slice(0, 10);
+  const contract = (await request(app).post(`${root}/employment-contract`).set(admin).set('Idempotency-Key', 'uv-contract-01')
+    .send({ applicationVersion: 2, expectedRevision: 0, terms: employmentTerms({ identityNumber: guest.body.identityNumber, plannedSigningOn: signedOn, effectiveOn }) }).expect(201)).body.data;
+  const decisionPath = `${root}/employment-contract/${contract.id}/decisions`;
+  await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'uv-issue-01').send({ action: 'ISSUE', termsHash: contract.termsHash }).expect(200);
+  await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'uv-sign-01').send({
+    action: 'SIGN', termsHash: contract.termsHash, signedOn, archiveReference: 'Synthetic archive', bothPartiesSigned: true
+  }).expect(200);
+  await request(app).patch(`${root}/assessment`).set(admin).set('Idempotency-Key', 'uv-assess-02').send(assessmentInput(2, 1, {
+    callAt: new Date(now).toISOString(), outcome: 'PASSED'
+  })).expect(200);
+
+  const staff = await User.create({
+    displayName: 'Synthetic Staff', roles: ['SALE_STAFF'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+  });
+  const counterCustomer = await User.create({
+    displayName: 'Synthetic Counter Customer', roles: ['CUSTOMER'], state: 'ACTIVE',
+    authEpoch: 0, version: 0, synthetic: false, createdChannel: 'COUNTER', createdBy: staff._id
+  });
+  const crypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
+  const phoneContact = crypto.lookup('PHONE', '+84912345678');
+  await identityModels(connection).Contact.create({
+    channel: 'PHONE', userId: counterCustomer._id, state: 'UNVERIFIED', lookupKey: phoneContact.lookupKey,
+    canonicalCiphertext: crypto.encrypt(phoneContact.canonicalValue)
+  });
+
+  const blocked = await request(app).post(`${root}/decisions`).set(admin).set('Idempotency-Key', 'uv-approve-01')
+    .send({ action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic review passed' }).expect(409);
+  expect(blocked.body.error.code).toBe('APPLICATION_SUBMISSION_UNAVAILABLE');
+  expect(await col('users').countDocuments({ roles: 'PET_SITTER' })).toBe(0);
+});
+
 test('an intake can recover its original receipt without exposing later status or authorizing a different intake', async () => {
   const a = await intake(), b = await intake();
   const created = await a.submit().expect(201);

@@ -374,7 +374,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           ? await registrationPolicyService.validateAndBuildReceipt({ policyVersions: body.policyVersions, session, now }) : [];
         if (dualContact) {
           const existingContacts = await identityModels(connection).Contact
-            .find({ lookupKey: { $in: contactKeys }, state: 'VERIFIED' })
+            .find({ lookupKey: { $in: contactKeys }, state: { $in: ['VERIFIED', 'UNVERIFIED'] } })
             .select('lookupKey').session(session).lean();
           if (existingContacts.length) {
             const matched = new Set(existingContacts.map(row => row.lookupKey));
@@ -399,7 +399,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           if (!verified || !owner) throw new AppError(403, 'FORBIDDEN', 'Applicant account or contact is no longer eligible');
         } else if (typeof connection.db?.collection === 'function') {
           const existingContact = await connection.db.collection('contacts')?.findOne?.({
-            channel: contactChannel, lookupKey: contact.lookupKey, state: 'VERIFIED'
+            channel: contactChannel, lookupKey: contact.lookupKey, state: { $in: ['VERIFIED', 'UNVERIFIED'] }
           }, { session });
           if (existingContact) {
             throw contactUnavailableError(contactChannel === 'EMAIL', contactChannel === 'PHONE');
@@ -708,7 +708,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
               { $set: { roles: ['PET_SITTER'] }, $inc: { authEpoch: 1, version: 1 } }, { returnDocument: 'after', session });
             if (!user) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Applicant account is no longer eligible');
           } else {
-            if (await identityModels(connection).Contact.exists({ lookupKey: { $in: [current.contactLookupKey, current.phoneLookupKey].filter(Boolean) }, state: 'VERIFIED' }).session(session))
+            if (await identityModels(connection).Contact.exists({ lookupKey: { $in: [current.contactLookupKey, current.phoneLookupKey].filter(Boolean) }, state: { $in: ['VERIFIED', 'UNVERIFIED'] } }).session(session))
               throw submissionUnavailable();
             [user] = await User.create([{
               displayName: current.displayName, roles: ['PET_SITTER'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
