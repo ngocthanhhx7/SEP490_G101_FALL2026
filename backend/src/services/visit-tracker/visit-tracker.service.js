@@ -132,6 +132,8 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
         const walkEligible = inCare && service?.code === 'dog-walking';
         const activeBooking = TRAVEL_BOOKING_STATES.includes(booking.state);
         const walkAvailable = Boolean(travelEnabled && walkEligible && activeBooking && isDogWalkWindowOpen(visit, +asOf));
+        const canReportIncident = incidentEnabled && visit.state !== 'CANCELLED' && !['CANCELLED', 'EXPIRED'].includes(booking.state)
+          && Boolean(booking.visitIds?.some(id => id instanceof Types.ObjectId && id.equals(visit._id)));
         const pets = await visitPets(visit, customerId, session);
         const sitter = await visitSitter(visit.sitterId, session, ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(visit.state));
         return {
@@ -148,7 +150,7 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
           })) : null,
           actions: { profile: Boolean(sitter?.profile), walkLocation: { eligible: walkEligible, available: walkAvailable },
             ...(travelEnabled && activeBooking && isVisitTravelWindowOpen(visit, +asOf) ? { travel: true } : {}),
-            incident: incidentEnabled && walkAvailable, careReport: reportReady }
+            incident: canReportIncident, careReport: reportReady }
         };
       });
     }

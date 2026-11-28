@@ -86,7 +86,7 @@ test('exposes the journey only when the owner tracker returns the travel capabil
   expect(await screen.findByText('Hành trình đến điểm chăm sóc')).toBeVisible();
 });
 
-test('UC-46 exposes fresh walk data, a stale-location message and the same visit incident link', async () => {
+test('UC-46 exposes fresh walk data and a stale-location message while keeping one ST-CAS-01 entry', async () => {
   jest.useFakeTimers();
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   let walk = { available: true, state: 'EN_ROUTE', sharing: true, fresh: true,
@@ -98,17 +98,29 @@ test('UC-46 exposes fresh walk data, a stale-location message and the same visit
   details.open = true;
   fireEvent(details, new window.Event('toggle'));
   expect(await screen.findByRole('region', { name: 'Vị trí hiện tại của người chăm sóc khi đi dạo' })).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Báo cáo sự cố' })).toHaveAttribute('href', '/visits/' + visitId + '/incidents/new');
+  const links = screen.getAllByRole('link', { name: /Báo(?: cáo)? sự cố/ });
+  expect(links).toHaveLength(1);
+  expect(links[0]).toHaveAccessibleName('Báo sự cố');
+  expect(links[0]).toHaveAttribute('href', '/visits/' + visitId + '/incidents/new');
 
   walk = { ...walk, fresh: false, location: null };
   await act(async () => { jest.advanceTimersByTime(30000); });
   expect(screen.getByText('Chưa có vị trí mới.')).toHaveAttribute('data-message-code', 'MSG146');
   expect(screen.queryByRole('region', { name: 'Vị trí hiện tại của người chăm sóc khi đi dạo' })).toBeNull();
 
-  status = done;
+  status = { ...done, actions: { ...done.actions, incident: true } };
   await act(async () => { jest.advanceTimersByTime(30000); });
   expect(screen.queryByText('Vị trí buổi đi dạo')).toBeNull();
-  expect(screen.queryByRole('link', { name: 'Báo cáo sự cố' })).toBeNull();
+  expect(screen.getAllByRole('link', { name: /Báo(?: cáo)? sự cố/ })).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Xem báo cáo và ảnh' })).toBeVisible();
+});
+
+test('ST-CAS-01 opens the incident form from an eligible visit with no walk map', async () => {
+  show(() => ({ ...active, actions: { ...active.actions, walkLocation: { eligible: false, available: false }, incident: true } }));
+  const link = await screen.findByRole('link', { name: 'Báo sự cố' });
+  expect(link).toHaveAttribute('href', '/visits/' + visitId + '/incidents/new');
+  fireEvent.click(link);
+  expect(await screen.findByRole('heading', { name: 'Báo cáo sự cố' })).toBeVisible();
 });
 
 test('UC-78 renders current progress and newest updates and returns to the booking', async () => {

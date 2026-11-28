@@ -26,6 +26,7 @@ export function SitterVisitPage({ api, visitId }) {
   const directions = googleMapsDirections(row.serviceAddress);
   const service = row.serviceDisplayName?.trim() || row.serviceName?.trim();
   const place = { HOME: 'Tại nhà', FACILITY: 'Tại trung tâm', OUTDOOR: 'Ngoài trời' }[row.location];
+  const canReportIncident = !['CANCELLED', 'SUPERSEDED'].includes(row.state) && row.handoverPending !== true;
   return <section className="employee-scheduling pwc-mobile-screen sitter-workspace">
     <div className="sitter-workspace__visit-summary"><h1>{service || 'Chưa rõ dịch vụ'}</h1>
     {place && <span className="sitter-visit-card__place">{place}</span>}
@@ -38,7 +39,12 @@ export function SitterVisitPage({ api, visitId }) {
       <AssignedCare api={api} visitId={visitId} defaultOpen onAcknowledged={() => setExecutionReloadKey(value => value + 1)} />
     )}
     {row.state === 'ASSIGNED' && <VisitTravel api={api} visitId={visitId} employee startAt={row.startAt} endAt={row.endAt} />}
-    <p><Link to="/contact" state={{ helpFrom: '/sitter/visits/' + visitId }}>Hỗ trợ công việc</Link></p>
+    <div className="sitter-workspace__controls">
+      {canReportIncident && (
+        <Link className="sitter-workspace-link" to={'/visits/' + encodeURIComponent(visitId) + '/incidents/new'}>Báo sự cố</Link>
+      )}
+      <Link className="sitter-workspace-link" to="/contact" state={{ helpFrom: '/sitter/visits/' + visitId }}>Hỗ trợ công việc</Link>
+    </div>
     <VisitExecution key={visitId + ':' + executionReloadKey} api={api} visitId={visitId} onChanged={visit.retry} />
     {row.state === 'ASSIGNED' && <Button variant="secondary" onClick={() => setWithdrawal(true)}>Kiểm tra điều kiện rút khỏi buổi</Button>}
     {withdrawal && <VisitWithdrawalDialog visitId={visitId} api={api} onClose={() => setWithdrawal(false)}
