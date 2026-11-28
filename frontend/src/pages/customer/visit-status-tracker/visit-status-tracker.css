@@ -141,6 +141,12 @@
   color: var(--pwc-ink);
 }
 
+.visit-tracker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pwc-space-3);
+}
+
 .visit-tracker-steps,
 .visit-tracker-updates {
   list-style: none;

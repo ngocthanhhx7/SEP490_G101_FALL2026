@@ -112,12 +112,44 @@ test('UC-46 exposes the map only after dog walk check-in while travel is enabled
   await col('visits').updateOne({ _id: active }, { $set: { serviceId: homeCare } });
   try {
     const care = (await read(active).expect(200)).body.data.actions;
-    expect(care).toMatchObject({ walkLocation: { eligible: false, available: false }, incident: false });
+    expect(care.walkLocation).toEqual({ eligible: false, available: false });
     const finished = (await read(complete).expect(200)).body.data.actions;
-    expect(finished).toMatchObject({ walkLocation: { eligible: false, available: false }, incident: false });
+    expect(finished.walkLocation).toEqual({ eligible: false, available: false });
   } finally {
     await col('visits').updateOne({ _id: active }, { $set: { serviceId: service } });
   }
+});
+
+test.each([['SCHEDULED', true], ['ASSIGNED awaiting handover', true], ['COMPLETED', true], ['CANCELLED', false]])(
+  'ST-CAS-01 reports customer incident eligibility for a %s visit outside live dog walking', async (state, eligible) => {
+    const bookingId = oid(), visitId = oid();
+    const awaitingHandover = state === 'ASSIGNED awaiting handover';
+    await col('bookings').insertOne({ _id: bookingId, customerId: owner, state: 'IN_PROGRESS', visitIds: [visitId] });
+    await col('visits').insertOne({ _id: visitId, bookingId, state: awaitingHandover ? 'ASSIGNED' : state,
+      ...(awaitingHandover && { sitterId: sitter, handoverRequired: true, handoverAccepted: false }) });
+
+    const { actions } = (await request(app).get(path(visitId, bookingId)).set('x-test-actor', 'owner').expect(200)).body.data;
+    expect(actions.walkLocation.available).toBe(false);
+    expect(actions.incident).toBe(eligible);
+  }
+);
+
+test.each(['CANCELLED', 'EXPIRED'])('ST-CAS-01 hides the customer incident action on a %s booking', async state => {
+  const bookingId = oid(), visitId = oid();
+  await col('bookings').insertOne({ _id: bookingId, customerId: owner, state, visitIds: [visitId] });
+  await col('visits').insertOne({ _id: visitId, bookingId, state: 'SCHEDULED' });
+
+  const { actions } = (await request(app).get(path(visitId, bookingId)).set('x-test-actor', 'owner').expect(200)).body.data;
+  expect(actions.incident).toBe(false);
+});
+
+test('ST-CAS-01 hides the incident action when the tracker uses the legacy visit lookup', async () => {
+  const bookingId = oid(), visitId = oid();
+  await col('bookings').insertOne({ _id: bookingId, customerId: owner, state: 'IN_PROGRESS' });
+  await col('visits').insertOne({ _id: visitId, bookingId, state: 'SCHEDULED' });
+
+  const { actions } = (await request(app).get(path(visitId, bookingId)).set('x-test-actor', 'owner').expect(200)).body.data;
+  expect(actions.incident).toBe(false);
 });
 
 test('UC-78 rejects unauthenticated, other actors, mismatched and superseded visits', async () => {

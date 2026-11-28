@@ -199,9 +199,14 @@ function Tracker({ bookingId, visitId }) {
         {actions.travel === true && <VisitTravel api={travelApi} visitId={visit.id} available />}
         {actions.walkLocation?.available === true && <Panel title="Theo dõi đi dạo">
           <VisitTravel api={dogWalkApi} visitId={visit.id} available dogWalk />
-          {actions.incident === true && <Link to={'/visits/' + encodeURIComponent(visit.id) + '/incidents/new'}>Báo cáo sự cố</Link>}
         </Panel>}
-        {actions.careReport && <Panel title="Thao tác"><ReportAction bookingId={booking.id} visitId={visit.id} /></Panel>}
+        {(actions.incident === true || actions.careReport) && <Panel title="Thao tác">
+          <div className="visit-tracker-actions">
+            {actions.careReport && <ReportAction bookingId={booking.id} visitId={visit.id} />}
+            {actions.incident === true && <Link className="pwc-button pwc-button--secondary"
+              to={'/visits/' + encodeURIComponent(visit.id) + '/incidents/new'}>Báo sự cố</Link>}
+          </div>
+        </Panel>}
       </aside>
     </div>
   </div>;
