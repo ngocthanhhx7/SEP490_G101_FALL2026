@@ -98,3 +98,26 @@ test('ST-ONB-05 new sitter reads own profile without existing public profile and
     experience: '3 năm chăm sóc chó nhỏ và mèo trong nhà.'
   });
 });
+
+
+test('replay returns the original self-profile response without mutating account, status, or history', async () => {
+  const first = {
+    actor: sitter,
+    body: { bio: 'Giới thiệu đầu tiên.', experience: 'Kinh nghiệm đã lưu.', expectedVersion: 0 },
+    idempotencyKey: 'st-onb-05-replay-original'
+  };
+  const saved = await service.saveSelfProfile(first);
+  await service.saveSelfProfile({
+    ...first, body: { ...first.body, bio: 'Giới thiệu mới hơn.', expectedVersion: 1 },
+    idempotencyKey: 'st-onb-05-replay-next'
+  });
+  const userBefore = await users.findById(sitter.userId).lean();
+  const statusBefore = await statuses.findOne({ userId: sitter.userId }).lean();
+  await expect(service.saveSelfProfile(first)).resolves.toEqual(saved);
+  expect((await users.findById(sitter.userId).lean()).version).toBe(userBefore.version);
+  expect((await statuses.findOne({ userId: sitter.userId }).lean()).version).toBe(statusBefore.version);
+  expect(await models.SitterPublicProfileAudit.countDocuments({ userId: sitter.userId })).toBe(2);
+  expect(await models.SitterPublicProfile.findOne({ userId: sitter.userId }).lean()).toMatchObject({
+    state: 'APPROVED', bio: 'Giới thiệu mới hơn.', version: 2
+  });
+});

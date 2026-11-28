@@ -162,21 +162,20 @@ export function createSitterPublicProfileService({ connection, cursorSecret, clo
     const input = validateSelfProfileCommand(body);
     const fingerprint = hash({ userId, operation: 'SELF_UPDATE', input });
     await storageReady();
-    let savedRow = null;
-    let userRow = null;
     for (let attempt = 0; ; attempt++) {
       try {
-        const result = await connection.transaction(async session => {
-          const currentActor = await users.findOneAndUpdate({ _id: userId, state: 'ACTIVE' },
-            { $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
-          if (!currentActor || !hasRole(currentActor.roles, 'PET_SITTER')) fail(403, 'FORBIDDEN');
-          if (!await eligible(userId, session)) fail(409, 'SITTER_NOT_ELIGIBLE');
+        return await connection.transaction(async session => {
+          const actorFilter = { _id: userId, state: 'ACTIVE', roles: 'PET_SITTER' };
+          const currentActor = await users.findOne(actorFilter).select('displayName createdAt').session(session).lean();
+          if (!currentActor) fail(403, 'FORBIDDEN');
           const identity = { actorId: userId, operation: 'SELF_UPDATE', key: idempotencyKey };
           const previous = await commands.findOne(identity).session(session).lean();
           if (previous) {
+            if (!await statuses.exists({ userId, status: 'ACTIVE' }).session(session)) fail(409, 'SITTER_NOT_ELIGIBLE');
             if (previous.fingerprint !== fingerprint) fail(409, 'IDEMPOTENCY_KEY_REUSED');
-            return { replayed: previous.result, user: currentActor };
+            return previous.result;
           }
+          if (!await eligible(userId, session)) fail(409, 'SITTER_NOT_ELIGIBLE');
           const row = await profiles.findOne({ userId }).session(session).lean();
           if ((row?.version ?? 0) !== input.expectedVersion) fail(409, 'VERSION_CONFLICT');
           let areas = row?.areas ?? [];
@@ -208,7 +207,7 @@ export function createSitterPublicProfileService({ connection, cursorSecret, clo
           else saved = await profiles.findOneAndUpdate({ userId, version: row.version }, { $set: patch },
             { session, returnDocument: 'after', runValidators: true }).lean();
           if (!saved) fail(409, 'VERSION_CONFLICT');
-          const projected = project(saved);
+          const result = { profile: await buildSelfProfileView(currentActor, saved), messageCode: 'MSG51' };
           await audits.create([{
             actorId: userId,
             userId,
@@ -217,21 +216,13 @@ export function createSitterPublicProfileService({ connection, cursorSecret, clo
             contentHash: hash({ bio: saved.bio, experience: saved.experience, areas: saved.areas, state: saved.state }),
             occurredAt
           }], { session });
-          await commands.create([{ ...identity, fingerprint, result: projected, occurredAt }], { session });
-          return { saved, user: currentActor };
+          await commands.create([{ ...identity, fingerprint, result, occurredAt }], { session });
+          return result;
         }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
-        if (result.replayed) {
-          const current = await profiles.findOne({ userId }).lean();
-          return { profile: await buildSelfProfileView(result.user, current ?? result.replayed), messageCode: 'MSG51' };
-        }
-        savedRow = result.saved;
-        userRow = result.user;
-        break;
       } catch (error) {
         if (error.code !== 11000 || attempt >= 2) throw error;
       }
     }
-    return { profile: await buildSelfProfileView(userRow, savedRow), messageCode: 'MSG51' };
   }
 
   return Object.freeze({
