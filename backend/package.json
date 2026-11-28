@@ -12,7 +12,7 @@
     "start": "node --env-file-if-exists=.env src/server.js",
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
     "lint": "eslint src scripts tests eslint.config.js jest.config.js",
-    "test": "node --max-old-space-size=8192 --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --maxWorkers=1",
     "test:unit": "npm test -- --selectProjects unit",
     "test:integration": "npm test -- --selectProjects integration",
     "seed:admin": "node --env-file-if-exists=.env scripts/seeds/admin.js",
