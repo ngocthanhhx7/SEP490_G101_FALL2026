@@ -94,6 +94,13 @@
   padding: 0.7rem 0.95rem;
 }
 
+.product-checkout-page__field-error {
+  color: var(--pwc-error, #b42318);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0.4rem 0 0;
+}
+
 .product-checkout-page .pwc-shop-lead {
   color: var(--pwc-ink-muted);
   font-size: var(--pwc-text-small);

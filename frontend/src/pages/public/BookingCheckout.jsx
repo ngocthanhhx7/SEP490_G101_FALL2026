@@ -16,6 +16,8 @@ import { Button, Dialog } from '../../components/ui/index.js';
 import { PickupSelectionField, pickupReady, pickupInput, pickupPrice, PICKUP_UNAVAILABLE } from '../../components/common/PickupSelectionField.jsx';
 import './booking-checkout.css';
 
+const MSG19 = 'Vui lòng đặt lịch trước ít nhất 2 giờ.';
+const HOME_BOOKING_NOTICE_MS = 2 * 60 * 60 * 1000;
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cửa hàng', OUTDOOR: 'Ngoài trời' };
 const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ sơ đã thay đổi. Vui lòng lấy báo giá mới.',
@@ -34,7 +36,7 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   MSG20: 'Một lịch đặt kéo dài tối đa 30 ngày.',
   ADDRESS_OUT_OF_SERVICE_AREA: ADDRESS_NOT_SERVED,
   GROOMING_PAYMENT_OUTSTANDING: GROOMING_DEBT_BLOCKS_BOOKING,
-  HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
+  HOME_BOOKING_NOTICE_REQUIRED: MSG19,
   PICKUP_DISTANCE_UNAVAILABLE: PICKUP_UNAVAILABLE,
   PICKUP_QUOTE_CHANGED: 'Phí đón vừa thay đổi. Vui lòng xem lại trước khi xác nhận.',
   PICKUP_DISTANCE_EXCEEDED: 'Địa chỉ đón vượt quá khoảng cách cho phép. Vui lòng chọn lại địa chỉ.',
@@ -59,7 +61,7 @@ function PreviousSitterField({ api, quoteId, itemIndex, index, start, location, 
 }
 
 export function BookingCheckoutForm({ quote, services, api, onConfirmed, recommendation, onEditQuote }) {
-  const addresses = useApiResource(api.addresses), options = useApiResource(api.checkoutOptions), [busy, setBusy] = useState(false), [error, setError] = useState(null), [uncertain, setUncertain] = useState(false);
+  const addresses = useApiResource(api.addresses), options = useApiResource(api.checkoutOptions), [busy, setBusy] = useState(false), [error, setError] = useState(null), [visitErrors, setVisitErrors] = useState({}), [uncertain, setUncertain] = useState(false);
   const command = useRef(null), locked = useRef(false);
   const visits = quote.items.flatMap((item, itemIndex) => Array.from({ length: item.visitCount }, (_, index) => ({ itemIndex, index,
     service: services.find(service => service.id === item.serviceId) })));
@@ -76,6 +78,24 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
   const submit = async event => {
     event.preventDefault(); if (locked.current || (!uncertain && !allPickupsReady)) return;
     if (!uncertain) {
+      if (!recommendation) {
+        const now = Date.now();
+        const nextVisitErrors = {};
+        starts.forEach((value, index) => {
+          if (selectedLocations[index] === 'HOME' && value) {
+            const started = Date.parse(`${value}:00+07:00`);
+            if (Number.isFinite(started) && started < now + HOME_BOOKING_NOTICE_MS) {
+              nextVisitErrors[index] = MSG19;
+            }
+          }
+        });
+        if (Object.keys(nextVisitErrors).length > 0) {
+          setVisitErrors(nextVisitErrors);
+          setError(null);
+          return;
+        }
+      }
+      setVisitErrors({});
       const selected = starts.map((value, index) => {
         const item = quote.items[visits[index].itemIndex];
         const started = new Date(`${value}:00+07:00`);
@@ -142,8 +162,15 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
         <BookingDateTime compact label="Bắt đầu (giờ Việt Nam)" name={`start:${index}`}
           durationMinutes={quote.items[row.itemIndex].dayCount ? undefined : quote.items[row.itemIndex].durationMinutes}
           value={starts[index]} readOnly={Boolean(recommendation)} today={today} minimum={minimumFor(selectedLocations[index])}
-          onChange={start => setStarts(current => current.map((value, i) => i === index ? start : value))} />
-        <label>Địa điểm<select disabled={Boolean(recommendation)} value={selectedLocations[index]} onChange={event => setSelectedLocations(current => current.map((value, i) => i === index ? event.target.value : value))}>
+          error={visitErrors[index] || ''} errorId={`booking-checkout-start-error-${index}`}
+          onChange={start => {
+            setStarts(current => current.map((value, i) => i === index ? start : value));
+            setVisitErrors(current => current[index] ? { ...current, [index]: '' } : current);
+          }} />
+        <label>Địa điểm<select disabled={Boolean(recommendation)} value={selectedLocations[index]} onChange={event => {
+          setSelectedLocations(current => current.map((value, i) => i === index ? event.target.value : value));
+          setVisitErrors(current => current[index] ? { ...current, [index]: '' } : current);
+        }}>
           {(row.service?.details?.locations || ['HOME']).map(value => <option key={value} value={value}>{locations[value]}</option>)}
         </select></label>
         {recommendation ? <label>Người chăm sóc mong muốn<select disabled value={recommendation.requestedSitterId}>

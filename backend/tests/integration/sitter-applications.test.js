@@ -283,6 +283,46 @@ describe('P16 public sitter application submission', () => {
     const newApplication = await submit(application, applicationBody(), 'submit-key-after-wait').expect(201);
     expect(newApplication.body.data.id).not.toBe(submitted.body.data.id);
   });
+
+  test('ST-ONB-08 rejects email or phone already owned by an account with CONTACT_UNAVAILABLE and conflictField', async () => {
+    const application = app();
+    const existingUser = await User.create({
+      _id: CUSTOMER_ID, displayName: 'Existing Account', roles: ['CUSTOMER'],
+      state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+    });
+    const emailLookup = contactCrypto.lookup('EMAIL', 'taken@example.test');
+    const phoneLookup = contactCrypto.lookup('PHONE', '+84912345678');
+    await Contact.create([
+      {
+        userId: existingUser._id, channel: 'EMAIL', state: 'VERIFIED', verifiedAt: new Date(clockNow),
+        lookupKey: emailLookup.lookupKey, canonicalCiphertext: contactCrypto.encrypt(emailLookup.canonicalValue)
+      },
+      {
+        userId: existingUser._id, channel: 'PHONE', state: 'VERIFIED', verifiedAt: new Date(clockNow),
+        lookupKey: phoneLookup.lookupKey, canonicalCiphertext: contactCrypto.encrypt(phoneLookup.canonicalValue)
+      }
+    ]);
+
+    const emailConflict = await submit(application, applicationBody({
+      email: 'taken@example.test', phone: '0987654321'
+    }), 'submit-key-taken-email').expect(409);
+    expect(emailConflict.body.error).toMatchObject({
+      code: 'CONTACT_UNAVAILABLE',
+      conflictField: 'email',
+      fieldErrors: { email: 'Email này đã thuộc về một tài khoản. Vui lòng dùng email khác.' }
+    });
+
+    const phoneConflict = await submit(application, applicationBody({
+      email: 'fresh@example.test', phone: '0912345678'
+    }), 'submit-key-taken-phone').expect(409);
+    expect(phoneConflict.body.error).toMatchObject({
+      code: 'CONTACT_UNAVAILABLE',
+      conflictField: 'phone',
+      fieldErrors: { phone: 'Số điện thoại này đã thuộc về một tài khoản. Vui lòng dùng số điện thoại khác.' }
+    });
+
+    expect(await sitterApplicationModels(connection).SitterApplication.countDocuments({})).toBe(0);
+  });
 });
 
 describe('P16 Admin application review and private documents', () => {

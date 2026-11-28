@@ -15,31 +15,43 @@ const apiFixture = () => ({ addresses: jest.fn().mockResolvedValue({ data: [{ id
   confirm: jest.fn().mockResolvedValue({ id: 'booking' }), booking: jest.fn(), paymentLink: jest.fn() });
 
 test('booking confirmation uses the saved quote and explicit Vietnam schedule, never browser amounts', async () => {
-  const api = apiFixture(), confirmed = jest.fn();
-  render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={confirmed} /></MemoryRouter>);
-  await screen.findByText('Nhà đã xác nhận');
-  fireEvent.change(screen.getByLabelText('Bắt đầu (giờ Việt Nam)'), { target: { value: '2026-11-03T09:00' } });
-  fireEvent.change(screen.getByLabelText('Địa chỉ đã lưu'), { target: { value: 'address' } });
-  fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
-  fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
-  await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
-  expect(api.confirm.mock.calls[0][0]).toEqual({ quoteId: 'quote', acceptServicePolicies: true,
-    visits: [{ itemIndex: 0, startAt: '2026-11-03T09:00:00+07:00', location: 'HOME', addressId: 'address' }] });
-  expect(confirmed).toHaveBeenCalledWith({ id: 'booking' });
+  jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
+  jest.setSystemTime(new Date('2026-11-01T00:00:00Z'));
+  try {
+    const api = apiFixture(), confirmed = jest.fn();
+    render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={confirmed} /></MemoryRouter>);
+    await screen.findByText('Nhà đã xác nhận');
+    fireEvent.change(screen.getByLabelText('Bắt đầu (giờ Việt Nam)'), { target: { value: '2026-11-03T09:00' } });
+    fireEvent.change(screen.getByLabelText('Địa chỉ đã lưu'), { target: { value: 'address' } });
+    fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
+    fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+    expect(api.confirm.mock.calls[0][0]).toEqual({ quoteId: 'quote', acceptServicePolicies: true,
+      visits: [{ itemIndex: 0, startAt: '2026-11-03T09:00:00+07:00', location: 'HOME', addressId: 'address' }] });
+    expect(confirmed).toHaveBeenCalledWith({ id: 'booking' });
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('unknown booking acknowledgement retains the same payload and key while schedule fields are frozen', async () => {
-  const api = apiFixture(); api.confirm.mockRejectedValueOnce({ code: 'TIMEOUT' });
-  render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={jest.fn()} /></MemoryRouter>);
-  await screen.findByText('Nhà đã xác nhận');
-  fireEvent.change(screen.getByLabelText('Bắt đầu (giờ Việt Nam)'), { target: { value: '2026-11-03T09:00' } });
-  fireEvent.change(screen.getByLabelText('Địa chỉ đã lưu'), { target: { value: 'address' } });
-  fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
-  fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
-  await screen.findByText('Xác nhận lại'); expect(screen.getByLabelText('Bắt đầu (giờ Việt Nam)')).toBeDisabled();
-  fireEvent.submit(screen.getByText('Xác nhận lại').closest('form'));
-  await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(2));
-  expect(api.confirm.mock.calls[0]).toEqual(api.confirm.mock.calls[1]);
+  jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
+  jest.setSystemTime(new Date('2026-11-01T00:00:00Z'));
+  try {
+    const api = apiFixture(); api.confirm.mockRejectedValueOnce({ code: 'TIMEOUT' });
+    render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={jest.fn()} /></MemoryRouter>);
+    await screen.findByText('Nhà đã xác nhận');
+    fireEvent.change(screen.getByLabelText('Bắt đầu (giờ Việt Nam)'), { target: { value: '2026-11-03T09:00' } });
+    fireEvent.change(screen.getByLabelText('Địa chỉ đã lưu'), { target: { value: 'address' } });
+    fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
+    fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+    await screen.findByText('Xác nhận lại'); expect(screen.getByLabelText('Bắt đầu (giờ Việt Nam)')).toBeDisabled();
+    fireEvent.submit(screen.getByText('Xác nhận lại').closest('form'));
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(2));
+    expect(api.confirm.mock.calls[0]).toEqual(api.confirm.mock.calls[1]);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('checkout accepts only confirmed unavailable visits and reuses the last command after a timeout', async () => {
@@ -155,7 +167,7 @@ test('explicit account detail id loads the owned order and presents recognizable
   render(<MemoryRouter><BookingConfirmation api={api} bookingId="saved-order" /></MemoryRouter>);
   expect(await screen.findByRole('heading', { name: 'Cắt móng' })).toBeVisible();
   expect(screen.getByText('Buổi 1 · Milo')).toBeVisible();
-  expect(screen.getByText('Chờ người chăm sóc')).toBeVisible();
+  expect(screen.getByText('Đã xác nhận')).toBeVisible();
   expect(api.booking).toHaveBeenCalledWith('saved-order', expect.any(Object));
 });
 
@@ -191,4 +203,46 @@ test('ST-BKG-12: allows 01/12 08:00 to 31/12 18:00 and blocks 01/12 08:00 to 01/
     '2026-12-31T18:00:00+07:00'
   ]);
   expect(confirmed).toHaveBeenCalledWith({ id: 'booking' });
+});
+
+test('ST-BKG-02 and ST-BKG-16 display Đã xác nhận with dispatch subtitle for paid DISPATCH_PENDING bookings', async () => {
+  window.sessionStorage.clear();
+  const api = apiFixture();
+  api.booking
+    .mockResolvedValueOnce({ id: 'booking-retry', totalVnd: 120000, state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] })
+    .mockResolvedValueOnce({ id: 'booking-retry', totalVnd: 120000, state: 'DISPATCH_PENDING', paymentState: 'PAID', visits: [] });
+  render(<MemoryRouter initialEntries={['/account/bookings/booking-retry?payment=cancelled']}>
+    <BookingConfirmation api={api} bookingId="booking-retry" />
+  </MemoryRouter>);
+  expect(await screen.findByText('Thanh toán chưa thành công. Vui lòng thử lại.')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Cập nhật trạng thái đơn' }));
+  expect(await screen.findByText('Đã xác nhận')).toBeVisible();
+  expect(screen.getByText('PawWorld đang gửi lời mời. Bạn sẽ được thông báo khi sitter nhận ca.')).toBeVisible();
+  expect(screen.queryByText('Chờ người chăm sóc')).not.toBeInTheDocument();
+});
+
+test('ST-BKG-11 validates home visit under 2 hours in BookingCheckoutForm with MSG19 under date/time field and maps server error', async () => {
+  jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'nextTick', 'queueMicrotask'] });
+  jest.setSystemTime(new Date('2026-11-28T03:00:00Z'));
+  try {
+    const api = apiFixture();
+    api.confirm.mockRejectedValueOnce({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
+    render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={jest.fn()} /></MemoryRouter>);
+    await screen.findByText('Nhà đã xác nhận');
+    const startInput = screen.getByLabelText('Bắt đầu (giờ Việt Nam)');
+    expect(startInput).not.toHaveAttribute('min');
+    fireEvent.change(startInput, { target: { value: '2026-11-28T11:00' } });
+    fireEvent.change(screen.getByLabelText('Địa chỉ đã lưu'), { target: { value: 'address' } });
+    fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
+    fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+    const fieldContainer = startInput.closest('.pwc-booking-daytime');
+    expect(within(fieldContainer).getByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+    expect(api.confirm).not.toHaveBeenCalled();
+
+    fireEvent.change(startInput, { target: { value: '2026-11-28T12:30' } });
+    fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+    expect(await screen.findByText('Vui lòng đặt lịch trước ít nhất 2 giờ.')).toBeVisible();
+  } finally {
+    jest.useRealTimers();
+  }
 });

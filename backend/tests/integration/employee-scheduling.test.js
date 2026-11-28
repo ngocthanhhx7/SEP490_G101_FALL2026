@@ -169,6 +169,14 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
   expect(current.customerNote).toBe(customerNote);
+  await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-blank-note'))
+    .send({ expectedVersion: saved.body.data.version, mediaId: mediaOut, customerNote: '   ' })
+    .expect(422)
+    .expect(res => expect(res.body.error).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      fieldErrors: { customerNote: 'Trường này là bắt buộc.' }
+    }));
+  expect((await connection.collection('visits').findOne({ _id: row._id })).state).toBe('IN_PROGRESS');
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
   expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({
     state: 'COMPLETED', version: saved.body.data.version + 1, checkInAt: new Date(clock()), checkOutAt: new Date(clock()),
@@ -633,7 +641,7 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
     let current = await connection.collection('visits').findOne({ _id: new mongoose.Types.ObjectId(shift.id) });
     const input = { actor: sitter, visitId: shift.id, expectedVersion: current.version, idempotencyKey: `care-payroll-check-in-${index}`, mediaId: media[0] };
     const started = await finance.checkIn(input);
-    await finance.updateChecklist({ ...input, expectedVersion: started.version, idempotencyKey: `care-payroll-checklist-${index}`, items: [{ itemId: 'care', status: 'DONE' }] });
+    await finance.updateChecklist({ ...input, expectedVersion: started.version, idempotencyKey: `care-payroll-checklist-${index}`, items: [{ itemId: 'care', status: 'DONE' }], customerNote: 'Synthetic care note' });
     at = new Date(shift.endAt); current = await connection.collection('visits').findOne({ _id: new mongoose.Types.ObjectId(shift.id) });
     await finance.checkOut({ ...input, expectedVersion: current.version, idempotencyKey: `care-payroll-check-out-${index}`, mediaId: media[1] });
     if (!index) expect(await payroll.PayrollServiceCredit.countDocuments({ bookingId: row.bookingId })).toBe(0);
@@ -852,6 +860,7 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   });
   const checklist = await finance.updateChecklist({
     ...input, expectedVersion: started.version, items: [{ itemId: 'pet-condition', status: 'DONE' }],
+    customerNote: 'Synthetic care note',
     idempotencyKey: 'demo-replay-checklist'
   });
   at = row.endAt.getTime();

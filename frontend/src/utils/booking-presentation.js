@@ -1,7 +1,7 @@
 const states = {
   PENDING: ['Chờ xác nhận', 'PawWorld đang tiếp nhận yêu cầu của bạn.'],
   CONFIRMED: ['Đã xác nhận', 'Lịch chăm sóc đã được xác nhận.'],
-  DISPATCH_PENDING: ['Chờ người chăm sóc', 'PawWorld đang gửi lời mời. Bạn sẽ được thông báo khi sitter nhận ca.'],
+  DISPATCH_PENDING: ['Đã xác nhận', 'PawWorld đang gửi lời mời. Bạn sẽ được thông báo khi sitter nhận ca.'],
   CARE_PLAN_PENDING: ['Chờ kế hoạch chăm sóc', 'Nhân viên đang chuẩn bị các ca chăm sóc cho lịch của bạn.'],
   ASSIGNED: ['Đã có người chăm sóc', 'Sitter đã nhận ca. Xem chi tiết để kiểm tra lịch chăm sóc.'],
   IN_PROGRESS: ['Đang chăm sóc', 'Buổi chăm sóc đang diễn ra. Bạn có thể theo dõi trong chi tiết đơn.'],

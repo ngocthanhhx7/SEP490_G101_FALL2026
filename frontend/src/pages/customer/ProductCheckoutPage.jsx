@@ -25,6 +25,7 @@ export function ProductCheckoutPage() {
   const [addressId, setAddressId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [addressError, setAddressError] = useState('');
   const [prepaidOnlyResponse, setPrepaidOnlyResponse] = useState(false);
   const command = useRef(null), locked = useRef(false);
   useEffect(() => { refresh().catch(() => {}); }, [refresh]);
@@ -43,12 +44,12 @@ export function ProductCheckoutPage() {
   async function submit() {
     if (locked.current) return;
     if (!cart || cart.lineCount === 0) { setError(productMessage('MSG100')); return; }
-    if (delivery && !chosenAddressId) { setError(productMessage('MSG101')); return; }
+    if (delivery && !chosenAddressId) { setAddressError(productMessage('MSG101')); setError(''); return; }
     const body = { receiveMethod, paymentMethod, ...(delivery ? { addressId: chosenAddressId } : {}) };
     // The same key is reused for an unchanged order so an uncertain retry can never create a second order.
     const fingerprint = JSON.stringify(body);
     if (command.current?.fingerprint !== fingerprint) command.current = { fingerprint, key: `product-order:${globalThis.crypto.randomUUID()}` };
-    locked.current = true; setBusy(true); setError('');
+    locked.current = true; setBusy(true); setError(''); setAddressError('');
     try {
       const order = await api.placeOrder(body, command.current.key);
       command.current = null;
@@ -70,6 +71,8 @@ export function ProductCheckoutPage() {
         await refresh().then(() => setPrepaidOnlyResponse(false)).catch(() => {});
       } else if (isUncertainOutcome(failure)) {
         setError('Chưa nhận được xác nhận đơn hàng. Hãy kiểm tra mục Đơn hàng của tôi trước khi đặt lại.');
+      } else if (failure.code === 'ADDRESS_OUT_OF_SERVICE_AREA' || failure.code === 'ADDRESS_REQUIRED') {
+        setAddressError(productErrorText(failure));
       } else {
         let available;
         try { const latest = await refresh(); available = latest.lines.find((line) => line.available < line.quantity)?.available; } catch { /* keep going */ }
@@ -96,16 +99,19 @@ export function ProductCheckoutPage() {
           <div className="pwc-shop-option-grid" role="radiogroup" aria-label="Cách nhận hàng">
             {Object.keys(PRODUCT_RECEIVE_LABELS).map((method) => <label key={method} className="pwc-shop-option">
               <input type="radio" name="receiveMethod" value={method} checked={receiveMethod === method}
-                onChange={() => { setReceiveMethod(method); setChosenPayment(''); setError(''); }} />{' '}
+                onChange={() => { setReceiveMethod(method); setChosenPayment(''); setError(''); setAddressError(''); }} />{' '}
               <strong style={{ display: 'inline' }}>{PRODUCT_RECEIVE_LABELS[method]}</strong><br /><small>{receiveHints[method]}</small>
             </label>)}
           </div>
           {delivery && <>
             <label className="pwc-shop-label" htmlFor="delivery-address">Địa chỉ nhận hàng</label>
-            <select id="delivery-address" className="pwc-shop-field" value={chosenAddressId} onChange={(event) => { setAddressId(event.target.value); setError(''); }}>
+            <select id="delivery-address" className="pwc-shop-field" value={chosenAddressId}
+              aria-invalid={Boolean(addressError)} aria-describedby={addressError ? 'delivery-address-error' : undefined}
+              onChange={(event) => { setAddressId(event.target.value); setError(''); setAddressError(''); }}>
               <option value="">Chọn địa chỉ</option>
               {addressOptions.map((address) => <option key={idOf(address)} value={idOf(address)}>{address.label}</option>)}
             </select>
+            {addressError && <p id="delivery-address-error" className="product-checkout-page__field-error" role="alert">{addressError}</p>}
             {addresses.status === 'error' && <p role="alert">Chưa tải được địa chỉ. <button type="button" className="pwc-shop-link-button" onClick={addresses.retry}>Tải lại địa chỉ</button></p>}
             {addresses.status === 'empty' && <p>Bạn chưa có địa chỉ. <Link to="/account/addresses">Thêm địa chỉ</Link></p>}
             <p className="pwc-shop-lead" style={{ marginTop: '.5rem' }}>Xem phí giao hàng trong tổng tiền bên dưới trước khi đặt.</p>

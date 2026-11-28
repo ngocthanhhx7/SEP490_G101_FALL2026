@@ -341,7 +341,8 @@ test('AC06 checkout refuses missing tasks and generic checklist cannot bypass ve
     visitId: String(visitId),
     expectedVersion: 5,
     idempotencyKey: 'full-check-out',
-    mediaId
+    mediaId,
+    customerNote: 'Synthetic care note'
   });
   expect(final).toMatchObject({ state: 'COMPLETED', version: 6 });
   expect(await col('payrollservicecredits').countDocuments()).toBe(1);

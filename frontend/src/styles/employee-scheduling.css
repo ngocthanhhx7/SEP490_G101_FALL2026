@@ -18,6 +18,7 @@
 .visit-execution label { margin: 8px 0; max-width: 100%; }
 .visit-execution input, .visit-execution select, .visit-execution textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
 .visit-execution select, .visit-execution textarea { min-height: 44px; padding: 8px; }
+.visit-execution__field-error { display: block; color: var(--pwc-error, #b42318); font-size: 0.875rem; font-weight: 600; }
 @media (max-width: 640px) {
   .employee-scheduling { padding: 16px; }
   .employee-scheduling h1 { font-size: 23px; }

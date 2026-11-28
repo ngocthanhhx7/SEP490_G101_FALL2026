@@ -92,6 +92,7 @@ function done() { return [{ itemId: 'feed', status: 'DONE' }, { itemId: 'water',
 // SRS: UC-43 Normal Flow; GBR-16
 test("EXEC-VISIT-04-UTCID01 [N] Checklist DONE và ảnh hợp lệ cho phép checkout", async () => {
   const f = fixture({ started: true, clock: '11:00' }); f.state().visits[0].checklist = done();
+  f.state().visits[0].customerNote = 'Bé ăn uống bình thường.';
   expect(await f.service.checkOut(f.input)).toMatchObject({ visitId: VISIT, state: 'COMPLETED', version: 1 });
   expect(f.state().visits[0].checkOutAt).toEqual(at('11:00'));
   expect(f.state().visits[0].evidenceRefs).toContainEqual({ kind: 'CHECK_OUT', mediaId: MEDIA });
@@ -101,6 +102,7 @@ test("EXEC-VISIT-04-UTCID01 [N] Checklist DONE và ảnh hợp lệ cho phép ch
 test("EXEC-VISIT-04-UTCID02 [N] Task skipped có lý do vẫn checkout được", async () => {
   const f = fixture({ started: true, clock: '11:00' });
   f.state().visits[0].checklist = [{ itemId: 'feed', status: 'SKIPPED', reason: 'Pet không ăn' }, { itemId: 'water', status: 'DONE' }];
+  f.state().visits[0].customerNote = 'Bé đã uống nước đầy đủ.';
   expect(await f.service.checkOut(f.input)).toMatchObject({ state: 'COMPLETED' });
 });
 
@@ -140,4 +142,32 @@ test("EXEC-VISIT-04-UTCID07 [A] Checklist không có ảnh và không có lý do
   f.state().visits[0].checklistPhotoIds = []; f.state().visits[0].evidenceRefs = [];
   await expect(f.service.checkOut(f.input)).rejects.toMatchObject({ status: 409 });
   expect(f.state().visits[0].checkOutAt).toBeUndefined();
+});
+
+test('ST3-31 blocks check-out when customerNote is empty or whitespace and keeps visit IN_PROGRESS', async () => {
+  const f = fixture({ started: true, clock: '11:00' });
+  f.state().visits[0].checklist = done();
+  await expect(f.service.checkOut(f.input)).rejects.toMatchObject({
+    status: 422,
+    code: 'VALIDATION_FAILED',
+    details: { fieldErrors: { customerNote: 'Trường này là bắt buộc.' } }
+  });
+  await expect(f.service.checkOut({ ...f.input, idempotencyKey: 'synthetic-execution-ws', customerNote: '   ' })).rejects.toMatchObject({
+    status: 422,
+    code: 'VALIDATION_FAILED',
+    details: { fieldErrors: { customerNote: 'Trường này là bắt buộc.' } }
+  });
+  expect(f.writes).toEqual([]);
+  expect(f.state().visits[0].state).toBe('IN_PROGRESS');
+});
+
+test('ST3-31 trims and persists customerNote atomically when provided on check-out', async () => {
+  const f = fixture({ started: true, clock: '11:00' });
+  f.state().visits[0].checklist = done();
+  expect(await f.service.checkOut({ ...f.input, customerNote: '  Bé đã ăn hết khẩu phần.  ' })).toMatchObject({
+    visitId: VISIT,
+    state: 'COMPLETED',
+    version: 1
+  });
+  expect(f.state().visits[0].customerNote).toBe('Bé đã ăn hết khẩu phần.');
 });
